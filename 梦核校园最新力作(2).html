@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梦核校园 - 前置剧情 | 认识新同学</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes statChange {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-20px); opacity: 0; }
+        }
+        .typing-effect {
+            overflow: hidden;
+            border-right: 2px solid #4f46e5;
+            white-space: nowrap;
+            animation: typing 3.5s steps(40, end), blink-caret .75s step-end infinite;
+        }
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: #4f46e5 }
+        }
+        .character-bounce {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+        .floating-item {
+            position: absolute;
+            animation: float 5s ease-in-out infinite;
+        }
+        .stat-change {
+            position: absolute;
+            font-weight: bold;
+            animation: statChange 1s ease-out forwards;
+        }
+        .progress-step {
+            position: relative;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        .progress-step.active {
+            background-color: #4f46e5;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        .progress-step.completed {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .progress-line {
+            position: absolute;
+            height: 3px;
+            background-color: #c7d2fe;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        .progress-line.active {
+            background-color: #4f46e5;
+        }
+        .dialogue-character {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 0.8rem;
+            color: #6b7280;
+            font-style: italic;
+        }
+        .next-btn {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 5px rgba(79, 70, 229, 0.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-blue-50 to-purple-50 min-h-screen font-sans relative overflow-hidden">
+    <!-- 悬浮元素 -->
+    <div class="floating-item text-gray-400 text-2xl" style="top:15%;left:10%;animation-delay:0.2s;">
+        <i class="fas fa-book"></i>
+    </div>
+    <div class="floating-item text-gray-400 text-2xl" style="top:25%;right:15%;animation-delay:0.5s;">
+        <i class="fas fa-pencil-alt"></i>
+    </div>
+    <div class="floating-item text-gray-400 text-2xl" style="bottom:20%;left:20%;animation-delay:0.8s;">
+        <i class="fas fa-clock"></i>
+    </div>
+    <div class="vignette"></div>
+
+    <div class="container mx-auto px-4 py-8 max-w-4xl relative">
+        <!-- 游戏标题 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-600 mb-2">梦核校园</h1>
+            <p class="text-lg text-gray-600">前置剧情 - 认识新同学</p>
+            <div class="mt-4">
+                <button onclick="transitionToMainGame()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-all duration-300">
+                    <i class="fas fa-fast-forward mr-2"></i>跳过前置剧情
+                </button>
+            </div>
+        </div>
+        
+        <!-- 进度条 -->
+        <div class="flex justify-center mb-6">
+            <div class="w-full max-w-lg relative">
+                <div class="flex justify-between relative">
+                    <div class="progress-step completed">
+                        <i class="fas fa-flag"></i>
+                    </div>
+                    <div class="progress-step active">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="progress-step">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <div class="progress-line w-full absolute top-1/2 left-0"></div>
+                    <div class="progress-line w-1/2 absolute top-1/2 left-0 active" style="width: 50%;"></div>
+                </div>
+                <div class="flex justify-between mt-2 text-xs text-gray-600">
+                    <div class="text-center w-1/3">军训</div>
+                    <div class="text-center w-1/3">开学典礼</div>
+                    <div class="text-center w-1/3">认识同学</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏主界面 -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
+            <!-- 游戏场景 -->
+            <div class="relative h-64 bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
+                <img src="https://s.coze.cn/image/muKZV3Hvtrg/" 
+                     alt="学校场景" class="w-full h-full object-cover filter hue-rotate-15 perspective-1000">
+                
+                <!-- 角色属性面板 -->
+                <div class="absolute top-4 left-4 bg-white bg-opacity-80 rounded-lg p-3 shadow-md">
+                    <div class="flex items-center mb-2">
+                        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                            <i class="fas fa-user text-indigo-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800">主角</h3>
+                            <div class="text-xs text-gray-500">新生</div>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex items-center">
+                            <div class="w-20 text-sm text-gray-600">健康:</div>
+                            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                <div id="health-bar" class="bg-green-500 h-2 rounded-full" style="width: 50%"></div>
+                            </div>
+                            <span id="health-value" class="ml-2 text-sm font-medium">50</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-20 text-sm text-gray-600">精力:</div>
+                            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                <div id="energy-bar" class="bg-blue-500 h-2 rounded-full" style="width: 50%"></div>
+                            </div>
+                            <span id="energy-value" class="ml-2 text-sm font-medium">50</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-20 text-sm text-gray-600">好感度:</div>
+                            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                <div id="favor-bar" class="bg-purple-500 h-2 rounded-full" style="width: 50%"></div>
+                            </div>
+                            <span id="favor-value" class="ml-2 text-sm font-medium">50</span>
+                        </div>
+                    </div>
+                    
+                    <!-- NPC好感度区域 -->
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <h4 class="text-xs font-semibold text-gray-500 mb-1">NPC好感度</h4>
+                        <div id="npc-favor-container">
+                            <div class="flex items-center mb-1">
+                                <div class="w-16 text-xs text-gray-600 truncate">林昊阳:</div>
+                                <div class="flex-1 bg-gray-200 rounded-full h-1.5">
+                                    <div id="linhaoyang-favor-bar" class="bg-pink-500 h-1.5 rounded-full" style="width: 20%"></div>
+                                </div>
+                                <span id="linhaoyang-favor-value" class="ml-1 text-xs font-medium">20</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对话框区域 -->
+            <div class="p-4 bg-gray-50 border-t border-gray-200">
+                <div id="dialogue-box" class="bg-white rounded-lg p-4 shadow-inner mb-4 h-32 overflow-y-auto relative">
+                    <p id="dialogue-text" class="text-gray-800"></p>
+                    <div id="dialogue-character" class="dialogue-character"></div>
+                </div>
+
+                <!-- 下一条按钮 -->
+                <div id="next-button-container" class="text-center mt-3 hidden">
+                    <button id="next-button" class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                        下一条 <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+                
+                <!-- 选择按钮区域 -->
+                <div id="choice-buttons" class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <!-- 按钮将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 剧情流程展示 -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+            <h2 class="text-2xl font-bold text-indigo-600 mb-4 flex items-center">
+                <i class="fas fa-book-open mr-2"></i>剧情流程
+            </h2>
+            
+            <!-- 第一周：军训 -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center">
+                    <span class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mr-2">
+                        <i class="fas fa-flag text-xs"></i>
+                    </span>
+                    第一周：军训
+                </h3>
+                <div class="pl-8">
+                    <p class="text-gray-700 mb-3">选择你的军训态度：</p>
+                    <ul class="list-disc pl-5 text-gray-600 space-y-1 mb-3">
+                        <li><span class="font-medium">认真训练</span>：健康+30，精力-10，教官与老师好感度+20</li>
+                        <li><span class="font-medium">偷懒划水</span>：健康-10，精力+20，教官与老师好感度-10</li>
+                        <li><span class="font-medium">帮助同学</span>：认识同学"林昊阳"，"林昊阳"好感度+20</li>
+                    </ul>
+                    <div class="bg-blue-50 rounded-lg p-3 mb-3">
+                        <p class="text-blue-800"><i class="fas fa-comment-dots text-blue-500 mr-2"></i>林昊阳："同学，帮我叠一下被子。"</p>
+                        <p class="text-blue-800 ml-6">主角："？好吧。"</p>
+                        <p class="text-blue-800"><i class="fas fa-comment-dots text-blue-500 mr-2"></i>林昊阳："认识一下，我叫林昊阳，本班7号。"</p>
+                        <p class="text-blue-800 ml-6">主角："很高兴认识你。"</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 开学典礼与班干部竞选 -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center">
+                    <span class="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 mr-2">
+                        <i class="fas fa-users text-xs"></i>
+                    </span>
+                    开学典礼与班干部竞选
+                </h3>
+                <div class="pl-8">
+                    <p class="text-gray-700 mb-3">选择你的竞选策略：</p>
+                    <ul class="list-disc pl-5 text-gray-600 space-y-1 mb-3">
+                        <li><span class="font-medium">竞选班长</span>或<span class="font-medium">竞选学习委员</span>：竞选成功，老师好感+20，所有同学好感+30，精力-15</li>
+                        <li><span class="font-medium">保持低调</span>：精力+30</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 认识班级同学 -->
+            <div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center">
+                    <span class="w-6 h-6 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 mr-2">
+                        <i class="fas fa-handshake text-xs"></i>
+                    </span>
+                    认识班级同学
+                </h3>
+                <div class="pl-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- 同学1 -->
+                        <div class="bg-pink-50 rounded-lg p-3">
+                            <p class="text-pink-800"><i class="fas fa-user text-pink-500 mr-2"></i>张俊熙："张俊熙，随便你叫我什么。"</p>
+                            <p class="text-pink-800 ml-6">主角："呃…张哥再见。"</p>
+                        </div>
+                        <!-- 同学2 -->
+                        <div class="bg-blue-50 rounded-lg p-3">
+                            <p class="text-blue-800"><i class="fas fa-user text-blue-500 mr-2"></i>刘雨晴："你好啊，我叫刘雨晴，直接叫我雨晴就可以了。"</p>
+                            <p class="text-blue-800 ml-6">主角："你好雨晴，很高兴认识你。"</p>
+                        </div>
+                        <!-- 同学3 -->
+                        <div class="bg-purple-50 rounded-lg p-3">
+                            <p class="text-purple-800"><i class="fas fa-user text-purple-500 mr-2"></i>李昕瑶："你好，我的名字是李昕瑶，有什么学习上的问题可以直接问我。"</p>
+                            <p class="text-purple-800 ml-6">主角："好的李昕瑶同学。"</p>
+                        </div>
+                        <!-- 同学4 -->
+                        <div class="bg-green-50 rounded-lg p-3">
+                            <p class="text-green-800"><i class="fas fa-user text-green-500 mr-2"></i>郑星然："你好同学，我叫郑星然，一起打篮球吗？"</p>
+                            <p class="text-green-800 ml-6">主角："有机会一起打篮球吧。"</p>
+                        </div>
+                        <!-- 同学5 -->
+                        <div class="bg-yellow-50 rounded-lg p-3">
+                            <p class="text-yellow-800"><i class="fas fa-user text-yellow-500 mr-2"></i>周泽宇："你好，我名周泽宇，和王奕辰是好兄弟。"</p>
+                            <p class="text-yellow-800 ml-6">主角："你好你好，以后就是同学了。"</p>
+                        </div>
+                        <!-- 同学6 -->
+                        <div class="bg-red-50 rounded-lg p-3">
+                            <p class="text-red-800"><i class="fas fa-user text-red-500 mr-2"></i>王奕辰："我的名字是王奕辰，还请多多指教。"</p>
+                            <p class="text-red-800 ml-6">主角："请多多指教。"</p>
+                        </div>
+                        <!-- 同学7 -->
+                        <div class="bg-indigo-50 rounded-lg p-3">
+                            <p class="text-indigo-800"><i class="fas fa-user text-indigo-500 mr-2"></i>陈子墨："同学你好，陈子墨向你敬上。"</p>
+                            <p class="text-indigo-800 ml-6">主角："你好，听说你的艺术很好，希望有机会能看看你的作品。"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="text-center text-gray-500 text-sm py-4">
+            <p>created by <a href="https://space.coze.cn" class="text-indigo-600 hover:underline">coze space</a></p>
+            <p>无</p>
+        </footer>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            health: 50,
+            energy: 50,
+            favor: 50,
+            npcFavor: {
+                linhaoyang: 20
+            },
+            currentScene: 0,
+            metCharacters: [], // 记录已认识的角色
+            scenes: [
+                {
+                    title: "军训",
+                    dialogue: "开学第一周，学校组织了为期一周的军训。面对炎热的天气和严格的训练，你会如何选择？",
+                    character: "系统",
+                    choices: [
+                        { text: "认真训练", effects: { health: 30, energy: -10, favor: 20 }, dialogue: "你选择了认真训练，虽然很辛苦，但教官和老师都对你的态度表示赞赏。", character: "系统" },
+                        { text: "偷懒划水", effects: { health: -10, energy: 20, favor: -10 }, dialogue: "你选择了偷懒划水，虽然轻松了不少，但教官和老师对你的印象不太好。", character: "系统" },
+                        { 
+                            text: "帮助同学", 
+                            effects: { npcFavor: { linhaoyang: 20 } }, 
+                            dialogue: "你看到一位同学在整理被子时遇到了困难。\n林昊阳：\"同学，帮我叠一下被子。\"\n主角：\"？好吧。\"\n林昊阳：\"认识一下，我叫林昊阳，本班7号。\"\n主角：\"很高兴认识你。\"",
+                            character: "林昊阳",
+                            special: "met_linhaoyang"
+                        }
+                    ]
+                },
+                {
+                    title: "开学典礼与班干部竞选",
+                    dialogue: "军训结束后，学校举行了开学典礼。班主任宣布将进行班干部竞选，你会参与竞选吗？",
+                    character: "系统",
+                    choices: [
+                        { text: "竞选班长", effects: { energy: -15, favor: 50 }, dialogue: "你鼓起勇气竞选班长，经过精彩的演讲，你成功当选！老师和同学们都对你刮目相看。", character: "系统" },
+                        { text: "竞选学习委员", effects: { energy: -15, favor: 50 }, dialogue: "你决定竞选学习委员，凭借认真的态度和清晰的计划，你成功当选！", character: "系统" },
+                        { text: "保持低调", effects: { energy: 30 }, dialogue: "你选择保持低调，不参与竞选。虽然少了一些关注，但也节省了不少精力。", character: "系统" }
+                    ]
+                },
+                {
+                    title: "认识班级同学",
+                    dialogue: "开学第一周，你有机会认识班上的同学们。选择你想要认识的同学：",
+                    character: "系统",
+                    choices: [
+                        { text: "认识张俊熙", dialogue: "张俊熙：\"张俊熙，随便你叫我什么。\"\n主角：\"呃…张哥再见。\"", character: "张俊熙", characterId: "zhangjunxi" },
+                        { text: "认识刘雨晴", dialogue: "刘雨晴：\"你好啊，我叫刘雨晴，直接叫我雨晴就可以了。\"\n主角：\"你好雨晴，很高兴认识你。\"", character: "刘雨晴", characterId: "liuyuqing" },
+                        { text: "认识李昕瑶", dialogue: "李昕瑶：\"你好，我的名字是李昕瑶，有什么学习上的问题可以直接问我。\"\n主角：\"好的李昕瑶同学。\"", character: "李昕瑶", characterId: "lixinyao" },
+                        { text: "认识郑星然", dialogue: "郑星然：\"你好同学，我叫郑星然，一起打篮球吗？\"\n主角：\"有机会一起打篮球吧。\"", character: "郑星然", characterId: "zhengxingran" },
+                        { text: "认识周泽宇", dialogue: "周泽宇：\"你好，我名周泽宇，和王奕辰是好兄弟。\"\n主角：\"你好你好，以后就是同学了。\"", character: "周泽宇", characterId: "zhouzeyu" },
+                        { text: "认识王奕辰", dialogue: "王奕辰：\"我的名字是王奕辰，还请多多指教。\"\n主角：\"请多多指教。\"", character: "王奕辰", characterId: "wangyichen" },
+                        { text: "认识陈子墨", dialogue: "陈子墨：\"同学你好，我是陈子墨，爱喝饮料不？兄弟这管够\"\n主角：\"你好，听说你的艺术很好，希望有机会能看看你的作品。\"", character: "陈子墨", characterId: "chenzimo" }
+                    ]
+                }
+            ]
+        };
+
+        // DOM元素
+        const dialogueText = document.getElementById('dialogue-text');
+        const dialogueCharacter = document.getElementById('dialogue-character');
+        const choiceButtons = document.getElementById('choice-buttons');
+        const healthBar = document.getElementById('health-bar');
+        const healthValue = document.getElementById('health-value');
+        const energyBar = document.getElementById('energy-bar');
+        const energyValue = document.getElementById('energy-value');
+        const favorBar = document.getElementById('favor-bar');
+        const favorValue = document.getElementById('favor-value');
+        const linhaoyangFavorBar = document.getElementById('linhaoyang-favor-bar');
+        const linhaoyangFavorValue = document.getElementById('linhaoyang-favor-value');
+        const npcFavorContainer = document.getElementById('npc-favor-container');
+        const dialogueBox = document.getElementById('dialogue-box');
+        const nextButton = document.getElementById('next-button');
+        const nextButtonContainer = document.getElementById('next-button-container');
+
+        // 更新属性显示
+        function updateStats() {
+            // 主属性
+            healthBar.style.width = `${gameState.health}%`;
+            healthValue.textContent = gameState.health;
+            energyBar.style.width = `${gameState.energy}%`;
+            energyValue.textContent = gameState.energy;
+            favorBar.style.width = `${gameState.favor}%`;
+            favorValue.textContent = gameState.favor;
+            
+            // NPC好感度
+            linhaoyangFavorBar.style.width = `${gameState.npcFavor.linhaoyang}%`;
+            linhaoyangFavorValue.textContent = gameState.npcFavor.linhaoyang;
+        }
+
+        // 显示属性变化动画
+        function showStatChange(element, value, isPositive) {
+            const changeElement = document.createElement('span');
+            changeElement.className = 'stat-change';
+            changeElement.textContent = (value > 0 ? '+' : '') + value;
+            changeElement.style.color = isPositive ? '#10B981' : '#EF4444';
+            changeElement.style.left = Math.random() * 50 + '%';
+            
+            element.appendChild(changeElement);
+            
+            // 动画结束后移除元素
+            setTimeout(() => {
+                changeElement.remove();
+            }, 1000);
+        }
+
+        // 随机添加文本闪烁效果
+        function addTextBlinkEffect() {
+            if (Math.random() < 0.05) { // 5%概率
+                dialogueBox.style.animation = 'blink 0.5s';
+                setTimeout(() => {
+                    dialogueBox.style.animation = '';
+                }, 500);
+            }
+        }
+
+        // 逐字显示文本
+        function typeText(text, character, callback) {
+            dialogueText.textContent = '';
+            dialogueCharacter.textContent = character ? `- ${character}` : '';
+            let i = 0;
+            const speed = 20; // 打字速度(毫秒)
+            
+            function typing() {
+                if (i < text.length) {
+                    // 处理换行符
+                    if (text.charAt(i) === '\n') {
+                        dialogueText.innerHTML += '<br>';
+                    } else {
+                        dialogueText.textContent += text.charAt(i);
+                    }
+                    i++;
+                    
+                    // 随机添加闪烁效果
+                    if (i % 5 === 0) addTextBlinkEffect();
+                    
+                    setTimeout(typing, speed);
+                } else if (callback) {
+                    callback();
+                }
+            }
+            
+            typing();
+        }
+
+        // 显示下一条按钮
+        function showNextButton() {
+            nextButtonContainer.classList.remove('hidden');
+            // 添加事件监听器
+            nextButton.onclick = function() {
+                nextButtonContainer.classList.add('hidden');
+                if (typeof this.callback === 'function') {
+                    this.callback();
+                }
+            };
+        }
+
+        // 显示选择按钮
+        function showChoices(choices) {
+            choiceButtons.innerHTML = '';
+            
+            // 如果是认识同学的场景，只显示还没认识的同学
+            if (gameState.currentScene === 2) { // 认识班级同学场景
+                // 过滤掉已认识的角色
+                const availableChoices = choices.filter(choice => 
+                    !gameState.metCharacters.includes(choice.characterId)
+                );
+                
+                if (availableChoices.length === 0) {
+                    // 所有同学都认识了，显示结束按钮
+                    const finishButton = document.createElement('button');
+                    finishButton.className = 'bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 w-full';
+                    finishButton.innerHTML = '<i class="fas fa-rocket mr-2"></i>开始校园生活！';
+                    finishButton.addEventListener('click', () => {
+                        // 跳转到主程序
+                        transitionToMainGame();
+                    });
+                    choiceButtons.appendChild(finishButton);
+                    return;
+                }
+                
+                // 添加认识角色的选择
+                availableChoices.forEach((choice, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50';
+                    button.textContent = choice.text;
+                    button.addEventListener('click', () => makeChoice(choices.indexOf(choice)));
+                    choiceButtons.appendChild(button);
+                });
+                
+                // 添加进度提示
+                const progressDiv = document.createElement('div');
+                progressDiv.className = 'col-span-full text-center mt-4';
+                progressDiv.innerHTML = `
+                    <div class="bg-blue-50 rounded-lg p-3">
+                        <p class="text-blue-800 font-medium">
+                            <i class="fas fa-users mr-2"></i>
+                            已认识 ${gameState.metCharacters.length}/7 位同学
+                        </p>
+                        <div class="w-full bg-blue-200 rounded-full h-2 mt-2">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: ${(gameState.metCharacters.length / 7) * 100}%"></div>
+                        </div>
+                    </div>
+                `;
+                choiceButtons.appendChild(progressDiv);
+            } else {
+                // 其他场景的正常显示
+            choices.forEach((choice, index) => {
+                const button = document.createElement('button');
+                button.className = 'bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50';
+                button.textContent = choice.text;
+                button.addEventListener('click', () => makeChoice(index));
+                choiceButtons.appendChild(button);
+            });
+            }
+        }
+
+        // 做出选择
+        function makeChoice(choiceIndex) {
+            const scene = gameState.scenes[gameState.currentScene];
+            const choice = scene.choices[choiceIndex];
+            
+            // 如果是认识同学场景，记录已认识的角色
+            if (gameState.currentScene === 2 && choice.characterId) {
+                gameState.metCharacters.push(choice.characterId);
+            }
+            
+            // 应用效果
+            if (choice.effects) {
+                // 主属性变化
+                if (choice.effects.health) {
+                    const oldValue = gameState.health;
+                    gameState.health = Math.max(0, Math.min(100, gameState.health + choice.effects.health));
+                    showStatChange(healthValue.parentElement, choice.effects.health, choice.effects.health > 0);
+                }
+                if (choice.effects.energy) {
+                    const oldValue = gameState.energy;
+                    gameState.energy = Math.max(0, Math.min(100, gameState.energy + choice.effects.energy));
+                    showStatChange(energyValue.parentElement, choice.effects.energy, choice.effects.energy > 0);
+                }
+                if (choice.effects.favor) {
+                    const oldValue = gameState.favor;
+                    gameState.favor = Math.max(0, Math.min(100, gameState.favor + choice.effects.favor));
+                    showStatChange(favorValue.parentElement, choice.effects.favor, choice.effects.favor > 0);
+                }
+                
+                // NPC好感度变化
+                if (choice.effects.npcFavor) {
+                    for (const npc in choice.effects.npcFavor) {
+                        const oldValue = gameState.npcFavor[npc] || 0;
+                        gameState.npcFavor[npc] = Math.max(0, Math.min(100, oldValue + choice.effects.npcFavor[npc]));
+                        showStatChange(linhaoyangFavorValue.parentElement, choice.effects.npcFavor[npc], choice.effects.npcFavor[npc] > 0);
+                    }
+                }
+                
+                updateStats();
+            }
+            
+            // 隐藏选择按钮
+            choiceButtons.innerHTML = '';
+            
+            // 显示选择结果
+            typeText(choice.dialogue, choice.character, () => {
+                // 显示下一条按钮
+                showNextButton();
+                
+                // 设置下一条按钮的回调函数
+                nextButton.callback = () => {
+                    // 特殊事件处理
+                    if (choice.special === 'met_linhaoyang') {
+                        // 可以在这里添加认识林昊阳后的特殊处理
+                    }
+                    
+                    // 如果是认识同学场景，继续显示选择而不是推进场景
+                    if (gameState.currentScene === 2) {
+                        // 回到认识同学的选择界面
+                        const scene = gameState.scenes[gameState.currentScene];
+                        typeText(scene.dialogue, scene.character, () => {
+                            showChoices(scene.choices);
+                        });
+                    } else {
+                    // 推进到下一个场景
+                    gameState.currentScene = (gameState.currentScene + 1) % gameState.scenes.length;
+                    startScene(gameState.currentScene);
+                    }
+                };
+            });
+        }
+
+        // 开始场景
+        function startScene(sceneIndex) {
+            const scene = gameState.scenes[sceneIndex];
+            typeText(scene.dialogue, scene.character, () => {
+                // 显示下一条按钮
+                showNextButton();
+                
+                // 设置下一条按钮的回调函数
+                nextButton.callback = () => {
+                    // 显示选择按钮
+                    showChoices(scene.choices);
+                };
+            });
+        }
+
+        // 跳转到主程序
+        function transitionToMainGame() {
+            // 显示过渡动画
+            typeText("前置剧情完成！现在开始你的校园生活吧！", "系统", () => {
+                // 创建跳转提示
+                const transitionDiv = document.createElement('div');
+                transitionDiv.className = 'fixed inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center z-50';
+                transitionDiv.innerHTML = `
+                    <div class="text-center text-white">
+                        <div class="mb-8">
+                            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                                <i class="fas fa-school text-3xl"></i>
+                            </div>
+                            <h2 class="text-3xl font-bold mb-2">欢迎来到梦核校园！</h2>
+                            <p class="text-xl opacity-90">即将进入校园探索模式...</p>
+                        </div>
+                        <div class="flex justify-center space-x-4">
+                            <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0s;"></div>
+                            <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0.1s;"></div>
+                            <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(transitionDiv);
+                
+                // 保存游戏状态到localStorage
+                const gameData = {
+                    health: gameState.health,
+                    energy: gameState.energy,
+                    favor: gameState.favor,
+                    npcFavor: gameState.npcFavor,
+                    metCharacters: gameState.metCharacters,
+                    completedIntro: true
+                };
+                localStorage.setItem('dreamcoreSchool_gameData', JSON.stringify(gameData));
+                
+                // 延迟3秒后跳转
+                setTimeout(() => {
+                    window.location.href = './index.html';
+                }, 3000);
+            });
+        }
+
+        // 初始化游戏
+        function initGame() {
+            updateStats();
+            startScene(0);
+            
+            // 移动端优化：确保按钮点击区域足够大
+            if ('ontouchstart' in window) {
+                document.querySelectorAll('button').forEach(button => {
+                    button.style.minHeight = '48px';
+                });
+            }
+        }
+
+        // 启动游戏
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>

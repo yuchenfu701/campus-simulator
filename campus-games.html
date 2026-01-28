@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园小游戏 - 北京四中</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .back-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: #5568d3;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .game-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        }
+        
+        .game-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+        
+        .game-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .game-desc {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .game-reward {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🎮 校园小游戏</div>
+            <button class="back-btn" onclick="goBack()">返回主菜单</button>
+        </div>
+        
+        <div class="games-grid">
+            <div class="game-card" onclick="playGame('puzzle')">
+                <div class="game-icon">🧩</div>
+                <div class="game-title">校园拼图</div>
+                <div class="game-desc">拼出完整的校园图片</div>
+                <div class="game-reward">+5积分</div>
+            </div>
+            
+            <div class="game-card" onclick="playGame('memory')">
+                <div class="game-icon">🃏</div>
+                <div class="game-title">记忆翻牌</div>
+                <div class="game-desc">考验你的记忆力</div>
+                <div class="game-reward">+8积分</div>
+            </div>
+            
+            <div class="game-card" onclick="playGame('quiz')">
+                <div class="game-icon">📝</div>
+                <div class="game-title">知识问答</div>
+                <div class="game-desc">回答学科问题</div>
+                <div class="game-reward">+10积分</div>
+            </div>
+            
+            <div class="game-card" onclick="playGame('math')">
+                <div class="game-icon">🔢</div>
+                <div class="game-title">速算挑战</div>
+                <div class="game-desc">快速计算数学题</div>
+                <div class="game-reward">+12积分</div>
+            </div>
+            
+            <div class="game-card" onclick="playGame('word')">
+                <div class="game-icon">📖</div>
+                <div class="game-title">成语接龙</div>
+                <div class="game-desc">中华文化传承</div>
+                <div class="game-reward">+15积分</div>
+            </div>
+            
+            <div class="game-card" onclick="playGame('run')">
+                <div class="game-icon">🏃</div>
+                <div class="game-title">校园跑酷</div>
+                <div class="game-desc">在校园里奔跑</div>
+                <div class="game-reward">+20积分</div>
+            </div>
+            
+            <div class="game-card" onclick="playGame('history')">
+                <div class="game-icon">⚔️</div>
+                <div class="game-title">KARDS历史卡牌</div>
+                <div class="game-desc">二战卡牌战略游戏</div>
+                <div class="game-reward">+25积分</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function playGame(gameType) {
+            // 游戏路径映射
+            const gamePaths = {
+                'puzzle': 'games/puzzle.html',
+                'memory': 'games/memory.html',
+                'quiz': 'games/quiz.html',
+                'math': 'games/math.html',
+                'word': 'games/word.html',
+                'run': 'games/run-mode-select.html',  // 跳转到模式选择页面
+                'history': '新建文件夹 (5)/index.html'
+            };
+            
+            const gameTitles = {
+                'puzzle': '🧩 校园拼图',
+                'memory': '🃏 记忆翻牌',
+                'quiz': '📝 知识问答',
+                'math': '🔢 速算挑战',
+                'word': '📖 成语接龙',
+                'run': '🏃 校园跑酷',
+                'history': '⚔️ KARDS历史卡牌游戏'
+            };
+            
+            const gamePath = gamePaths[gameType];
+            const gameTitle = gameTitles[gameType];
+            
+            if (!gamePath) {
+                alert(`🎮 ${gameType}游戏功能开发中...\n敬请期待！`);
+                return;
+            }
+            
+            // 历史小游戏 - KARDS卡牌游戏（特殊处理）
+            if (gameType === 'history') {
+                // 尝试多个可能的路径（按优先级）
+                // 注意：如果运行了"重命名历史游戏文件夹.bat"，请将下面的路径顺序调换
+                const possiblePaths = [
+                    '新建文件夹 (5)/index.html',  // 原文件夹名（当前使用）
+                    'history-game/index.html'     // 重命名后的文件夹（运行重命名脚本后使用）
+                ];
+                
+                let gamePath = possiblePaths[0]; // 默认使用第一个（原文件夹名）
+                const gameTitle = '⚔️ KARDS历史卡牌游戏';
+                
+                console.log('🎮 尝试打开历史小游戏');
+                console.log('📁 尝试路径:', possiblePaths);
+                
+                // 如果在iframe中，尝试调用父窗口的openInGame函数
+                if (window.parent && window.parent !== window) {
+                    console.log('📦 检测到iframe环境');
+                    try {
+                        if (typeof window.parent.openInGame === 'function') {
+                            console.log('✅ 调用父窗口的openInGame函数');
+                            window.parent.openInGame(gamePath, gameTitle);
+                            
+                            // 设置超时检查，如果3秒后iframe还没加载，尝试新窗口打开
+                            setTimeout(function() {
+                                const iframe = window.parent.document.getElementById('fullscreen-iframe');
+                                if (iframe && (!iframe.contentWindow || !iframe.contentWindow.location.href.includes('index.html'))) {
+                                    console.warn('⚠️ iframe可能加载失败，尝试新窗口打开');
+                                    window.open(gamePath, '_blank');
+                                }
+                            }, 3000);
+                            
+                            return;
+                        } else {
+                            console.warn('⚠️ 父窗口没有openInGame函数');
+                        }
+                    } catch (e) {
+                        console.error('❌ 调用父窗口函数失败:', e);
+                    }
+                }
+                
+                // 尝试直接跳转
+                console.log('🔄 尝试直接跳转');
+                
+                // 使用第一个路径（原文件夹名）
+                // 提示：如果运行了"重命名历史游戏文件夹.bat"，请将上面的possiblePaths数组顺序调换
+                const finalPath = possiblePaths[0];
+                
+                try {
+                    window.location.href = finalPath;
+                } catch (e) {
+                    console.error('❌ 页面跳转失败:', e);
+                    // 如果失败，尝试使用原文件夹名
+                    console.log('🔄 尝试使用备用路径:', possiblePaths[1]);
+                    try {
+                        window.location.href = possiblePaths[1];
+                    } catch (e2) {
+                        alert('❌ 无法打开游戏\n\n请尝试以下方法：\n1. 运行"重命名历史游戏文件夹.bat"重命名文件夹\n2. 或者检查文件夹"新建文件夹 (5)"是否存在\n\n错误信息: ' + e2.message);
+                    }
+                }
+                return;
+            }
+            
+            // 其他游戏统一处理
+            console.log(`🎮 打开游戏: ${gameTitle}`);
+            
+            // 如果在iframe中，尝试调用父窗口的openInGame函数
+            if (window.parent && window.parent !== window) {
+                console.log('📦 检测到iframe环境');
+                try {
+                    if (typeof window.parent.openInGame === 'function') {
+                        console.log('✅ 调用父窗口的openInGame函数');
+                        window.parent.openInGame(gamePath, gameTitle);
+                        return;
+                    } else {
+                        console.warn('⚠️ 父窗口没有openInGame函数');
+                    }
+                } catch (e) {
+                    console.error('❌ 调用父窗口函数失败:', e);
+                }
+            }
+            
+            // 直接跳转
+            console.log('🔄 直接跳转到:', gamePath);
+            try {
+                window.location.href = gamePath;
+            } catch (e) {
+                console.error('❌ 页面跳转失败:', e);
+                alert('❌ 无法打开游戏，请检查文件路径是否正确\n\n路径: ' + gamePath);
+            }
+        }
+        
+        function goBack() {
+            // 如果在iframe中，关闭iframe
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                window.location.href = 'main-menu.html';
+            }
+        }
+    </script>
+</body>
+</html>
+

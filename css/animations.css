@@ -1,0 +1,395 @@
+/* 通知动画 */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* 页面进入动画 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 页面加载动画 */
+#game-container {
+    animation: fadeInUp 0.8s ease-out;
+}
+
+#game-header {
+    animation: fadeInDown 0.6s ease-out;
+}
+
+#dialog-area {
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+#game-menu {
+    animation: slideInRight 0.6s ease-out 0.4s both;
+}
+
+/* 对话切换动画 */
+.dialog-enter {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.dialog-exit {
+    animation: fadeOut 0.3s ease-out;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+/* 选择按钮动画 */
+.choice-btn {
+    transform: translateY(0);
+    animation: slideInLeft 0.4s ease-out;
+}
+
+.choice-btn:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.choice-btn:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.choice-btn:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+/* 按钮点击反馈 */
+.choice-btn:active {
+    animation: buttonPress 0.1s ease-out;
+}
+
+@keyframes buttonPress {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 属性值变化动画 */
+.stat-increase {
+    animation: statIncrease 0.6s ease-out;
+}
+
+.stat-decrease {
+    animation: statDecrease 0.6s ease-out;
+}
+
+@keyframes statIncrease {
+    0% {
+        transform: scale(1);
+        color: inherit;
+    }
+    50% {
+        transform: scale(1.2);
+        color: #28a745;
+    }
+    100% {
+        transform: scale(1);
+        color: inherit;
+    }
+}
+
+@keyframes statDecrease {
+    0% {
+        transform: scale(1);
+        color: inherit;
+    }
+    50% {
+        transform: scale(1.2);
+        color: #dc3545;
+    }
+    100% {
+        transform: scale(1);
+        color: inherit;
+    }
+}
+
+/* 模态框动画 */
+#modal-overlay {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+#modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* 角色头像动画 */
+.avatar-placeholder {
+    animation: avatarBounce 2s ease-in-out infinite;
+}
+
+@keyframes avatarBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+/* 场景切换动画 */
+.scene-transition-out {
+    animation: sceneTransitionOut 0.5s ease-in-out;
+}
+
+.scene-transition-in {
+    animation: sceneTransitionIn 0.5s ease-in-out;
+}
+
+@keyframes sceneTransitionOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes sceneTransitionIn {
+    from {
+        opacity: 0;
+        transform: scale(1.1);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 打字机效果 */
+.typewriter {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: typing 2s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes blink-caret {
+    from, to {
+        border-color: transparent;
+    }
+    50% {
+        border-color: #4A90E2;
+    }
+}
+
+/* 悬浮效果 */
+.floating {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* 脉搏效果 */
+.pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* 旋转加载动画 */
+.loading {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 摇摆效果 */
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+/* 渐变背景动画 */
+.gradient-shift {
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* 文字闪烁效果 */
+.text-glow {
+    animation: textGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes textGlow {
+    from {
+        text-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+    }
+    to {
+        text-shadow: 0 0 20px rgba(74, 144, 226, 0.8),
+                     0 0 30px rgba(74, 144, 226, 0.6);
+    }
+}
+
+/* 菜单按钮悬浮动画 */
+.menu-btn:hover {
+    animation: menuHover 0.3s ease-out;
+}
+
+@keyframes menuHover {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        transform: translateY(-2px) scale(1.05);
+    }
+    100% {
+        transform: translateY(-1px) scale(1.02);
+    }
+}
+
+/* 响应式动画调整 */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+} 

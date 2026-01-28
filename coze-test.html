@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coze SDK 测试页面</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #fbbf24;
+        }
+        
+        .button-group {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-primary { background: linear-gradient(45deg, #667eea, #764ba2); }
+        .btn-success { background: linear-gradient(45deg, #56ab2f, #a8e6cf); }
+        .btn-danger { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
+        .btn-info { background: linear-gradient(45deg, #4facfe, #00f2fe); }
+        .btn-warning { background: linear-gradient(45deg, #f093fb, #f5576c); }
+        
+        .log-area {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .config-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Coze SDK 测试中心</h1>
+        
+        <div class="status-box">
+            <h3>📊 SDK状态：<span id="sdkStatus" style="color: #fbbf24;">初始化中...</span></h3>
+        </div>
+        
+        <div class="config-info">
+            <h4>🔧 配置信息</h4>
+            <div>Bot ID: <code>7528957467150630946</code></div>
+            <div>Token: <code>pat_FvrYj...Ha5S</code> (长度: <span id="tokenLength">0</span>)</div>
+            <div>SDK版本: <span id="sdkVersion">检测中...</span></div>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="initializeSDK()">🚀 初始化 Coze SDK</button>
+            <button class="btn-success" onclick="testChatBot()">💬 测试对话</button>
+            <button class="btn-danger" onclick="hideChatBot()">❌ 隐藏对话</button>
+            <button class="btn-info" onclick="checkSDKStatus()">🔍 检查状态</button>
+            <button class="btn-warning" onclick="validateToken()">🔐 验证Token</button>
+        </div>
+        
+        <div class="log-area" id="logArea">等待操作...</div>
+    </div>
+
+    <script>
+        let cozeSDK = null;
+        const botId = '7528957467150630946';
+        const token = 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx';
+        
+        // 日志记录
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = {
+                'info': 'ℹ️',
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️'
+            }[type] || 'ℹ️';
+            
+            logArea.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+            
+            console.log(`${prefix} ${message}`);
+        }
+        
+        // 更新状态
+        function updateStatus(status, color = '#fbbf24') {
+            const statusElement = document.getElementById('sdkStatus');
+            statusElement.textContent = status;
+            statusElement.style.color = color;
+        }
+        
+        // 初始化页面
+        function initPage() {
+            log('页面初始化开始');
+            
+            // 显示Token长度
+            document.getElementById('tokenLength').textContent = token.length;
+            
+            // 检查SDK是否加载
+            if (typeof CozeWebSDK !== 'undefined') {
+                document.getElementById('sdkVersion').textContent = '已加载';
+                log('Coze SDK 已加载', 'success');
+            } else {
+                document.getElementById('sdkVersion').textContent = '未加载';
+                log('Coze SDK 未加载', 'error');
+            }
+            
+            // 自动初始化
+            setTimeout(() => {
+                if (typeof CozeWebSDK !== 'undefined') {
+                    initializeSDK();
+                } else {
+                    log('SDK加载失败，请检查网络连接', 'error');
+                    updateStatus('SDK加载失败', '#ef4444');
+                }
+            }, 1000);
+        }
+        
+        // 初始化SDK
+        function initializeSDK() {
+            log('开始初始化 Coze SDK');
+            updateStatus('初始化中...', '#fbbf24');
+            
+            if (typeof CozeWebSDK === 'undefined') {
+                log('Coze SDK 未加载，无法初始化', 'error');
+                updateStatus('SDK未加载', '#ef4444');
+                return;
+            }
+            
+            try {
+                cozeSDK = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: botId,
+                        user_id: 'test_user_' + Date.now()
+                    },
+                    componentProps: {
+                        title: '食堂大妈测试 👨‍🍳',
+                        placeholder: '在这里测试对话...'
+                    },
+                    ui: {
+                        base: {
+                            layout: 'pc',
+                            zIndex: 999999
+                        },
+                        asstBtn: {
+                            isNeed: false
+                        }
+                    },
+                    auth: {
+                        type: 'token',
+                        token: token,
+                        onRefreshToken: function () {
+                            log('Token刷新请求');
+                            return Promise.resolve(token);
+                        }
+                    }
+                });
+                
+                log('Coze SDK 初始化成功！', 'success');
+                updateStatus('初始化成功', '#22c55e');
+                
+                // 添加事件监听
+                if (cozeSDK.on) {
+                    cozeSDK.on('error', (error) => {
+                        log(`SDK错误: ${error.message || error}`, 'error');
+                        updateStatus('运行时错误', '#ef4444');
+                    });
+                    
+                    cozeSDK.on('ready', () => {
+                        log('SDK准备就绪', 'success');
+                        updateStatus('准备就绪', '#22c55e');
+                    });
+                }
+                
+            } catch (error) {
+                log(`初始化失败: ${error.message || error}`, 'error');
+                updateStatus('初始化失败', '#ef4444');
+                
+                if (error.message && error.message.includes('403')) {
+                    log('可能的原因: Token无效或权限不足', 'warning');
+                } else if (error.message && error.message.includes('bot_id')) {
+                    log('可能的原因: Bot ID不正确', 'warning');
+                }
+            }
+        }
+        
+        // 测试对话
+        function testChatBot() {
+            log('尝试启动对话');
+            
+            if (!cozeSDK) {
+                log('SDK未初始化，请先初始化', 'warning');
+                return;
+            }
+            
+            try {
+                cozeSDK.showChatBot();
+                log('对话启动成功', 'success');
+                updateStatus('对话已启动', '#22c55e');
+            } catch (error) {
+                log(`启动对话失败: ${error.message || error}`, 'error');
+                updateStatus('对话启动失败', '#ef4444');
+            }
+        }
+        
+        // 隐藏对话
+        function hideChatBot() {
+            log('隐藏对话框');
+            
+            if (!cozeSDK) {
+                log('SDK未初始化', 'warning');
+                return;
+            }
+            
+            try {
+                cozeSDK.hideChatBot();
+                log('对话框已隐藏', 'success');
+                updateStatus('对话已隐藏', '#22c55e');
+            } catch (error) {
+                log(`隐藏失败: ${error.message || error}`, 'error');
+            }
+        }
+        
+        // 检查SDK状态
+        function checkSDKStatus() {
+            log('检查SDK状态');
+            log(`CozeWebSDK类型: ${typeof CozeWebSDK}`);
+            log(`SDK实例: ${cozeSDK ? '已创建' : '未创建'}`);
+            log(`Bot ID: ${botId}`);
+            log(`Token长度: ${token.length}`);
+            log(`Token格式: ${token.startsWith('pat_') ? '正确' : '错误'}`);
+        }
+        
+        // 验证Token
+        function validateToken() {
+            log('验证Token格式');
+            
+            if (!token.startsWith('pat_')) {
+                log('Token格式错误: 应该以"pat_"开头', 'error');
+                return false;
+            }
+            
+            if (token.length < 20) {
+                log('Token长度异常: 太短', 'error');
+                return false;
+            }
+            
+            log('Token格式验证通过', 'success');
+            return true;
+        }
+        
+        // 页面加载后初始化
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html> 

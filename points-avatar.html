@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的形象 - 校园积乐园</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, 
+                #0f172a 0%, 
+                #1e293b 25%, 
+                #312e81 50%, 
+                #1e293b 75%, 
+                #0f172a 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 80px;
+            position: relative;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 形象展示区 */
+        .avatar-display {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 24px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .avatar-preview {
+            width: 180px;
+            height: 220px;
+            margin: 0 auto 20px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: visible;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .avatar-title {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 12px;
+        }
+        
+        .avatar-desc {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 装扮选择 */
+        .customize-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px;
+        }
+        
+        .item-option {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .item-option:hover {
+            transform: scale(1.08) translateY(-4px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+        
+        .item-option.selected {
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        
+        .item-option.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .option-icon {
+            font-size: 36px;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+        
+        .option-name {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+        
+        /* 形象叠加显示 */
+        .avatar-layers {
+            position: relative;
+            width: 150px;
+            height: 200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .avatar-layer {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* 基础人物（含发型）- 居中 */
+        .layer-base { 
+            z-index: 2;
+            font-size: 80px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* 发型层 - 不再使用，保留用于兼容 */
+        .layer-hair { 
+            display: none;
+        }
+        
+        /* 眼镜 - 叠加在眼睛位置（装饰物） */
+        .layer-glasses { 
+            z-index: 3;
+            font-size: 40px;
+            top: 42%;  /* 调整到眼睛位置，从52%改为42% */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        /* 帽子 - 叠加在头顶（装饰物） */
+        .layer-hat { 
+            z-index: 4;
+            font-size: 45px;
+            top: 12%;  /* 调整到头顶位置，从15%改为12% */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 100; /* 确保在最上层 */
+            pointer-events: auto; /* 确保可以点击 */
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 5px 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            user-select: none; /* 防止文本选择 */
+            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+            pointer-events: auto; /* 确保可以点击 */
+        }
+        
+        .nav-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .nav-item:active {
+            transform: scale(0.95); /* 点击反馈 */
+        }
+        
+        .nav-item.active {
+            color: #667eea;
+        }
+        
+        .nav-icon {
+            font-size: 24px;
+        }
+        
+        .nav-label {
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="page-title">👤 我的形象</div>
+    </div>
+    
+    <!-- 形象展示 -->
+    <div class="avatar-display">
+        <div class="avatar-title">我的虚拟形象</div>
+        <div class="avatar-preview" id="avatarPreview">
+            <div class="avatar-layers">
+                <div class="avatar-layer layer-base" id="layerBase">👤</div>
+                <div class="avatar-layer layer-hair" id="layerHair"></div>
+                <div class="avatar-layer layer-glasses" id="layerGlasses"></div>
+                <div class="avatar-layer layer-hat" id="layerHat"></div>
+            </div>
+        </div>
+        <div class="avatar-desc" id="avatarDesc">默认形象</div>
+    </div>
+    
+    <!-- 发型选择 -->
+    <div class="customize-section">
+        <div class="section-title">💇 发型</div>
+        <div class="items-grid" id="hairItems"></div>
+    </div>
+    
+    <!-- 眼镜选择 -->
+    <div class="customize-section">
+        <div class="section-title">👓 眼镜</div>
+        <div class="items-grid" id="glassesItems"></div>
+    </div>
+    
+    <!-- 帽子选择 -->
+    <div class="customize-section">
+        <div class="section-title">🧢 帽子</div>
+        <div class="items-grid" id="hatItems"></div>
+    </div>
+    
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+        <div class="nav-item" onclick="goToPage('mall')">
+            <div class="nav-icon">🏪</div>
+            <div class="nav-label">商城</div>
+        </div>
+        <div class="nav-item" onclick="goToPage('inventory')">
+            <div class="nav-icon">🎒</div>
+            <div class="nav-label">背包</div>
+        </div>
+        <div class="nav-item active" onclick="goToPage('avatar')">
+            <div class="nav-icon">👤</div>
+            <div class="nav-label">形象</div>
+        </div>
+        <div class="nav-item" onclick="goToPage('rank')">
+            <div class="nav-icon">🏆</div>
+            <div class="nav-label">排行榜</div>
+        </div>
+        <div class="nav-item" onclick="goToPage('tasks')">
+            <div class="nav-icon">📋</div>
+            <div class="nav-label">任务</div>
+        </div>
+    </div>
+    
+    <script src="js/points-system.js"></script>
+    <script>
+        // 获取当前登录用户
+        const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+        const userId = userData.userId || 'student_001';  // 兼容旧数据
+        
+        const pointsSystem = new PointsSystem();
+        pointsSystem.setCurrentUser(userId);
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            renderCustomizeOptions();
+            updateAvatarPreview();
+        });
+        
+        function renderCustomizeOptions() {
+            const student = pointsSystem.getCurrentStudent();
+            const allItems = pointsSystem.getRewardItems();
+            
+            // 发型
+            renderCategory('hair', allItems, student);
+            // 眼镜
+            renderCategory('glasses', allItems, student);
+            // 帽子
+            renderCategory('hat', allItems, student);
+        }
+        
+        function renderCategory(type, allItems, student) {
+            const items = allItems.filter(item => item.type === type);
+            const container = document.getElementById(`${type}Items`);
+            
+            // 添加"无"选项
+            container.innerHTML = `
+                <div class="item-option ${student.avatar[type] === 'none' ? 'selected' : ''}" 
+                     onclick="equipItem('none', '${type}')">
+                    <div class="option-icon">❌</div>
+                    <div class="option-name">无</div>
+                </div>
+            `;
+            
+            items.forEach(item => {
+                const hasItem = student.inventory.some(i => i.itemId === item.id);
+                const isEquipped = student.avatar[type] === item.id;
+                
+                const option = document.createElement('div');
+                option.className = `item-option ${isEquipped ? 'selected' : ''} ${!hasItem ? 'locked' : ''}`;
+                
+                if (hasItem) {
+                    option.onclick = () => equipItem(item.id, type);
+                } else {
+                    option.onclick = () => alert('尚未拥有该物品，请前往商城兑换');
+                }
+                
+                option.innerHTML = `
+                    <div class="option-icon">${hasItem ? item.image : '🔒'}</div>
+                    <div class="option-name">${item.name}</div>
+                `;
+                
+                container.appendChild(option);
+            });
+        }
+        
+        function equipItem(itemId, type) {
+            const student = pointsSystem.getCurrentStudent();
+            student.avatar[type] = itemId;
+            pointsSystem.savePointsData();
+            
+            renderCustomizeOptions();
+            updateAvatarPreview();
+        }
+        
+        function updateAvatarPreview() {
+            const student = pointsSystem.getCurrentStudent();
+            const allItems = pointsSystem.getRewardItems();
+            
+            let description = [];
+            
+            // 1. 处理发型（替换基础头像）
+            const baseLayer = document.getElementById('layerBase');
+            if (student.avatar.hair && student.avatar.hair !== 'none') {
+                const hairItem = allItems.find(i => i.id === student.avatar.hair);
+                if (hairItem) {
+                    baseLayer.textContent = hairItem.image;  // 用发型替换基础头像
+                    description.push(hairItem.name);
+                }
+            } else {
+                baseLayer.textContent = '👤';  // 默认头像
+            }
+            
+            // 2. 清空发型层（发型不再使用这个层）
+            document.getElementById('layerHair').textContent = '';
+            
+            // 3. 处理眼镜（叠加在基础头像上）
+            const glassesLayer = document.getElementById('layerGlasses');
+            if (student.avatar.glasses && student.avatar.glasses !== 'none') {
+                const glassesItem = allItems.find(i => i.id === student.avatar.glasses);
+                if (glassesItem) {
+                    glassesLayer.textContent = glassesItem.image;
+                    description.push(glassesItem.name);
+                }
+            } else {
+                glassesLayer.textContent = '';
+            }
+            
+            // 4. 处理帽子（叠加在头顶）
+            const hatLayer = document.getElementById('layerHat');
+            if (student.avatar.hat && student.avatar.hat !== 'none') {
+                const hatItem = allItems.find(i => i.id === student.avatar.hat);
+                if (hatItem) {
+                    hatLayer.textContent = hatItem.image;
+                    description.push(hatItem.name);
+                }
+            } else {
+                hatLayer.textContent = '';
+            }
+            
+            document.getElementById('avatarDesc').textContent = 
+                description.length > 0 ? description.join(' + ') : '默认形象';
+        }
+        
+        // 自动保存机制
+        function autoSaveAvatar() {
+            try {
+                if (pointsSystem && userId) {
+                    pointsSystem.savePointsData();
+                    console.log('💾 虚拟形象数据已自动保存');
+                }
+            } catch (e) {
+                console.error('❌ 自动保存失败:', e);
+            }
+        }
+        
+        // 页面关闭前保存
+        window.addEventListener('beforeunload', autoSaveAvatar);
+        
+        // 定期自动保存（每30秒）
+        setInterval(autoSaveAvatar, 30000);
+        
+        console.log('✅ 虚拟形象自动保存已启动');
+        
+        // 页面跳转（在游戏内打开）
+        function goToPage(page) {
+            console.log('🔄 尝试跳转到页面:', page);
+            
+            const pages = {
+                'mall': 'points-mall.html',
+                'inventory': 'points-inventory.html',
+                'avatar': 'points-avatar.html',
+                'rank': 'points-rank.html',
+                'tasks': 'points-tasks.html'
+            };
+            
+            const titles = {
+                'mall': '💎 积分商城',
+                'inventory': '🎒 我的背包',
+                'avatar': '👤 虚拟形象',
+                'rank': '🏆 排行榜',
+                'tasks': '📋 任务中心'
+            };
+            
+            // 检查页面是否存在
+            if (!pages[page]) {
+                console.error('❌ 未知的页面:', page);
+                alert('❌ 页面不存在');
+                return;
+            }
+            
+            // 如果当前页面就是目标页面，不跳转
+            const currentPage = window.location.pathname.split('/').pop();
+            if (pages[page] === currentPage) {
+                console.log('ℹ️ 已在目标页面');
+                return;
+            }
+            
+            // 如果在iframe中，尝试调用父窗口的openInGame函数
+            if (window.parent && window.parent !== window) {
+                console.log('📦 检测到iframe环境');
+                try {
+                    if (typeof window.parent.openInGame === 'function') {
+                        console.log('✅ 调用父窗口的openInGame函数');
+                        window.parent.openInGame(pages[page], titles[page]);
+                        return;
+                    } else {
+                        console.warn('⚠️ 父窗口没有openInGame函数，尝试直接跳转');
+                    }
+                } catch (e) {
+                    console.error('❌ 调用父窗口函数失败:', e);
+                    console.log('🔄 降级为直接跳转');
+                }
+            }
+            
+            // 直接跳转（不在iframe中或父窗口函数不可用）
+            console.log('🔄 直接跳转到:', pages[page]);
+            try {
+                // 使用replace而不是href，避免历史记录堆积导致第二次切换失败
+                window.location.replace(pages[page]);
+            } catch (e) {
+                console.error('❌ 页面跳转失败:', e);
+                alert('❌ 页面跳转失败，请刷新重试');
+            }
+        }
+    </script>
+</body>
+</html>
+

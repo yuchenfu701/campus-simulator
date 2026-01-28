@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平等象限 - 性别平等桌游</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 游戏开始界面 -->
+    <div id="start-screen" class="screen active">
+        <div class="start-container">
+            <h1 class="game-title">平等象限</h1>
+            <p class="game-subtitle">共建平等社会的旅程</p>
+            
+            <div class="player-count-selector">
+                <h2>选择玩家数量</h2>
+                <div class="player-buttons">
+                    <button class="player-btn" data-players="2">2人</button>
+                    <button class="player-btn" data-players="3">3人</button>
+                    <button class="player-btn" data-players="4">4人</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 角色选择界面 -->
+    <div id="role-selection-screen" class="screen">
+        <div class="role-container">
+            <h2>选择你的角色</h2>
+            <p class="current-player-text">当前：玩家 <span id="selecting-player">1</span></p>
+            
+            <div class="roles-grid">
+                <!-- 角色卡片将通过JS动态生成 -->
+            </div>
+            
+            <button id="start-game-btn" class="primary-btn" style="display: none;">开始游戏</button>
+        </div>
+    </div>
+
+    <!-- 主游戏界面 -->
+    <div id="game-screen" class="screen">
+        <!-- 顶部信息栏 -->
+        <div class="top-bar">
+            <div class="social-progress">
+                <h3>社会平等进度</h3>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                        <span class="progress-text" id="progress-text">10%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="current-phase">
+                <h3>当前阶段</h3>
+                <p id="phase-text">事件阶段</p>
+            </div>
+            
+            <div class="round-counter">
+                <h3>回合数</h3>
+                <p id="round-number">1</p>
+            </div>
+        </div>
+
+        <!-- 主游戏区域 -->
+        <div class="game-main">
+            <!-- 左侧：游戏版图 -->
+            <div class="game-board">
+                <svg viewBox="0 0 400 400" class="board-svg">
+                    <!-- 中央圆形 -->
+                    <circle cx="200" cy="200" r="60" class="center-circle" />
+                    <text x="200" y="200" class="center-text" text-anchor="middle" dy=".3em">平等象限</text>
+                    
+                    <!-- 四个象限 -->
+                    <path d="M 200,200 L 200,60 A 140,140 0 0,1 340,200 Z" class="quadrant workplace" data-quadrant="workplace" />
+                    <path d="M 200,200 L 340,200 A 140,140 0 0,1 200,340 Z" class="quadrant family" data-quadrant="family" />
+                    <path d="M 200,200 L 200,340 A 140,140 0 0,1 60,200 Z" class="quadrant education" data-quadrant="education" />
+                    <path d="M 200,200 L 60,200 A 140,140 0 0,1 200,60 Z" class="quadrant politics" data-quadrant="politics" />
+                    
+                    <!-- 象限图标 -->
+                    <text x="200" y="110" class="quadrant-icon" text-anchor="middle">💼</text>
+                    <text x="200" y="125" class="quadrant-label" text-anchor="middle" font-size="10">职场与企业</text>
+                    
+                    <text x="280" y="195" class="quadrant-icon" text-anchor="middle">❤️</text>
+                    <text x="280" y="210" class="quadrant-label" text-anchor="middle" font-size="10">家庭与社区</text>
+                    
+                    <text x="200" y="285" class="quadrant-icon" text-anchor="middle">📚</text>
+                    <text x="200" y="270" class="quadrant-label" text-anchor="middle" font-size="10">教育与文化</text>
+                    
+                    <text x="120" y="195" class="quadrant-icon" text-anchor="middle">🏛️</text>
+                    <text x="120" y="210" class="quadrant-label" text-anchor="middle" font-size="10">政治与法律</text>
+                    
+                    <!-- 玩家位置标记（将通过JS动态添加）-->
+                    <g id="player-markers"></g>
+                    
+                    <!-- 刻板印象标记 -->
+                    <g id="stereotype-markers"></g>
+                </svg>
+            </div>
+
+            <!-- 右侧：玩家信息和操作区 -->
+            <div class="side-panel">
+                <!-- 当前玩家信息 -->
+                <div class="current-player-panel">
+                    <h3>当前玩家</h3>
+                    <div id="current-player-info">
+                        <p class="player-name"></p>
+                        <p class="player-role"></p>
+                        <div class="resources">
+                            <div class="resource">
+                                <span class="resource-icon">💪</span>
+                                <span class="resource-label">影响力</span>
+                                <span class="resource-value" id="influence">3</span>
+                            </div>
+                            <div class="resource">
+                                <span class="resource-icon">💰</span>
+                                <span class="resource-label">资金</span>
+                                <span class="resource-value" id="money">1</span>
+                            </div>
+                            <div class="resource">
+                                <span class="resource-icon">🤝</span>
+                                <span class="resource-label">支持</span>
+                                <span class="resource-value" id="support">1</span>
+                            </div>
+                        </div>
+                        <div class="player-position">
+                            <span>当前位置：</span>
+                            <span id="player-quadrant">职场与企业</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 所有玩家列表 -->
+                <div class="all-players-panel">
+                    <h3>所有玩家</h3>
+                    <div id="all-players-list"></div>
+                </div>
+
+                <!-- 行动按钮区 -->
+                <div class="action-panel">
+                    <h3>可用行动</h3>
+                    <div id="action-buttons"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部：事件/卡牌显示区 -->
+        <div class="bottom-panel">
+            <div class="event-display" id="event-display">
+                <!-- 事件卡片将在这里显示 -->
+            </div>
+            
+            <div class="player-hand">
+                <h3>你的手牌</h3>
+                <div class="hand-cards" id="hand-cards">
+                    <!-- 玩家手牌将在这里显示 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏日志切换按钮 -->
+        <button class="log-toggle-btn" id="log-toggle-btn" title="游戏日志">
+            📋
+        </button>
+    </div>
+
+    <!-- 游戏日志侧边栏 -->
+    <div class="game-log-sidebar" id="game-log-sidebar">
+        <div class="log-sidebar-header">
+            <h3>游戏日志</h3>
+            <button class="log-close-btn" id="log-close-btn">&times;</button>
+        </div>
+        <div class="log-content" id="log-content"></div>
+    </div>
+
+    <!-- 日志遮罩层 -->
+    <div class="log-overlay" id="log-overlay"></div>
+
+    <!-- 游戏结束界面 -->
+    <div id="end-screen" class="screen">
+        <div class="end-container">
+            <h1 id="end-title">游戏结束</h1>
+            <p id="end-message"></p>
+            
+            <div class="final-scores" id="final-scores">
+                <!-- 最终得分将在这里显示 -->
+            </div>
+            
+            <button id="restart-btn" class="primary-btn">重新开始</button>
+        </div>
+    </div>
+
+    <!-- 模态框：用于显示卡牌详情、确认对话等 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <script src="js/cards.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>
+

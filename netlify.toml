@@ -1,0 +1,28 @@
+# Netlify部署配置
+[build]
+  # 不需要构建步骤，直接部署静态文件
+  publish = "."
+
+# 重定向规则 - 根路径重定向到login.html
+[[redirects]]
+  from = "/"
+  to = "/login.html"
+  status = 200
+  force = true
+
+# 单页应用路由（如果需要）
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 安全头
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+

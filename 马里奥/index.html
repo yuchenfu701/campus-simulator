@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝可梦2D像素游戏 - 《梦》</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 背景粒子 -->
+    <div class="bg-particles" id="bgParticles"></div>
+    
+    <!-- 游戏容器 -->
+    <div class="game-container">
+        <!-- 游戏标题 -->
+        <div class="game-title">
+            <h1>《梦》- 精美宝可梦像素冒险</h1>
+            <p>方向键/WASD移动 | 空格键跳跃 | Z键射击 | Enter键对话 | 收集精美的像素宝可梦</p>
+        </div>
+        
+        <!-- 游戏画布 -->
+        <canvas id="gameCanvas" width="1200" height="600"></canvas>
+        
+        <!-- 游戏信息面板 -->
+        <div class="game-info">
+            <div class="player-info">
+                <span>生命值: <span id="playerHealth">100</span></span>
+                <span>收集的宝可梦: <span id="pokemonCount">0</span></span>
+                <span>当前关卡: <span id="currentLevel">1</span></span>
+                <span>生命数: <span id="playerLives">3</span></span>
+            </div>
+            <div class="game-controls">
+                <button id="pauseBtn">暂停</button>
+                <button id="restartBtn">重新开始</button>
+                <button onclick="goBack()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">返回校园</button>
+            </div>
+        </div>
+        
+        <!-- 对话框 -->
+        <div id="dialogBox" class="dialog-box hidden">
+            <div class="dialog-content">
+                <p id="dialogText"></p>
+                <button id="dialogNext">继续</button>
+            </div>
+        </div>
+        
+        <!-- 游戏开始界面 -->
+        <div id="startScreen" class="start-screen">
+            <h2>精美宝可梦像素冒险</h2>
+            <p>公元3025年，神明降下神罚，世间美好变成斗争的游戏...</p>
+            <p>在这个充满精美像素艺术的宝可梦世界中，你需要:</p>
+            <ul>
+                <li>🎨 收集精美的像素宝可梦</li>
+                <li>⚔️ 击败危险的敌人</li>
+                <li>💎 收集强化道具</li>
+                <li>🏃 在移动平台间跳跃</li>
+                <li>🎯 使用精灵球战斗</li>
+                <li>✨ 欣赏细致的像素艺术</li>
+            </ul>
+            <p>每个宝可梦都经过精心设计，色彩丰富、细节精美！</p>
+            <p>你准备好收集这些艺术品般的宝可梦了吗？</p>
+            <button id="startBtn">开始精美冒险</button>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+    <script>
+        // 创建背景粒子
+        function createBackgroundParticles() {
+            const container = document.getElementById('bgParticles');
+            if (!container) return;
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle-bg';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+        
+        // 返回校园游戏
+        function goBack() {
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                window.location.href = '../games/run-mode-select.html';
+            }
+        }
+        
+        // 页面加载时创建粒子
+        window.addEventListener('DOMContentLoaded', () => {
+            createBackgroundParticles();
+        });
+    </script>
+</body>
+</html> 

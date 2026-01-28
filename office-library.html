@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书馆 - 知识海洋</title>
+    
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', 'Inter', sans-serif;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(to bottom, #f5deb3 0%, #deb887 50%, #cd853f 100%);
+            /* 书香主题背景 */
+            background-image: 
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(139, 69, 19, 0.03),
+                    rgba(139, 69, 19, 0.03) 2px,
+                    transparent 2px,
+                    transparent 50px
+                ),
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(160, 82, 45, 0.02),
+                    rgba(160, 82, 45, 0.02) 2px,
+                    transparent 2px,
+                    transparent 50px
+                );
+        }
+        
+        /* 建筑标识 */
+        .building-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #8b4513;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: rgba(245, 222, 179, 0.9);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #cd853f;
+        }
+        
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #8b4513;
+            font-size: 20px;
+            font-family: serif;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            z-index: 20;
+        }
+        
+        /* 透视走廊容器 */
+        .corridor-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            z-index: 10;
+            overflow: hidden;
+        }
+        
+        /* 走廊背景 */
+        .corridor-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, 
+                rgba(245, 222, 179, 0.4) 0%, 
+                rgba(222, 184, 135, 0.5) 50%, 
+                rgba(205, 133, 63, 0.6) 100%);
+            opacity: 0.8;
+        }
+        
+        /* 墙壁 */
+        .wall-left, .wall-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            height: 100%;
+        }
+        
+        .wall-left {
+            left: 0;
+            width: 50%;
+            background: linear-gradient(to right, rgba(139, 69, 19, 0.6), rgba(160, 82, 45, 0.4), transparent);
+            transform: skewX(-12deg);
+            transform-origin: top right;
+        }
+        
+        .wall-right {
+            right: 0;
+            width: 50%;
+            background: linear-gradient(to left, rgba(139, 69, 19, 0.6), rgba(160, 82, 45, 0.4), transparent);
+            transform: skewX(12deg);
+            transform-origin: top left;
+        }
+        
+        /* 地板 */
+        .corridor-floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(222, 184, 135, 0.8), rgba(245, 222, 179, 0.6), rgba(250, 235, 215, 0.4));
+        }
+        
+        /* 天花板 */
+        .corridor-ceiling {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+            background: linear-gradient(to bottom, rgba(250, 235, 215, 0.9), rgba(245, 222, 179, 0.7));
+            transform: perspective(1000px) rotateX(20deg);
+            transform-origin: bottom;
+        }
+        
+        /* 门容器 */
+        .door-container {
+            position: absolute;
+            width: 80px;
+            height: 120px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 15;
+        }
+        
+        .door-container.left {
+            left: 25%;
+            top: 40%;
+        }
+        
+        .door-container.right {
+            right: 25%;
+            top: 40%;
+        }
+        
+        .door-container:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        /* 图书馆特殊门效果 */
+        .door-container.left:hover .door-label {
+            color: #065f46;
+            text-shadow: 0 0 10px rgba(6, 95, 70, 0.5);
+            animation: studyGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        .door-container.right:hover .door-label {
+            color: #7c2d12;
+            text-shadow: 0 0 10px rgba(124, 45, 18, 0.5);
+            animation: bookGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes studyGlow {
+            from { text-shadow: 0 0 5px rgba(6, 95, 70, 0.3); }
+            to { text-shadow: 0 0 15px rgba(6, 95, 70, 0.7), 0 0 25px rgba(6, 95, 70, 0.3); }
+        }
+        
+        @keyframes bookGlow {
+            from { text-shadow: 0 0 5px rgba(124, 45, 18, 0.3); }
+            to { text-shadow: 0 0 15px rgba(124, 45, 18, 0.7), 0 0 25px rgba(124, 45, 18, 0.3); }
+        }
+        
+        /* 门样式 */
+        .door {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #8B4513, #A0522D, #CD853F);
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 门把手 */
+        .door-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .door-handle.left { right: 10px; }
+        .door-handle.right { left: 10px; }
+        
+        /* 门标签 */
+        .door-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #374151;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 对话框样式 */
+        .dialogue-box {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #cd853f;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .dialogue-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        
+        .dialogue-next {
+            background: #cd853f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .dialogue-next:hover {
+            background: #8b4513;
+        }
+        
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 返回按钮 */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1001;
+            transition: background 0.2s;
+        }
+        
+        .back-button:hover {
+            background: rgba(220, 38, 38, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 建筑标识 -->
+        <div class="building-label">图书馆</div>
+        
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一</div>
+        
+        <!-- 返回按钮 -->
+        <button class="back-button" onclick="closeOfficeSystem()">返回校园</button>
+        
+        <!-- 透视走廊 -->
+        <div class="corridor-container">
+            <div class="corridor-bg">
+                <!-- 墙壁 -->
+                <div class="wall-left"></div>
+                <div class="wall-right"></div>
+                
+                <!-- 天花板 -->
+                <div class="corridor-ceiling"></div>
+                
+                <!-- 地板 -->
+                <div class="corridor-floor"></div>
+                
+                <!-- 左侧门 - 自习室 -->
+                <div class="door-container left" id="leftDoor">
+                    <div class="door">
+                        <div class="door-handle left"></div>
+                        <div class="door-label">自习室 📚</div>
+                    </div>
+                </div>
+                
+                <!-- 右侧门 - 藏书室 -->
+                <div class="door-container right" id="rightDoor">
+                    <div class="door">
+                        <div class="door-handle right"></div>
+                        <div class="door-label">藏书室 📖</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对话框 -->
+        <div class="dialogue-box hidden" id="dialogueBox">
+            <div class="dialogue-text" id="dialogueText"></div>
+            <button class="dialogue-next" id="dialogueNext">
+                <span>点击继续</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            activeCharacter: null, // 'study' | 'books' | null
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 角色信息
+        const characterInfo = {
+            study: {
+                name: "自习管理员",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=librarian+study+room+quiet+realistic+portrait&sign=study001",
+                colorClass: "border-emerald-500/50 bg-emerald-900/80"
+            },
+            books: {
+                name: "图书管理员",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=librarian+books+shelves+realistic+portrait&sign=books001",
+                colorClass: "border-amber-500/50 bg-amber-900/80"
+            }
+        };
+        
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: {
+                study: [
+                    "欢迎来到图书馆自习室！",
+                    "这里需要保持绝对安静。",
+                    "初一的同学要养成良好的学习习惯。",
+                    "有问题可以轻声询问，不要影响他人。"
+                ],
+                books: [
+                    "这里是藏书室，有很多好书！",
+                    "初一推荐看一些科普读物。",
+                    "借书需要登记，按时归还。",
+                    "阅读能开阔视野，多看书有好处！"
+                ]
+            },
+            2: {
+                study: [
+                    "初二学习任务加重了！",
+                    "自习时要提高效率，做好计划。",
+                    "可以和同学讨论，但要小声。",
+                    "坚持每天来自习，成绩会稳步提升！"
+                ],
+                books: [
+                    "初二可以尝试更有挑战性的书籍！",
+                    "历史、文学类的书很受欢迎。",
+                    "可以写读书笔记，加深理解。",
+                    "知识是最宝贵的财富！"
+                ]
+            },
+            3: {
+                study: [
+                    "初三了，中考压力很大！",
+                    "这里是你们最好的复习地点。",
+                    "制定复习计划，按部就班执行。",
+                    "相信自己，坚持到底就是胜利！"
+                ],
+                books: [
+                    "初三主要以复习资料为主！",
+                    "各科的参考书这里都有。",
+                    "真题集、习题册可以多借阅。",
+                    "知识改变命运，加油！"
+                ]
+            }
+        };
+        
+        // DOM元素
+        const elements = {
+            leftDoor: document.getElementById('leftDoor'),
+            rightDoor: document.getElementById('rightDoor'),
+            dialogueBox: document.getElementById('dialogueBox'),
+            dialogueText: document.getElementById('dialogueText'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            gradeDisplay: document.getElementById('gradeDisplay')
+        };
+        
+        // 初始化
+        function init() {
+            console.log('📚 图书馆系统初始化');
+            
+            // 设置事件监听器
+            elements.leftDoor.addEventListener('click', () => handleDoorClick('study'));
+            elements.rightDoor.addEventListener('click', () => handleDoorClick('books'));
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 从父窗口获取年级信息
+            updateGradeDisplay();
+            
+            console.log('✅ 图书馆系统初始化完成');
+        }
+        
+        // 处理门点击事件
+        function handleDoorClick(character) {
+            console.log(`🚪 点击${character}门`);
+            
+            gameState.activeCharacter = character;
+            gameState.currentDialogueIndex = 0;
+            
+            const dialogues = gradeDialogues[gameState.grade][character];
+            if (dialogues && dialogues.length > 0) {
+                showDialogue(dialogues[0]);
+            }
+        }
+        
+        // 显示对话
+        function showDialogue(text) {
+            elements.dialogueText.textContent = text;
+            elements.dialogueBox.classList.remove('hidden');
+            gameState.isDialogueOpen = true;
+        }
+        
+        // 处理下一句对话
+        function handleNextDialogue() {
+            if (!gameState.activeCharacter) return;
+            
+            gameState.currentDialogueIndex++;
+            const dialogues = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            
+            if (gameState.currentDialogueIndex < dialogues.length) {
+                showDialogue(dialogues[gameState.currentDialogueIndex]);
+            } else {
+                // 对话结束
+                elements.dialogueBox.classList.add('hidden');
+                gameState.isDialogueOpen = false;
+                gameState.activeCharacter = null;
+                gameState.currentDialogueIndex = 0;
+            }
+        }
+        
+        // 更新年级显示
+        function updateGradeDisplay() {
+            const gradeNames = ['', '初一', '初二', '初三'];
+            elements.gradeDisplay.textContent = gradeNames[gameState.grade] || '初一';
+        }
+        
+        // 关闭office系统
+        function closeOfficeSystem() {
+            console.log('🚪 关闭图书馆系统');
+            
+            // 通知父窗口关闭
+            if (window.parent !== window) {
+                window.parent.postMessage({ action: 'closeOffice' }, '*');
+            }
+        }
+        
+        // 监听父窗口消息
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'updateGrade') {
+                gameState.grade = event.data.grade || 1;
+                updateGradeDisplay();
+                console.log('📚 年级更新为:', gameState.grade);
+            }
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

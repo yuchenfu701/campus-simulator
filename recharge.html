@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充值中心 - 北京四中</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .back-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        /* 当前余额 */
+        .balance-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .balance-label {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .balance-value {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* 充值选项 */
+        .recharge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .recharge-option {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .recharge-option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+        
+        .recharge-option.recommended {
+            border-color: #ffd700;
+        }
+        
+        .recommended-badge {
+            position: absolute;
+            top: 10px;
+            right: -25px;
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 4px 30px;
+            font-size: 12px;
+            font-weight: bold;
+            transform: rotate(45deg);
+        }
+        
+        .recharge-amount {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .recharge-price {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .recharge-bonus {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            display: inline-block;
+        }
+        
+        /* 支付方式 */
+        .payment-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        
+        .payment-method {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .payment-method:hover {
+            border-color: #667eea;
+            background: white;
+        }
+        
+        .payment-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .payment-name {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">💰 充值中心</div>
+            <button class="back-btn" onclick="goBack()">返回主菜单</button>
+        </div>
+        
+        <!-- 当前余额 -->
+        <div class="balance-card">
+            <div class="balance-label">当前积分余额</div>
+            <div class="balance-value" id="currentBalance">100</div>
+        </div>
+        
+        <!-- 充值选项 -->
+        <div class="recharge-grid">
+            <div class="recharge-option" onclick="selectRecharge(60, 6)">
+                <div class="recharge-amount">60积分</div>
+                <div class="recharge-price">¥6</div>
+                <div class="recharge-bonus">首充送10积分</div>
+            </div>
+            
+            <div class="recharge-option recommended" onclick="selectRecharge(200, 18)">
+                <div class="recommended-badge">推荐</div>
+                <div class="recharge-amount">200积分</div>
+                <div class="recharge-price">¥18</div>
+                <div class="recharge-bonus">额外送30积分</div>
+            </div>
+            
+            <div class="recharge-option" onclick="selectRecharge(500, 40)">
+                <div class="recharge-amount">500积分</div>
+                <div class="recharge-price">¥40</div>
+                <div class="recharge-bonus">额外送100积分</div>
+            </div>
+            
+            <div class="recharge-option" onclick="selectRecharge(1000, 68)">
+                <div class="recharge-amount">1000积分</div>
+                <div class="recharge-price">¥68</div>
+                <div class="recharge-bonus">额外送300积分</div>
+            </div>
+            
+            <div class="recharge-option" onclick="selectRecharge(3000, 188)">
+                <div class="recharge-amount">3000积分</div>
+                <div class="recharge-price">¥188</div>
+                <div class="recharge-bonus">额外送1000积分</div>
+            </div>
+            
+            <div class="recharge-option" onclick="selectRecharge(6000, 328)">
+                <div class="recharge-amount">6000积分</div>
+                <div class="recharge-price">¥328</div>
+                <div class="recharge-bonus">额外送2500积分</div>
+            </div>
+        </div>
+        
+        <!-- 支付方式 -->
+        <div class="payment-section">
+            <div class="section-title">选择支付方式</div>
+            <div class="payment-methods">
+                <div class="payment-method" onclick="pay('wechat')">
+                    <div class="payment-icon">💚</div>
+                    <div class="payment-name">微信支付</div>
+                </div>
+                
+                <div class="payment-method" onclick="pay('alipay')">
+                    <div class="payment-icon">💙</div>
+                    <div class="payment-name">支付宝</div>
+                </div>
+                
+                <div class="payment-method" onclick="pay('bank')">
+                    <div class="payment-icon">💳</div>
+                    <div class="payment-name">银行卡</div>
+                </div>
+                
+                <div class="payment-method" onclick="pay('apple')">
+                    <div class="payment-icon">🍎</div>
+                    <div class="payment-name">Apple Pay</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/points-system.js"></script>
+    <script>
+        // 获取当前登录用户
+        const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+        const userId = userData.userId || 'student_001';  // 兼容旧数据
+        
+        let selectedAmount = 0;
+        let selectedPrice = 0;
+        
+        // 加载当前积分
+        window.addEventListener('DOMContentLoaded', () => {
+            const pointsSystem = new PointsSystem();
+            pointsSystem.setCurrentUser(userId);
+            const student = pointsSystem.getCurrentStudent();
+            if (student) {
+                document.getElementById('currentBalance').textContent = student.points;
+            }
+        });
+        
+        function selectRecharge(amount, price) {
+            selectedAmount = amount;
+            selectedPrice = price;
+            
+            // 高亮选中的选项
+            document.querySelectorAll('.recharge-option').forEach(el => {
+                el.style.background = 'white';
+            });
+            event.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+            
+            alert(`已选择充值 ${amount} 积分 (¥${price})\n请选择支付方式完成充值`);
+        }
+        
+        function pay(method) {
+            if (selectedAmount === 0) {
+                alert('请先选择充值金额');
+                return;
+            }
+            
+            const methodNames = {
+                'wechat': '微信支付',
+                'alipay': '支付宝',
+                'bank': '银行卡',
+                'apple': 'Apple Pay'
+            };
+            
+            if (confirm(`确认使用${methodNames[method]}支付 ¥${selectedPrice} 充值 ${selectedAmount} 积分吗？`)) {
+                // 模拟支付成功
+                setTimeout(() => {
+                    const pointsSystem = new PointsSystem();
+                    pointsSystem.setCurrentUser(userId);
+                    pointsSystem.addPoints(userId, selectedAmount, '充值获得', '系统');
+                    
+                    alert(`✅ 充值成功！\n获得 ${selectedAmount} 积分`);
+                    
+                    // 更新显示
+                    const student = pointsSystem.getCurrentStudent();
+                    document.getElementById('currentBalance').textContent = student.points;
+                    
+                    selectedAmount = 0;
+                    selectedPrice = 0;
+                }, 1000);
+            }
+        }
+        
+        function goBack() {
+            // 如果在iframe中，关闭iframe
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                window.location.href = 'main-menu.html';
+            }
+        }
+    </script>
+</body>
+</html>
+

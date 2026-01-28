@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爱哲安民未来学校模拟器 - 2D俯视角学校生活</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+    <!-- 游戏主容器 -->
+    <div id="game-container">
+        <!-- 游戏标题栏 -->
+        <header id="game-header">
+            <h1>🎓 爱哲安民未来学校模拟器</h1>
+            <div id="game-stats">
+                <div class="stat-item">
+                    <span class="stat-icon">📚</span>
+                    <span class="stat-label">学业</span>
+                    <span class="stat-value" id="academic-value">50</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">👥</span>
+                    <span class="stat-label">人际</span>
+                    <span class="stat-value" id="social-value">50</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🏠</span>
+                    <span class="stat-label">家庭</span>
+                    <span class="stat-value" id="family-value">50</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">💪</span>
+                    <span class="stat-label">健康</span>
+                    <span class="stat-value" id="health-value">50</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🎨</span>
+                    <span class="stat-label">特长</span>
+                    <span class="stat-value" id="talent-value">50</span>
+                </div>
+            </div>
+            <div id="game-time">
+                <span id="current-time">08:00</span>
+                <span id="current-day">周一</span>
+            </div>
+        </header>
+
+        <!-- 游戏主界面 -->
+        <main id="game-main">
+            <!-- 2D游戏画布 -->
+            <div id="game-canvas-container">
+                <canvas id="game-canvas" width="1200" height="800" tabindex="0"></canvas>
+                
+                <!-- 小地图切换按钮 -->
+                <button id="mini-map-toggle" onclick="toggleMiniMap()">🗺️ 地图</button>
+                
+                <!-- 小地图（弹窗式） -->
+                <div id="mini-map">
+                    <div id="mini-map-header">
+                        <span>🗺️ 校园地图</span>
+                        <button id="mini-map-close" onclick="toggleMiniMap()">×</button>
+                    </div>
+                    <div id="mini-map-content"></div>
+                    <div id="player-position"></div>
+                </div>
+                
+                <!-- 交互提示 -->
+                <div id="interaction-hint" class="hidden">
+                    <span id="hint-text">按 E 键交互</span>
+                </div>
+            </div>
+
+            <!-- 侧边信息面板 -->
+            <aside id="info-panel">
+                <div id="location-info">
+                    <h3>📍 当前位置</h3>
+                    <p id="current-location">爱哲安民未来学校校门口</p>
+                </div>
+                
+                <div id="nearby-npcs">
+                    <h3>👥 附近人物</h3>
+                    <div id="npc-list">
+                        <div class="npc-item">保安老王</div>
+                        <div class="npc-item">李明轩同学</div>
+                    </div>
+                </div>
+                
+                <div id="current-tasks">
+                    <h3>📋 当前任务</h3>
+                    <div id="task-list">
+                        <div class="task-item">找到教室</div>
+                        <div class="task-item">参加开学典礼</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 底部控制栏 -->
+        <footer id="game-controls">
+            <div id="control-hints">
+                <span>WASD - 移动</span>
+                <span>E - 交互</span>
+                <span>I - 背包</span>
+                <span>M - 地图</span>
+                <span>Q - 快捷菜单</span>
+                <span>ESC - 关闭</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 背包界面 -->
+    <div id="inventory-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📦 背包</h3>
+                <button class="modal-close" onclick="window.closeModal('inventory-modal')">✖</button>
+            </div>
+            <div class="modal-body">
+                <div id="inventory-grid">
+                    <!-- 背包物品将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 地图界面 -->
+    <div id="map-modal" class="modal hidden">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>🗺️ 校园地图</h3>
+                <button class="modal-close" onclick="window.closeModal('map-modal')">✖</button>
+            </div>
+            <div class="modal-body">
+                <canvas id="map-canvas" width="800" height="600"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 对话界面 -->
+    <div id="dialog-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="dialog-character">
+                    <div id="dialog-avatar">👤</div>
+                    <div id="dialog-name">NPC名称</div>
+                </div>
+                <button class="modal-close" onclick="window.closeModal('dialog-modal')">✖</button>
+            </div>
+            <div class="modal-body">
+                <div id="dialog-text">对话内容...</div>
+                <div id="dialog-choices">
+                    <!-- 对话选择将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置界面 -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ 游戏设置</h3>
+                <button class="modal-close" onclick="window.closeModal('settings-modal')">✖</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <label>音效音量</label>
+                    <input type="range" id="sfx-volume" min="0" max="100" value="50">
+                </div>
+                <div class="setting-item">
+                    <label>背景音乐</label>
+                    <input type="range" id="bgm-volume" min="0" max="100" value="30">
+                </div>
+                <div class="setting-item">
+                    <label>游戏速度</label>
+                    <select id="game-speed">
+                        <option value="0.5">慢速</option>
+                        <option value="1" selected>正常</option>
+                        <option value="2">快速</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 快捷菜单（按Q键弹出） -->
+    <div id="quick-menu-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>⚡ 快捷菜单</h3>
+                <button class="modal-close" onclick="window.closeModal('quick-menu-modal')">✖</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 10px;">
+                    <button class="quick-menu-btn" onclick="openInGame('points-mall.html', '💎 积分商城')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">💎</div>
+                        <div>积分商城</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('points-rank.html', '🏆 排行榜')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">🏆</div>
+                        <div>排行榜</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('points-avatar.html', '👤 虚拟形象')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">👤</div>
+                        <div>虚拟形象</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('points-tasks.html', '📋 任务中心')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">📋</div>
+                        <div>任务中心</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('campus-games.html', '🎮 小游戏')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">🎮</div>
+                        <div>小游戏</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('campus-forum.html', '💬 论坛')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
+                        <div>论坛</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('teacher-admin.html', '👨‍🏫 教师后台')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">👨‍🏫</div>
+                        <div>教师后台</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="openInGame('recharge.html', '💰 充值中心')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">💰</div>
+                        <div>充值中心</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="backToMenu()">
+                        <div style="font-size: 36px; margin-bottom: 10px;">🏠</div>
+                        <div>返回主菜单</div>
+                    </button>
+                    <button class="quick-menu-btn" onclick="logoutFromGame()" style="background: rgba(255, 59, 48, 0.1);">
+                        <div style="font-size: 36px; margin-bottom: 10px;">🚪</div>
+                        <div style="color: #ff3b30;">退出登录</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 全屏网页容器（用于显示各功能页面） -->
+    <div id="fullscreen-web-container" class="hidden">
+        <div class="web-header">
+            <h3 id="web-page-title">📚 功能页面</h3>
+            <button id="close-web-btn" class="close-btn">✕ 关闭</button>
+        </div>
+        <iframe id="fullscreen-iframe" src="" frameborder="0"></iframe>
+    </div>
+    
+    <!-- 游戏脚本 -->
+    <script src="js/game-systems.js"></script>
+    <script src="js/characters.js"></script>
+    <script src="js/story.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game-engine.js"></script>
+    <script src="js/game.js"></script>
+    
+    <!-- 全局模态框关闭函数 -->
+    <script>
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        };
+        
+        // 点击遮罩层关闭模态框
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.add('hidden');
+            }
+        });
+        
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const openModals = document.querySelectorAll('.modal:not(.hidden)');
+                openModals.forEach(modal => modal.classList.add('hidden'));
+            }
+        });
+        
+        // 切换小地图显示/隐藏
+        function toggleMiniMap() {
+            const miniMap = document.getElementById('mini-map');
+            if (miniMap) {
+                miniMap.classList.toggle('show');
+            }
+        }
+        
+        // 加载地图内容
+        function loadMap() {
+            const mapCanvas = document.getElementById('map-canvas');
+            if (!mapCanvas) return;
+            
+            const ctx = mapCanvas.getContext('2d');
+            if (!ctx) return;
+            
+            // 如果游戏引擎已初始化，使用游戏引擎的地图系统
+            if (window.simulator && window.simulator.engine) {
+                const mapSystem = window.simulator.engine.getSystem('map');
+                if (mapSystem && typeof mapSystem.renderMiniMap === 'function') {
+                    mapSystem.renderMiniMap(ctx, mapCanvas.width, mapCanvas.height);
+                    
+                    // 绘制玩家位置
+                    const player = window.simulator.engine.getSystem('player');
+                    if (player) {
+                        const scaleX = mapCanvas.width / mapSystem.width;
+                        const scaleY = mapCanvas.height / mapSystem.height;
+                        ctx.fillStyle = '#FF0000';
+                        ctx.beginPath();
+                        ctx.arc(
+                            player.x * scaleX,
+                            player.y * scaleY,
+                            5, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                    return;
+                }
+            }
+            
+            // 否则显示简单的地图说明
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+            
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 24px "Microsoft YaHei", Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🗺️ 校园地图', mapCanvas.width / 2, mapCanvas.height / 2 - 30);
+            
+            ctx.font = '16px "Microsoft YaHei", Arial';
+            ctx.fillStyle = '#666';
+            ctx.fillText('地图将在游戏启动后显示', mapCanvas.width / 2, mapCanvas.height / 2 + 10);
+        }
+        
+        // 加载背包内容
+        function loadInventory() {
+            const inventoryGrid = document.getElementById('inventory-grid');
+            if (!inventoryGrid) return;
+            
+            // 示例物品
+            const items = [
+                { id: 1, name: '教科书', icon: '📚', desc: '语文教科书' },
+                { id: 2, name: '笔记本', icon: '📓', desc: '记录学习笔记' },
+                { id: 3, name: '铅笔', icon: '✏️', desc: '书写工具' },
+                { id: 4, name: '橡皮', icon: '🧹', desc: '擦除错误' },
+                { id: 5, name: '学生证', icon: '🎫', desc: '爱哲安民未来学校学生证' },
+            ];
+            
+            inventoryGrid.innerHTML = items.map(item => `
+                <div class="inventory-item">
+                    <div class="item-icon">${item.icon}</div>
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-desc">${item.desc}</div>
+                </div>
+            `).join('');
+        }
+        
+        // 确保画布可以获得焦点
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('game-canvas');
+            if (canvas) {
+                // 点击画布时获得焦点
+                canvas.addEventListener('click', function() {
+                    canvas.focus();
+                });
+                
+                // 立即尝试获得焦点
+                setTimeout(() => {
+                    canvas.focus();
+                }, 1000);
+            }
+            
+            // 绑定关闭网页按钮事件
+            const closeWebBtn = document.getElementById('close-web-btn');
+            if (closeWebBtn) {
+                closeWebBtn.addEventListener('click', function() {
+                    const webContainer = document.getElementById('fullscreen-web-container');
+                    const iframe = document.getElementById('fullscreen-iframe');
+                    
+                    if (webContainer && iframe) {
+                        webContainer.classList.add('hidden');
+                        iframe.src = '';
+                        
+                        if (window.simulator && window.simulator.engine) {
+                            window.simulator.engine.inputEnabled = true;
+                        }
+                    }
+                });
+            }
+        });
+        
+        // 在游戏内打开功能页面（使用iframe）
+        window.openInGame = function(url, title) {
+            const container = document.getElementById('fullscreen-web-container');
+            const iframe = document.getElementById('fullscreen-iframe');
+            const titleEl = document.getElementById('web-page-title');
+            
+            if (container && iframe && titleEl) {
+                window.closeModal('quick-menu-modal');
+                titleEl.textContent = title;
+                iframe.src = url;
+                container.classList.remove('hidden');
+                
+                if (window.simulator && window.simulator.engine) {
+                    window.simulator.engine.inputEnabled = false;
+                }
+            }
+        };
+        
+        // 返回主菜单（保存数据）
+        window.backToMenu = function() {
+            if (confirm('返回主菜单？所有数据将自动保存。')) {
+                window.closeModal('quick-menu-modal');
+                window.location.href = 'main-menu.html';
+            }
+        };
+        
+        // 退出登录（保存数据）
+        window.logoutFromGame = function() {
+            if (confirm('确定要退出登录吗？所有数据将自动保存。')) {
+                window.closeModal('quick-menu-modal');
+                localStorage.removeItem('campus_user');
+                window.location.href = 'login.html';
+            }
+        };
+        
+        // 添加全局键盘事件监听
+        document.addEventListener('keydown', function(e) {
+            // Q键打开快捷菜单
+            if (e.key.toLowerCase() === 'q') {
+                e.preventDefault();
+                const quickMenu = document.getElementById('quick-menu-modal');
+                if (quickMenu) {
+                    quickMenu.classList.toggle('hidden');
+                }
+            }
+            
+            // I键打开背包
+            if (e.key.toLowerCase() === 'i') {
+                e.preventDefault();
+                const inventoryModal = document.getElementById('inventory-modal');
+                if (inventoryModal) {
+                    inventoryModal.classList.toggle('hidden');
+                    if (!inventoryModal.classList.contains('hidden')) {
+                        loadInventory();
+                    }
+                }
+            }
+            
+            // M键打开地图
+            if (e.key.toLowerCase() === 'm') {
+                e.preventDefault();
+                const mapModal = document.getElementById('map-modal');
+                if (mapModal) {
+                    mapModal.classList.toggle('hidden');
+                    if (!mapModal.classList.contains('hidden')) {
+                        loadMap();
+                    }
+                }
+            }
+        });
+    </script>
+    <style>
+        .inventory-item {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .inventory-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .item-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+        
+        .item-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .item-desc {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .map-location {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .map-location:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+        
+        #map-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            background: #f0f0f0;
+        }
+    </style>
+</body>
+</html>

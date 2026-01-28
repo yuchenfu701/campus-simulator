@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KARDS - 游戏</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="game-page">
+    <!-- 游戏主容器 -->
+    <div class="game-wrapper" id="game-container">
+        <!-- 对手区域（顶部） -->
+        <div class="opponent-area">
+            <!-- 对手信息（左上角）- K值和HQ血量 -->
+            <div class="opponent-info">
+                <div class="resource-box opponent-resource">
+                    <div class="resource-k-large" id="resource-top-current">3</div>
+                    <div class="resource-k-small">
+                        <span class="resource-k-label">K</span>
+                        <span class="resource-max" id="resource-top-max">3</span>
+                    </div>
+                    <div class="resource-hq" id="hq-top">20</div>
+                </div>
+            </div>
+            
+            <!-- 对手牌库和当前出牌阵营（右上角） -->
+            <div class="opponent-deck-area">
+                <div class="opponent-deck">
+                    <div class="deck-back"></div>
+                </div>
+                <div class="current-player-indicator" id="current-player-indicator">对手</div>
+            </div>
+            
+            <!-- 对手支援阵线 -->
+            <div class="battlefield-line opponent-support-line" id="support-line-top">
+                <div class="line-slots" id="slots-top-support"></div>
+                <div class="hq-slot" id="hq-slot-top">
+                    <div class="line-slot hq-card-slot" id="hq-card-top"></div>
+                </div>
+            </div>
+            
+            <!-- 前线 -->
+            <div class="battlefield-line frontline" id="frontline">
+                <div class="line-slots" id="slots-frontline"></div>
+            </div>
+        </div>
+        
+        <!-- 玩家区域（底部） -->
+        <div class="player-area">
+            <!-- 玩家支援阵线 -->
+            <div class="battlefield-line player-support-line" id="support-line-bottom">
+                <div class="line-slots" id="slots-bottom-support"></div>
+                <div class="hq-slot" id="hq-slot-bottom">
+                    <div class="line-slot hq-card-slot" id="hq-card-bottom"></div>
+                </div>
+            </div>
+            
+            <!-- 玩家信息（左下角）- K值和玩家名称 -->
+            <div class="player-info">
+                <div class="resource-box player-resource">
+                    <div class="resource-k-large" id="resource-bottom-current">3</div>
+                    <div class="resource-k-small">
+                        <span class="resource-k-label">K</span>
+                        <span class="resource-max" id="resource-bottom-max">3</span>
+                    </div>
+                    <div class="resource-hq" id="hq-bottom">20</div>
+                </div>
+                <div class="player-name-display">玩家</div>
+            </div>
+            
+            <!-- 玩家牌库（右下角） -->
+            <div class="player-deck">
+                <div class="deck-back"></div>
+                <div class="deck-count" id="deck-count">40</div>
+            </div>
+            
+            <!-- 手牌区域（扇形展开） -->
+            <div class="hand-area" id="hand-area">
+                <div class="cards-container" id="cards-container"></div>
+            </div>
+        </div>
+        
+        <!-- 回合信息（顶部中央） -->
+        <div class="turn-info">
+            <div class="turn-text" id="turn-text">回合 1</div>
+            <div class="turn-status" id="turn-status">你的回合</div>
+            <div class="frontline-control" id="control-status">前线控制: 无</div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <button class="end-turn-btn" id="end-turn-btn">结束回合</button>
+        <button class="back-btn" onclick="window.location.href='index.html'">返回</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+

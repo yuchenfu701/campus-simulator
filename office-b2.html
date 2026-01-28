@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教学楼B - 学科殿堂</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .office-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 透视走廊 */
+        .corridor {
+            width: 800px;
+            height: 400px;
+            position: relative;
+            background: linear-gradient(to bottom, 
+                #f3f4f6 0%, 
+                #e5e7eb 20%, 
+                #d1d5db 40%, 
+                #9ca3af 60%, 
+                #6b7280 80%, 
+                #4b5563 100%);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* 地板透视线 */
+        .floor-lines {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                rgba(255, 255, 255, 0.1) 1px,
+                transparent 2px,
+                transparent 50px
+            );
+        }
+
+        /* 天花板透视线 */
+        .ceiling-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 2px,
+                transparent 40px
+            );
+        }
+
+        /* 门容器 */
+        .door-container {
+            position: absolute;
+            width: 120px;
+            height: 160px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .door-container:hover {
+            transform: scale(1.05);
+        }
+
+        .door-container.left {
+            left: 100px;
+            top: 50%;
+            transform: translateY(-50%) perspective(600px) rotateY(15deg);
+        }
+
+        .door-container.right {
+            right: 100px;
+            top: 50%;
+            transform: translateY(-50%) perspective(600px) rotateY(-15deg);
+        }
+
+        .door-container:hover.left {
+            transform: translateY(-50%) perspective(600px) rotateY(15deg) scale(1.05);
+        }
+
+        .door-container:hover.right {
+            transform: translateY(-50%) perspective(600px) rotateY(-15deg) scale(1.05);
+        }
+
+        /* AI数学门特殊效果 */
+        .door-container.left:hover {
+            filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.6));
+        }
+
+        /* AI道法门特殊效果 */
+        .door-container.right:hover {
+            filter: drop-shadow(0 0 15px rgba(139, 69, 19, 0.6));
+        }
+
+        /* 门样式 */
+        .door {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #8B4513, #A0522D, #CD853F);
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 门把手 */
+        .door-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .door-handle.left { right: 10px; }
+        .door-handle.right { left: 10px; }
+
+        /* 门标签 */
+        .door-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #374151;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        /* 对话框样式 */
+        .dialogue-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: none;
+            z-index: 1000;
+        }
+
+        .dialogue-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .character-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            border: 3px solid;
+        }
+
+        .character-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #374151;
+        }
+
+        .dialogue-content {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 15px;
+        }
+
+        .dialogue-controls {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .dialogue-next {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .dialogue-next:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        /* 返回按钮 */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .back-button:hover {
+            background: rgba(220, 38, 38, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #374151;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 1001;
+        }
+
+        /* 走廊装饰 */
+        .corridor-decoration {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="office-container">
+        <!-- 返回按钮 -->
+        <button class="back-button" onclick="closeOfficeSystem()">返回校园</button>
+        
+        <!-- 测试按钮 -->
+        <div style="position: absolute; top: 80px; right: 20px; z-index: 1002;">
+            <button onclick="cozeWebSDKMath && cozeWebSDKMath.showChatBot()" 
+                    style="background: rgba(59,130,246,0.8); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 10px;">
+                📐 数学老师AI
+            </button>
+            <button onclick="cozeWebSDKMoral && cozeWebSDKMoral.showChatBot()" 
+                    style="background: rgba(139,69,19,0.8); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                ⚖️ 道法老师AI
+            </button>
+        </div>
+        
+        <!-- 透视走廊 -->
+        <div class="corridor">
+            <!-- 走廊装饰 -->
+            <div class="corridor-decoration">📚 教学楼B - 学科殿堂 📚</div>
+            
+            <!-- 天花板线条 -->
+            <div class="ceiling-lines"></div>
+            
+            <!-- 地板线条 -->
+            <div class="floor-lines"></div>
+            
+            <div class="doors-area">
+                <!-- 左侧门 - 数学教室 -->
+                <div class="door-container left" id="leftDoor">
+                    <div class="door">
+                        <div class="door-handle left"></div>
+                        <div class="door-label">数学教室 📐AI</div>
+                    </div>
+                </div>
+                
+                <!-- 右侧门 - 道法教室 -->
+                <div class="door-container right" id="rightDoor">
+                    <div class="door">
+                        <div class="door-handle right"></div>
+                        <div class="door-label">道法教室 ⚖️AI</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一年级</div>
+
+        <!-- 对话框 -->
+        <div class="dialogue-container" id="dialogueContainer">
+            <div class="dialogue-header">
+                <div class="character-avatar" id="characterAvatar"></div>
+                <div class="character-name" id="characterName"></div>
+            </div>
+            <div class="dialogue-content" id="dialogueContent"></div>
+            <div class="dialogue-controls">
+                <button class="dialogue-next" id="dialogueNext">继续</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            activeCharacter: null, // 'math' | 'moral' | null
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 初始化 Coze SDK
+        let cozeWebSDKMath; // 数学老师
+        let cozeWebSDKMoral; // 道法老师
+        
+        function initCozeSDK() {
+            try {
+                // 初始化数学老师AI
+                cozeWebSDKMath = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7528247220383383603', 
+                    },
+                    componentProps: {
+                        title: '数学老师',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'fullscreen', // 全屏模式
+                            zIndex: 10001, // 确保在iframe之上
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                // 初始化道法老师AI
+                cozeWebSDKMoral = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7528250448445964326', 
+                    },
+                    componentProps: {
+                        title: '道法老师',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'fullscreen', // 全屏模式
+                            zIndex: 10001, // 确保在iframe之上
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                console.log('✅ Coze SDK 初始化成功 - 数学和道法老师');
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+            }
+        }
+        
+        // 角色信息
+        const characterInfo = {
+            math: {
+                name: "数学老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=math+teacher+glasses+blackboard+realistic+portrait&sign=math001",
+                colorClass: "border-blue-500/50 bg-blue-900/80"
+            },
+            moral: {
+                name: "道法老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=ethics+teacher+wise+book+realistic+portrait&sign=moral001",
+                colorClass: "border-amber-500/50 bg-amber-900/80"
+            }
+        };
+
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: {
+                math: [
+                    "欢迎来到数学世界！",
+                    "初一数学从有理数开始学习。",
+                    "数学是逻辑思维的体现，要多练习。",
+                    "有不懂的地方随时来问我！"
+                ],
+                moral: [
+                    "道德与法治很重要！",
+                    "初一要学习如何做一个好公民。",
+                    "法律是我们行为的准则。",
+                    "培养正确的价值观很关键。"
+                ]
+            },
+            2: {
+                math: [
+                    "初二数学开始学函数了！",
+                    "一次函数和二次函数要掌握好。",
+                    "几何证明也是重点内容。",
+                    "数学思维需要不断训练！"
+                ],
+                moral: [
+                    "初二的道德法治内容更深入。",
+                    "要学习宪法和基本法律常识。",
+                    "公民权利和义务要理解透彻。",
+                    "做一个有责任心的青少年！"
+                ]
+            },
+            3: {
+                math: [
+                    "初三数学要为中考做准备！",
+                    "二次函数和圆的知识是重点。",
+                    "解题技巧和速度都要提高。",
+                    "数学中考加油，相信你能行！"
+                ],
+                moral: [
+                    "初三道德法治也要中考了！",
+                    "时事政治要多关注。",
+                    "理论联系实际很重要。",
+                    "道法中考要细心答题！"
+                ]
+            }
+        };
+
+        // DOM 元素
+        const elements = {
+            leftDoor: document.getElementById('leftDoor'),
+            rightDoor: document.getElementById('rightDoor'),
+            dialogueContainer: document.getElementById('dialogueContainer'),
+            characterAvatar: document.getElementById('characterAvatar'),
+            characterName: document.getElementById('characterName'),
+            dialogueContent: document.getElementById('dialogueContent'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            gradeDisplay: document.getElementById('gradeDisplay')
+        };
+
+        // 处理门点击事件
+        function handleDoorClick(character) {
+            console.log(`🚪 点击${character}门`);
+            
+            // 如果点击的是数学老师门，使用Coze SDK
+            if (character === 'math') {
+                console.log('📐 点击数学老师门，启动Coze对话');
+                
+                if (cozeWebSDKMath) {
+                    try {
+                        cozeWebSDKMath.showChatBot();
+                        showToast("正在连接数学老师...");
+                    } catch (error) {
+                        console.error('❌ 启动数学老师Coze对话失败:', error);
+                        showToast("连接数学老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.error('❌ 数学老师Coze SDK 未初始化');
+                    showToast("数学老师系统未准备好，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDoorClick(character);
+                }
+            } else if (character === 'moral') {
+                console.log('⚖️ 点击道法老师门，启动Coze对话');
+                
+                if (cozeWebSDKMoral) {
+                    try {
+                        cozeWebSDKMoral.showChatBot();
+                        showToast("正在连接道法老师...");
+                    } catch (error) {
+                        console.error('❌ 启动道法老师Coze对话失败:', error);
+                        showToast("连接道法老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.error('❌ 道法老师Coze SDK 未初始化');
+                    showToast("道法老师系统未准备好，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDoorClick(character);
+                }
+            } else {
+                // 其他门使用原有对话系统
+                handleOriginalDoorClick(character);
+            }
+        }
+        
+        // 原有的门点击处理逻辑（作为降级方案）
+        function handleOriginalDoorClick(character) {
+            gameState.activeCharacter = character;
+            gameState.currentDialogueIndex = 0;
+            
+            const dialogues = gradeDialogues[gameState.grade][character];
+            if (dialogues && dialogues.length > 0) {
+                showDialogue(dialogues[0]);
+            }
+        }
+        
+        // 显示提示消息
+        function showToast(message) {
+            console.log('📢 提示:', message);
+            // 这里可以添加UI提示显示逻辑
+        }
+
+        // 显示对话
+        function showDialogue(content) {
+            const character = characterInfo[gameState.activeCharacter];
+            if (!character) return;
+
+            elements.characterAvatar.style.backgroundImage = `url(${character.image})`;
+            elements.characterAvatar.style.backgroundSize = 'cover';
+            elements.characterAvatar.style.backgroundPosition = 'center';
+            elements.characterAvatar.className = `character-avatar ${character.colorClass}`;
+            
+            elements.characterName.textContent = character.name;
+            elements.dialogueContent.textContent = content;
+            elements.dialogueContainer.style.display = 'block';
+            
+            gameState.isDialogueOpen = true;
+        }
+
+        // 处理下一句对话
+        function handleNextDialogue() {
+            const dialogues = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            gameState.currentDialogueIndex++;
+            
+            if (gameState.currentDialogueIndex < dialogues.length) {
+                showDialogue(dialogues[gameState.currentDialogueIndex]);
+            } else {
+                closeDialogue();
+            }
+        }
+
+        // 关闭对话
+        function closeDialogue() {
+            elements.dialogueContainer.style.display = 'none';
+            gameState.isDialogueOpen = false;
+            gameState.activeCharacter = null;
+            gameState.currentDialogueIndex = 0;
+        }
+
+        // 更新年级显示
+        function updateGradeDisplay() {
+            const gradeNames = ['初一年级', '初二年级', '初三年级'];
+            elements.gradeDisplay.textContent = gradeNames[gameState.grade - 1];
+            
+            // 可以从父窗口获取年级信息
+            try {
+                if (window.parent && window.parent.getPlayerGrade) {
+                    const parentGrade = window.parent.getPlayerGrade();
+                    if (parentGrade >= 1 && parentGrade <= 3) {
+                        gameState.grade = parentGrade;
+                        elements.gradeDisplay.textContent = gradeNames[parentGrade - 1];
+                    }
+                }
+            } catch (e) {
+                console.log('无法获取父窗口年级信息，使用默认值');
+            }
+        }
+
+        // 关闭办公系统
+        function closeOfficeSystem() {
+            try {
+                if (window.parent && window.parent.closeEducationSystem) {
+                    window.parent.closeEducationSystem();
+                } else {
+                    window.close();
+                }
+            } catch (e) {
+                console.log('关闭系统失败，尝试其他方式');
+                window.close();
+            }
+        }
+
+        // 初始化
+        function init() {
+            console.log('📚 教学楼B系统初始化');
+            
+            // 初始化Coze SDK
+            initCozeSDK();
+            
+            // 设置事件监听器
+            elements.leftDoor.addEventListener('click', () => handleDoorClick('math'));
+            elements.rightDoor.addEventListener('click', () => handleDoorClick('moral'));
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 从父窗口获取年级信息
+            updateGradeDisplay();
+            
+            console.log('✅ 教学楼B系统初始化完成');
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

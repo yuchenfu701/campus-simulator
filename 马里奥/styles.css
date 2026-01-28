@@ -1,0 +1,541 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #333;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* 背景动画粒子 */
+.bg-particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.particle-bg {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    animation: floatParticle 20s infinite ease-in-out;
+}
+
+@keyframes floatParticle {
+    0%, 100% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100vh) translateX(100px);
+        opacity: 0;
+    }
+}
+
+.game-container {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    border-radius: 32px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+    padding: 30px;
+    max-width: 1320px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    animation: containerFadeIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes containerFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* 游戏标题 */
+.game-title {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 3px solid rgba(102, 126, 234, 0.2);
+}
+
+.game-title h1 {
+    font-size: 2.8em;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    animation: titleGlow 3s ease-in-out infinite;
+    text-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+}
+
+@keyframes titleGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
+    }
+    50% {
+        filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.8));
+    }
+}
+
+.game-title p {
+    color: #666;
+    font-size: 1.05em;
+    font-weight: 600;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 10px 20px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+/* 游戏画布 */
+#gameCanvas {
+    border: 4px solid rgba(102, 126, 234, 0.3);
+    border-radius: 20px;
+    display: block;
+    margin: 0 auto;
+    background: linear-gradient(to bottom, #191970, #2f4f4f);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4), inset 0 0 50px rgba(102, 126, 234, 0.1);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    transition: all 0.3s;
+}
+
+#gameCanvas:hover {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 50px rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+/* 游戏信息面板 */
+.game-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    border-radius: 16px;
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.player-info {
+    display: flex;
+    gap: 20px;
+    font-weight: 700;
+    color: #4a5568;
+    flex-wrap: wrap;
+}
+
+.player-info span {
+    padding: 10px 18px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+    border-radius: 25px;
+    font-size: 0.95em;
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-info span:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.4);
+}
+
+.player-info span span {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+    font-size: 1.1em;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.game-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* 按钮样式 */
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+}
+
+button:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+button:active {
+    transform: translateY(-1px);
+}
+
+button span {
+    position: relative;
+    z-index: 1;
+}
+
+/* 对话框样式 */
+.dialog-box {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.95));
+    backdrop-filter: blur(20px);
+    border: 3px solid rgba(102, 126, 234, 0.3);
+    border-radius: 20px;
+    padding: 25px 30px;
+    max-width: 650px;
+    width: 85%;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    animation: dialogSlideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 100;
+}
+
+@keyframes dialogSlideUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.dialog-box.hidden {
+    display: none;
+}
+
+.dialog-content p {
+    font-size: 1.15em;
+    line-height: 1.8;
+    color: #4a5568;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+#dialogNext {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    margin-left: auto;
+    display: block;
+    padding: 12px 28px;
+}
+
+#dialogNext:hover {
+    box-shadow: 0 8px 25px rgba(72, 187, 120, 0.5);
+}
+
+/* 开始界面 */
+.start-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95), rgba(118, 75, 162, 0.95));
+    backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    color: white;
+    text-align: center;
+    padding: 40px;
+    animation: startScreenFadeIn 0.6s ease-out;
+}
+
+@keyframes startScreenFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(20px);
+    }
+}
+
+.start-screen h2 {
+    font-size: 3.5em;
+    margin-bottom: 30px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, #ffffff, #f0f0f0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+    animation: titleFloat 3s ease-in-out infinite;
+}
+
+@keyframes titleFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.start-screen p {
+    font-size: 1.25em;
+    margin-bottom: 18px;
+    max-width: 700px;
+    line-height: 1.8;
+    opacity: 0.95;
+    font-weight: 500;
+}
+
+.start-screen ul {
+    list-style: none;
+    padding: 0;
+    margin: 30px 0;
+    max-width: 500px;
+}
+
+.start-screen li {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+    margin: 12px 0;
+    padding: 15px 25px;
+    border-radius: 30px;
+    font-size: 1.15em;
+    text-align: left;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.start-screen li:hover {
+    transform: translateX(10px);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+#startBtn {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    font-size: 1.3em;
+    padding: 18px 40px;
+    margin-top: 30px;
+    border-radius: 30px;
+    font-weight: 800;
+    box-shadow: 0 8px 30px rgba(72, 187, 120, 0.5);
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+@keyframes buttonPulse {
+    0%, 100% {
+        box-shadow: 0 8px 30px rgba(72, 187, 120, 0.5);
+    }
+    50% {
+        box-shadow: 0 12px 40px rgba(72, 187, 120, 0.7);
+    }
+}
+
+#startBtn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(72, 187, 120, 0.7);
+    animation: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .game-container {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    #gameCanvas {
+        width: 100%;
+        height: auto;
+    }
+    
+    .game-info {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .player-info {
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+    
+    .player-info span {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .game-controls {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .game-title h1 {
+        font-size: 2em;
+    }
+    
+    .start-screen h2 {
+        font-size: 2.5em;
+    }
+    
+    .start-screen p {
+        font-size: 1.1em;
+    }
+    
+    .start-screen ul {
+        max-width: 100%;
+    }
+    
+    .start-screen li {
+        font-size: 1em;
+        padding: 12px 20px;
+    }
+}
+
+/* 像素艺术风格 */
+.pixel-art {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+/* 游戏暂停遮罩 */
+.pause-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 2.5em;
+    font-weight: 700;
+    z-index: 999;
+    border-radius: 20px;
+}
+
+.pause-overlay.hidden {
+    display: none;
+}
+
+/* 新增的特效样式 */
+.glow-effect {
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    }
+    to {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    }
+}
+
+/* 健康条样式 */
+.health-bar {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 24px;
+    margin: 8px 0;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.health-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.health-fill.low {
+    background: linear-gradient(90deg, #F44336, #FF5722);
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+}
+
+.health-fill.critical {
+    background: linear-gradient(90deg, #D32F2F, #F44336);
+    animation: pulse 1s infinite;
+    box-shadow: 0 0 15px rgba(211, 47, 47, 0.7);
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}

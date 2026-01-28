@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token & Bot 验证工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #fbbf24;
+        }
+        
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            color: white;
+            transition: transform 0.2s;
+        }
+        
+        button:hover { transform: translateY(-2px); }
+        
+        .btn-primary { background: linear-gradient(45deg, #3b82f6, #1e40af); }
+        .btn-success { background: linear-gradient(45deg, #10b981, #059669); }
+        .btn-danger { background: linear-gradient(45deg, #ef4444, #dc2626); }
+        .btn-warning { background: linear-gradient(45deg, #f59e0b, #d97706); }
+        
+        .input-group {
+            margin: 15px 0;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+        
+        .result-area {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .result-success { color: #10b981; }
+        .result-error { color: #ef4444; }
+        .result-warning { color: #f59e0b; }
+        .result-info { color: #3b82f6; }
+        
+        .problem-list {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .solution-list {
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Token & Bot 验证工具</h1>
+        
+        <div class="status-box">
+            <h3>🎯 诊断目标</h3>
+            <p>检查您的Coze Token和Bot ID是否有效，以及网络连接是否正常。</p>
+        </div>
+        
+        <div class="test-section">
+            <h3>📝 配置信息</h3>
+            <div class="input-group">
+                <label for="botId">Bot ID:</label>
+                <input type="text" id="botId" value="7528957467150630946" placeholder="输入您的Bot ID">
+            </div>
+            <div class="input-group">
+                <label for="token">Personal Access Token:</label>
+                <input type="password" id="token" value="pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx" placeholder="输入您的Token">
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn-primary" onclick="validateInputs()">🔍 验证格式</button>
+                <button class="btn-warning" onclick="testTokenAPI()">🔐 测试Token</button>
+                <button class="btn-success" onclick="testBotAccess()">🤖 测试Bot</button>
+                <button class="btn-danger" onclick="clearResults()">🗑️ 清空结果</button>
+            </div>
+        </div>
+        
+        <div class="result-area" id="resultArea">等待测试...</div>
+        
+        <div class="problem-list">
+            <h4>❌ 常见问题</h4>
+            <ul>
+                <li><strong>Token过期</strong> - Personal Access Token有时效性</li>
+                <li><strong>Bot权限不足</strong> - Token可能没有访问该Bot的权限</li>
+                <li><strong>Bot状态异常</strong> - Bot可能未发布或已停用</li>
+                <li><strong>网络限制</strong> - 本地开发环境可能被限制访问</li>
+                <li><strong>配置错误</strong> - Bot ID或Token格式不正确</li>
+            </ul>
+        </div>
+        
+        <div class="solution-list">
+            <h4>✅ 解决方案</h4>
+            <ul>
+                <li><strong>重新生成Token</strong> - 到Coze控制台生成新的Token</li>
+                <li><strong>检查Bot状态</strong> - 确认Bot已发布且状态正常</li>
+                <li><strong>验证权限</strong> - 确认Token有访问该Bot的权限</li>
+                <li><strong>使用HTTPS</strong> - 某些情况下需要HTTPS环境</li>
+                <li><strong>联系支持</strong> - 如果问题持续，联系Coze技术支持</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 日志函数
+        function log(message, type = 'info') {
+            const resultArea = document.getElementById('resultArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = `result-${type}`;
+            
+            const line = document.createElement('div');
+            line.className = className;
+            line.textContent = `[${timestamp}] ${message}`;
+            
+            resultArea.appendChild(line);
+            resultArea.scrollTop = resultArea.scrollHeight;
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // 清空结果
+        function clearResults() {
+            document.getElementById('resultArea').innerHTML = '已清空...';
+        }
+        
+        // 验证输入格式
+        function validateInputs() {
+            log('=== 开始验证输入格式 ===', 'info');
+            
+            const botId = document.getElementById('botId').value.trim();
+            const token = document.getElementById('token').value.trim();
+            
+            let isValid = true;
+            
+            // 验证Bot ID
+            if (!botId) {
+                log('❌ Bot ID 不能为空', 'error');
+                isValid = false;
+            } else if (!/^\d+$/.test(botId)) {
+                log('❌ Bot ID 应该是纯数字', 'error');
+                isValid = false;
+            } else if (botId.length < 10) {
+                log('⚠️ Bot ID 长度可能不正确（通常是19位数字）', 'warning');
+            } else {
+                log('✅ Bot ID 格式正确', 'success');
+            }
+            
+            // 验证Token
+            if (!token) {
+                log('❌ Token 不能为空', 'error');
+                isValid = false;
+            } else if (!token.startsWith('pat_')) {
+                log('❌ Token 应该以 "pat_" 开头', 'error');
+                isValid = false;
+            } else if (token.length < 30) {
+                log('⚠️ Token 长度可能不正确', 'warning');
+            } else {
+                log('✅ Token 格式正确', 'success');
+            }
+            
+            if (isValid) {
+                log('🎉 输入格式验证通过！', 'success');
+            } else {
+                log('💥 输入格式验证失败，请检查后重试', 'error');
+            }
+            
+            return isValid;
+        }
+        
+        // 测试Token API连接
+        async function testTokenAPI() {
+            if (!validateInputs()) {
+                return;
+            }
+            
+            log('=== 开始测试Token API连接 ===', 'info');
+            
+            const token = document.getElementById('token').value.trim();
+            
+            try {
+                // 尝试调用Coze API来验证Token
+                log('🔄 正在测试Token有效性...', 'info');
+                
+                const response = await fetch('https://api.coze.cn/v1/bot/list', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`📡 API响应状态: ${response.status} ${response.statusText}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Token验证成功！可以访问Coze API', 'success');
+                    log(`📊 返回数据: ${JSON.stringify(data, null, 2)}`, 'info');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Token验证失败: ${response.status}`, 'error');
+                    log(`📄 错误详情: ${errorText}`, 'error');
+                    
+                    if (response.status === 401) {
+                        log('💡 建议: Token可能已过期或无效，请重新生成', 'warning');
+                    } else if (response.status === 403) {
+                        log('💡 建议: Token权限不足，请检查权限设置', 'warning');
+                    }
+                }
+                
+            } catch (error) {
+                log(`💥 网络请求失败: ${error.message}`, 'error');
+                log('💡 建议: 检查网络连接或尝试使用HTTPS环境', 'warning');
+            }
+        }
+        
+        // 测试Bot访问
+        async function testBotAccess() {
+            if (!validateInputs()) {
+                return;
+            }
+            
+            log('=== 开始测试Bot访问权限 ===', 'info');
+            
+            const botId = document.getElementById('botId').value.trim();
+            const token = document.getElementById('token').value.trim();
+            
+            try {
+                log('🔄 正在测试Bot访问权限...', 'info');
+                
+                const response = await fetch(`https://api.coze.cn/v1/bot/get_online_info?bot_id=${botId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`📡 Bot API响应状态: ${response.status} ${response.statusText}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Bot访问成功！', 'success');
+                    log(`🤖 Bot信息: ${JSON.stringify(data, null, 2)}`, 'info');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Bot访问失败: ${response.status}`, 'error');
+                    log(`📄 错误详情: ${errorText}`, 'error');
+                    
+                    if (response.status === 404) {
+                        log('💡 建议: Bot ID可能不存在或不正确', 'warning');
+                    } else if (response.status === 403) {
+                        log('💡 建议: 没有访问此Bot的权限', 'warning');
+                    }
+                }
+                
+            } catch (error) {
+                log(`💥 Bot访问请求失败: ${error.message}`, 'error');
+                log('💡 建议: 检查Bot ID是否正确，或联系Bot创建者', 'warning');
+            }
+        }
+        
+        // 页面加载时的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Token & Bot 验证工具已启动', 'info');
+            log('💡 请先点击"验证格式"检查输入，然后进行API测试', 'info');
+        });
+    </script>
+</body>
+</html> 

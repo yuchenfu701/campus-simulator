@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 爱哲安民未来学校校园模拟器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* 背景视频 */
+        .bg-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+        
+        /* 动态背景 */
+        .bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                #667eea 0%, 
+                #764ba2 25%, 
+                #f093fb 50%, 
+                #4facfe 75%, 
+                #667eea 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            z-index: 0;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* 粒子效果 */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: float 8s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { 
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { 
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+        
+        /* 主容器 */
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        /* 登录卡片 */
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.6s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Logo */
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo-icon {
+            font-size: 80px;
+            margin-bottom: 15px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .logo-title {
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 5px;
+        }
+        
+        .logo-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* 头像上传 */
+        .avatar-upload {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .avatar-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .avatar-preview:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .avatar-hint {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        #avatarInput {
+            display: none;
+        }
+        
+        /* 表单 */
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f9fafb;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        /* 按钮 */
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        /* 快速登录 */
+        .quick-login {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .quick-login-title {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 15px;
+        }
+        
+        .quick-login-btns {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .quick-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quick-btn:hover {
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .login-card {
+                padding: 40px 30px;
+            }
+            
+            .logo-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 动态背景 -->
+    <div class="bg-container"></div>
+    
+    <!-- 粒子效果 -->
+    <div class="particles" id="particles"></div>
+    
+    <!-- 主容器 -->
+    <div class="container">
+        <div class="login-card">
+            <!-- Logo -->
+            <div class="logo">
+                <div class="logo-icon">🎓</div>
+                <div class="logo-title">爱哲安民未来学校校园模拟器</div>
+                <div class="logo-subtitle">Campus Life Simulator</div>
+            </div>
+            
+            <!-- 头像上传 -->
+            <div class="avatar-upload">
+                <div class="avatar-preview" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">
+                    👤
+                </div>
+                <div class="avatar-hint">点击上传头像</div>
+                <input type="file" id="avatarInput" accept="image/*">
+            </div>
+            
+            <!-- 登录表单 -->
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">昵称</label>
+                    <input type="text" class="form-input" id="nicknameInput" 
+                           placeholder="请输入您的昵称" required maxlength="12">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">手机号码</label>
+                    <input type="tel" class="form-input" id="phoneInput" 
+                           placeholder="请输入手机号码" required pattern="[0-9]{11}">
+                </div>
+                
+                <button type="submit" class="btn-login">
+                    🎮 进入校园
+                </button>
+            </form>
+            
+            <!-- 快速登录 -->
+            <div class="quick-login">
+                <div class="quick-login-title">快速登录</div>
+                <div class="quick-login-btns">
+                    <div class="quick-btn" onclick="quickLogin('student')" title="学生">👨‍🎓</div>
+                    <div class="quick-btn" onclick="quickLogin('teacher')" title="教师">👨‍🏫</div>
+                    <div class="quick-btn" onclick="quickLogin('guest')" title="游客">👤</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 创建粒子效果
+        function createParticles() {
+            const particles = document.getElementById('particles');
+            const particleCount = 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 8 + 's';
+                particle.style.animationDuration = (Math.random() * 4 + 6) + 's';
+                particles.appendChild(particle);
+            }
+        }
+        
+        createParticles();
+        
+        // 初始化用户积分数据
+        function initUserPointsData(userId, nickname) {
+            // 获取或创建积分系统数据
+            let pointsData = localStorage.getItem('campus_points_system');
+            
+            if (!pointsData) {
+                // 首次使用，创建空数据结构
+                pointsData = {
+                    students: {},
+                    config: {}
+                };
+            } else {
+                pointsData = JSON.parse(pointsData);
+            }
+            
+            // 检查该用户是否已存在
+            if (!pointsData.students[userId]) {
+                // 新用户，创建初始数据
+                pointsData.students[userId] = {
+                    id: userId,
+                    name: nickname,
+                    points: 100,  // 初始积分
+                    totalEarned: 100,
+                    inventory: [],  // 空背包
+                    avatar: {
+                        hair: 'none',
+                        glasses: 'none',
+                        hat: 'none'
+                    },
+                    achievements: [],
+                    tasks: {
+                        daily: {},
+                        weekly: {}
+                    }
+                };
+                
+                // 保存数据
+                localStorage.setItem('campus_points_system', JSON.stringify(pointsData));
+                console.log(`✅ 新用户 ${nickname} (${userId}) 数据已初始化`);
+            } else {
+                console.log(`👤 用户 ${nickname} (${userId}) 数据已加载`);
+            }
+        }
+        
+        // 头像上传预览
+        let userAvatar = null;
+        
+        document.getElementById('avatarInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    userAvatar = e.target.result;
+                    document.getElementById('avatarPreview').innerHTML = 
+                        `<img src="${userAvatar}" alt="avatar">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // 处理登录
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const nickname = document.getElementById('nicknameInput').value.trim();
+            const phone = document.getElementById('phoneInput').value.trim();
+            
+            // 验证手机号
+            if (!/^1[3-9]\d{9}$/.test(phone)) {
+                alert('❌ 请输入正确的手机号码');
+                return;
+            }
+            
+            // 生成用户ID（基于手机号）
+            const userId = 'user_' + phone;
+            
+            // 保存用户信息
+            const userData = {
+                userId: userId,
+                nickname: nickname,
+                phone: phone,
+                avatar: userAvatar || '👤',
+                loginTime: new Date().toISOString(),
+                userType: 'student'
+            };
+            
+            localStorage.setItem('campus_user', JSON.stringify(userData));
+            
+            // 初始化用户的积分系统数据（如果是新用户）
+            initUserPointsData(userId, nickname);
+            
+            // 显示欢迎消息
+            showWelcome(nickname);
+            
+            // 跳转到主菜单
+            setTimeout(() => {
+                window.location.href = 'main-menu.html';
+            }, 1500);
+        }
+        
+        // 快速登录
+        function quickLogin(type) {
+            let userData;
+            
+            if (type === 'student') {
+                const randomId = Math.floor(Math.random() * 10000);
+                const phone = '13800' + String(randomId).padStart(6, '0');
+                const userId = 'user_' + phone;
+                
+                userData = {
+                    userId: userId,
+                    nickname: '学生' + randomId,
+                    phone: phone,
+                    avatar: '👨‍🎓',
+                    loginTime: new Date().toISOString(),
+                    userType: 'student'
+                };
+                
+                // 初始化用户数据
+                initUserPointsData(userId, userData.nickname);
+            } else if (type === 'teacher') {
+                const userId = 'user_13900139000';
+                userData = {
+                    userId: userId,
+                    nickname: '李老师',
+                    phone: '13900139000',
+                    avatar: '👨‍🏫',
+                    loginTime: new Date().toISOString(),
+                    userType: 'teacher'
+                };
+                initUserPointsData(userId, userData.nickname);
+            } else {
+                const randomId = Math.floor(Math.random() * 10000);
+                const phone = '10000' + String(randomId).padStart(6, '0');
+                const userId = 'user_' + phone;
+                userData = {
+                    userId: userId,
+                    nickname: '游客' + randomId,
+                    phone: phone,
+                    avatar: '👤',
+                    loginTime: new Date().toISOString(),
+                    userType: 'guest'
+                };
+                initUserPointsData(userId, userData.nickname);
+            }
+            
+            localStorage.setItem('campus_user', JSON.stringify(userData));
+            showWelcome(userData.nickname);
+            
+            setTimeout(() => {
+                window.location.href = 'main-menu.html';
+            }, 1500);
+        }
+        
+        // 显示欢迎消息
+        function showWelcome(nickname) {
+            const welcome = document.createElement('div');
+            welcome.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 30px 50px;
+                border-radius: 16px;
+                font-size: 24px;
+                z-index: 9999;
+                animation: fadeIn 0.5s ease;
+            `;
+            welcome.textContent = `🎉 欢迎，${nickname}！`;
+            document.body.appendChild(welcome);
+        }
+        
+        // 检查是否已登录
+        window.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('campus_user');
+            if (userData) {
+                const user = JSON.parse(userData);
+                // 如果已登录且登录时间在24小时内，直接跳转
+                const loginTime = new Date(user.loginTime);
+                const now = new Date();
+                const hoursDiff = (now - loginTime) / (1000 * 60 * 60);
+                
+                if (hoursDiff < 24) {
+                    // 自动登录
+                    showWelcome(user.nickname);
+                    setTimeout(() => {
+                        window.location.href = 'main-menu.html';
+                    }, 1000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

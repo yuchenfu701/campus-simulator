@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主菜单 - 爱哲安民未来学校校园模拟器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #0a0e27;
+        }
+        
+        /* 背景层 - 更柔和的渐变 */
+        .bg-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                #0f172a 0%, 
+                #1e293b 25%, 
+                #312e81 50%, 
+                #1e293b 75%, 
+                #0f172a 100%);
+            z-index: 0;
+        }
+        
+        /* 动态光效 - 多层光效 */
+        .light-effect {
+            position: fixed;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+            animation: rotate 30s linear infinite;
+            z-index: 1;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 星空Canvas */
+        #starsCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        /* 主容器 */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 80px 1fr 120px;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        /* 顶部导航栏 - 更精致的设计 */
+        .top-bar {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 0 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-icon {
+            font-size: 36px;
+        }
+        
+        .logo-text {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .top-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            color: white;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .info-item:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+        
+        .info-icon {
+            font-size: 20px;
+        }
+        
+        /* 左侧用户信息 */
+        .left-panel {
+            grid-row: 2 / 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        /* 用户卡片 - 更精致的设计 */
+        .user-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .user-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+        
+        .user-avatar {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5),
+                        0 0 0 4px rgba(139, 92, 246, 0.2);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        
+        .user-avatar::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .user-card:hover .user-avatar {
+            transform: scale(1.05);
+            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6),
+                        0 0 0 6px rgba(139, 92, 246, 0.3);
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .user-name {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .user-id {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .user-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stat-box {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .stat-box:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-2px);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* 虚拟形象展示 - 更精致的设计 */
+        .avatar-display {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .avatar-display:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+        
+        .avatar-title {
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .avatar-preview-large {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(99, 102, 241, 0.4));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4),
+                        inset 0 2px 4px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .avatar-display:hover .avatar-preview-large {
+            transform: scale(1.05);
+            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6),
+                        inset 0 2px 4px rgba(255, 255, 255, 0.15);
+        }
+        
+        .avatar-edit-btn {
+            margin-top: 15px;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(99, 102, 241, 0.3));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .avatar-edit-btn:hover {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(99, 102, 241, 0.5));
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+        }
+        
+        /* 中央内容区 */
+        .center-content {
+            grid-row: 2 / 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow: hidden;
+        }
+        
+        /* 功能网格 */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 10px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(139, 92, 246, 0.2), 
+                rgba(99, 102, 241, 0.2),
+                rgba(59, 130, 246, 0.2));
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.4),
+                        0 0 0 1px rgba(255, 255, 255, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border-color: rgba(139, 92, 246, 0.6);
+        }
+        
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+        
+        .feature-card:hover::after {
+            opacity: 1;
+            animation: rotate 3s linear infinite;
+        }
+        
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            transition: all 0.4s;
+        }
+        
+        .feature-card:hover .feature-icon {
+            transform: scale(1.15) rotate(5deg);
+            filter: drop-shadow(0 6px 12px rgba(139, 92, 246, 0.6));
+        }
+        
+        .feature-title {
+            color: white;
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-desc {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        /* 右侧面板 */
+        .right-panel {
+            grid-row: 2 / 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        /* 排行榜预览 - 更精致的设计 */
+        .rank-preview {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            flex: 1;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-title {
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .rank-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .rank-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .rank-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .rank-info {
+            flex: 1;
+        }
+        
+        .rank-name {
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .rank-score {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+        }
+        
+        /* 公告栏 - 更精致的设计 */
+        .notice-panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .notice-item {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid #8b5cf6;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .notice-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateX(4px);
+            border-left-color: #6366f1;
+        }
+        
+        /* 底部控制栏 */
+        .bottom-bar {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            position: relative;
+        }
+        
+        .main-button {
+            padding: 18px 60px;
+            border-radius: 16px;
+            border: none;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-start-game {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            color: white;
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5),
+                        0 0 0 0 rgba(139, 92, 246, 0.4);
+            min-width: 220px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-start-game::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-start-game:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(139, 92, 246, 0.6),
+                        0 0 0 4px rgba(139, 92, 246, 0.3);
+        }
+        
+        .btn-start-game:hover::before {
+            left: 100%;
+        }
+        
+        .btn-start-game:active {
+            transform: translateY(-2px);
+        }
+        
+        .btn-logout {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1600px) {
+            .feature-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 250px 1fr 250px;
+            }
+            .feature-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+                padding: 10px;
+            }
+            
+            .left-panel, .right-panel {
+                display: none;
+            }
+            
+            .center-content {
+                grid-row: 3;
+            }
+            
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* iframe模态框 */
+        .feature-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            transition: opacity 0.3s;
+        }
+        
+        .feature-modal.hidden {
+            display: none;
+            opacity: 0;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-title {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+        
+        .feature-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景层 -->
+    <div class="bg-layer"></div>
+    <div class="light-effect"></div>
+    <canvas id="starsCanvas"></canvas>
+    
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 顶部导航栏 -->
+        <div class="top-bar">
+            <div class="logo-section">
+                <div class="logo-icon">🎓</div>
+                <div class="logo-text">爱哲安民未来学校校园模拟器</div>
+            </div>
+            
+            <div class="top-info">
+                <div class="info-item">
+                    <span class="info-icon">💎</span>
+                    <span id="userPoints">100</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-icon">🏆</span>
+                    <span>排名: <span id="userRank">--</span></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-icon">⏰</span>
+                    <span id="currentTime">--:--</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 左侧用户信息 -->
+        <div class="left-panel">
+            <!-- 用户卡片 -->
+            <div class="user-card">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-name" id="userName">玩家</div>
+                <div class="user-id" id="userId">ID: 10001</div>
+                
+                <div class="user-stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalPoints">100</div>
+                        <div class="stat-label">总积分</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="dayStreak">1</div>
+                        <div class="stat-label">连续天数</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 虚拟形象展示 -->
+            <div class="avatar-display">
+                <div class="avatar-title">👤 我的形象</div>
+                <div class="avatar-preview-large" id="avatarPreview">👤</div>
+                <button class="avatar-edit-btn" onclick="openAvatarEditor()">
+                    ✨ 编辑形象
+                </button>
+            </div>
+        </div>
+        
+        <!-- 中央内容区 -->
+        <div class="center-content">
+            <div class="feature-grid">
+                <!-- 积分商城 -->
+                <div class="feature-card" onclick="openFeature('mall')">
+                    <div class="feature-icon">🏪</div>
+                    <div class="feature-title">积分商城</div>
+                    <div class="feature-desc">兑换奖励，装扮形象</div>
+                </div>
+                
+                <!-- 校园小游戏 -->
+                <div class="feature-card" onclick="openFeature('games')">
+                    <div class="feature-icon">🎮</div>
+                    <div class="feature-title">校园小游戏</div>
+                    <div class="feature-desc">休闲益智，趣味无穷</div>
+                </div>
+                
+                <!-- 论坛 -->
+                <div class="feature-card" onclick="openFeature('forum')">
+                    <div class="feature-icon">💬</div>
+                    <div class="feature-title">校园论坛</div>
+                    <div class="feature-desc">分享交流，畅所欲言</div>
+                </div>
+                
+                <!-- 排行榜 -->
+                <div class="feature-card" onclick="openFeature('rank')">
+                    <div class="feature-icon">🏆</div>
+                    <div class="feature-title">排行榜</div>
+                    <div class="feature-desc">竞技角逐，争当第一</div>
+                </div>
+                
+                <!-- 充值中心 -->
+                <div class="feature-card" onclick="openFeature('recharge')">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-title">充值中心</div>
+                    <div class="feature-desc">获取积分，解锁特权</div>
+                </div>
+                
+                <!-- 任务中心 -->
+                <div class="feature-card" onclick="openFeature('tasks')">
+                    <div class="feature-icon">📋</div>
+                    <div class="feature-title">任务中心</div>
+                    <div class="feature-desc">完成任务，领取奖励</div>
+                </div>
+                
+                <!-- 好友系统 -->
+                <div class="feature-card" onclick="openFeature('friends')">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">好友系统</div>
+                    <div class="feature-desc">添加好友，建立社交</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+            <!-- 排行榜预览 -->
+            <div class="rank-preview">
+                <div class="panel-title">🏆 积分排行</div>
+                <div id="rankList">
+                    <div class="rank-item">
+                        <div class="rank-number">1</div>
+                        <div class="rank-info">
+                            <div class="rank-name">学霸小明</div>
+                            <div class="rank-score">💎 1580分</div>
+                        </div>
+                    </div>
+                    <div class="rank-item">
+                        <div class="rank-number" style="background: linear-gradient(135deg, #c0c0c0, #e8e8e8);">2</div>
+                        <div class="rank-info">
+                            <div class="rank-name">努力小红</div>
+                            <div class="rank-score">💎 1420分</div>
+                        </div>
+                    </div>
+                    <div class="rank-item">
+                        <div class="rank-number" style="background: linear-gradient(135deg, #cd7f32, #daa520);">3</div>
+                        <div class="rank-info">
+                            <div class="rank-name">勤奋小李</div>
+                            <div class="rank-score">💎 1350分</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 公告栏 -->
+            <div class="notice-panel">
+                <div class="panel-title">📢 校园公告</div>
+                <div class="notice-item">🎉 积分商城新品上架！</div>
+                <div class="notice-item">🏆 本周排行榜已更新</div>
+                <div class="notice-item">📚 期末考试即将开始</div>
+            </div>
+        </div>
+        
+        <!-- 底部控制栏 -->
+        <div class="bottom-bar">
+            <button class="main-button btn-start-game" onclick="startGame()">
+                🎮 开始游戏
+            </button>
+            <button class="main-button btn-logout" onclick="logout()">
+                🚪 退出登录
+            </button>
+        </div>
+    </div>
+    
+    <!-- 通用iframe模态框 -->
+    <div id="feature-modal" class="feature-modal hidden">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">功能</div>
+            <button class="modal-close-btn" onclick="closeFeatureModal()">✕</button>
+        </div>
+        <iframe id="feature-iframe" class="feature-iframe" frameborder="0"></iframe>
+    </div>
+    
+    <script src="js/points-system.js"></script>
+    <script>
+        // 加载用户信息
+        function loadUserInfo() {
+            const userData = localStorage.getItem('campus_user');
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            
+            // 显示用户信息
+            document.getElementById('userName').textContent = user.nickname;
+            document.getElementById('userId').textContent = `手机: ${user.phone}`;
+            
+            // 显示头像
+            const avatarElements = document.querySelectorAll('#userAvatar');
+            avatarElements.forEach(el => {
+                if (user.avatar && user.avatar.startsWith('data:')) {
+                    el.innerHTML = `<img src="${user.avatar}" alt="avatar">`;
+                } else {
+                    el.textContent = user.avatar || '👤';
+                }
+            });
+            
+            // 同步用户名字到积分系统（确保排行榜显示正确的名字）
+            if (user.userId) {
+                const pointsSystem = new PointsSystem();
+                pointsSystem.setCurrentUser(user.userId);
+                const student = pointsSystem.getCurrentStudent();
+                if (student && student.name !== user.nickname) {
+                    // 更新积分系统中的名字
+                    student.name = user.nickname;
+                    pointsSystem.savePointsData();
+                    console.log(`✅ 已同步用户名字: ${user.nickname}`);
+                }
+            }
+            
+            // 加载积分系统数据
+            loadPointsData();
+        }
+        
+        // 加载积分数据
+        function loadPointsData() {
+            // 获取当前登录用户
+            const userData = JSON.parse(localStorage.getItem('campus_user'));
+            if (!userData || !userData.userId) {
+                console.error('❌ 未找到登录用户信息');
+                return;
+            }
+            
+            const pointsSystem = new PointsSystem();
+            pointsSystem.setCurrentUser(userData.userId);
+            
+            const student = pointsSystem.getCurrentStudent();
+            if (student) {
+                // 确保用户名字同步（排行榜显示正确的名字）
+                if (student.name !== userData.nickname) {
+                    student.name = userData.nickname;
+                    pointsSystem.savePointsData();
+                    console.log(`✅ 已更新用户名字: ${userData.nickname}`);
+                }
+                
+                // 统一显示总积分（totalEarned），这样所有地方都一致
+                const totalEarned = student.totalEarned || student.points || 0;
+                const currentPoints = student.points || 0;
+                
+                // 更新顶部积分显示（显示总积分，与排行榜一致）
+                document.getElementById('userPoints').textContent = totalEarned;
+                
+                // 更新左边总积分显示（累计获得积分）
+                document.getElementById('totalPoints').textContent = totalEarned;
+                
+                console.log(`📊 积分数据: 当前可用=${currentPoints}, 总获得=${totalEarned}`);
+                
+                // 显示虚拟形象
+                updateAvatarPreview(student, pointsSystem);
+                
+                // 更新排行榜（确保使用最新的总积分数据和正确的名字）
+                pointsSystem.updateLeaderboard();
+                const leaderboard = pointsSystem.getLeaderboard(3);
+                updateRankList(leaderboard, userData.userId);
+                
+                // 更新当前用户的排名
+                updateUserRank(pointsSystem, userData.userId);
+            } else {
+                console.error('❌ 未找到用户积分数据');
+            }
+        }
+        
+        // 更新当前用户排名
+        function updateUserRank(pointsSystem, userId) {
+            const leaderboard = pointsSystem.getLeaderboard(100); // 获取更多排名以查找当前用户
+            const currentStudent = pointsSystem.getCurrentStudent();
+            if (!currentStudent) return;
+            
+            // 查找当前用户在排行榜中的位置
+            const userRankIndex = leaderboard.findIndex(item => {
+                // 通过比较总积分和名称来匹配
+                return item.totalPoints === currentStudent.totalEarned && 
+                       item.name === currentStudent.name;
+            });
+            
+            if (userRankIndex !== -1) {
+                document.getElementById('userRank').textContent = leaderboard[userRankIndex].rank;
+            } else {
+                // 如果不在前100名，计算排名
+                const allStudents = Object.values(pointsSystem.pointsData.students);
+                const sortedStudents = allStudents.sort((a, b) => b.totalEarned - a.totalEarned);
+                const rank = sortedStudents.findIndex(s => s.id === userId) + 1;
+                if (rank > 0) {
+                    document.getElementById('userRank').textContent = rank;
+                } else {
+                    document.getElementById('userRank').textContent = '--';
+                }
+            }
+        }
+        
+        // 更新虚拟形象预览
+        function updateAvatarPreview(student, pointsSystem) {
+            const avatarEl = document.getElementById('avatarPreview');
+            const allItems = pointsSystem.getRewardItems();
+            
+            // 1. 基础形象：如果有发型装备，显示发型；否则显示默认头像
+            let avatarIcon = '👤';  // 默认
+            if (student.avatar.hair && student.avatar.hair !== 'none') {
+                const hairItem = allItems.find(i => i.id === student.avatar.hair);
+                if (hairItem) {
+                    avatarIcon = hairItem.image;
+                }
+            }
+            
+            // 2. 叠加眼镜
+            let glassesIcon = '';
+            if (student.avatar.glasses && student.avatar.glasses !== 'none') {
+                const glassesItem = allItems.find(i => i.id === student.avatar.glasses);
+                if (glassesItem) {
+                    glassesIcon = glassesItem.image;
+                }
+            }
+            
+            // 3. 叠加帽子
+            let hatIcon = '';
+            if (student.avatar.hat && student.avatar.hat !== 'none') {
+                const hatItem = allItems.find(i => i.id === student.avatar.hat);
+                if (hatItem) {
+                    hatIcon = hatItem.image;
+                }
+            }
+            
+            // 组合显示（简化版，主菜单用横向排列）
+            avatarEl.innerHTML = `
+                <div style="position: relative; display: inline-block; font-size: 60px;">
+                    ${hatIcon ? `<div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.6em;">${hatIcon}</div>` : ''}
+                    <div>${avatarIcon}</div>
+                    ${glassesIcon ? `<div style="position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 0.5em;">${glassesIcon}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        // 更新排行榜
+        function updateRankList(leaderboard, currentUserId) {
+            const rankList = document.getElementById('rankList');
+            const medals = ['🥇', '🥈', '🥉'];
+            const colors = [
+                'linear-gradient(135deg, #ffd700, #ffed4e)',
+                'linear-gradient(135deg, #c0c0c0, #e8e8e8)',
+                'linear-gradient(135deg, #cd7f32, #daa520)'
+            ];
+            
+            if (!leaderboard || leaderboard.length === 0) {
+                rankList.innerHTML = '<div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 20px;">暂无排行数据</div>';
+                return;
+            }
+            
+            // 获取当前用户信息，确保名字正确
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            const currentUserName = userData.nickname || '玩家';
+            
+            rankList.innerHTML = leaderboard.map((item, index) => {
+                // 确保使用总积分（totalEarned）进行排名显示
+                const displayPoints = item.totalPoints || item.totalEarned || 0;
+                
+                // 如果是当前用户，使用登录时的名字（确保名字正确）
+                let displayName = item.name;
+                if (currentUserId && item.name === currentUserName) {
+                    displayName = currentUserName;
+                }
+                
+                console.log(`📊 排行榜 ${index + 1}: ${displayName} - 总积分=${displayPoints}`);
+                
+                return `
+                <div class="rank-item">
+                    <div class="rank-number" style="background: ${colors[index]};">${item.rank}</div>
+                    <div class="rank-info">
+                        <div class="rank-name">${displayName}</div>
+                        <div class="rank-score">💎 ${displayPoints}分</div>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+        
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('currentTime').textContent = `${hours}:${minutes}`;
+        }
+        
+        setInterval(updateTime, 1000);
+        updateTime();
+        
+        // 创建粒子效果
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            const particleCount = 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        // 打开功能（在iframe中）
+        function openFeature(feature) {
+            const featureMap = {
+                'mall': { url: 'points-mall.html', title: '🏪 积分商城' },
+                'games': { url: 'campus-games.html', title: '🎮 校园小游戏' },
+                'forum': { url: 'campus-forum.html', title: '💬 校园论坛' },
+                'rank': { url: 'points-rank.html', title: '🏆 排行榜' },
+                'recharge': { url: 'recharge.html', title: '💰 充值中心' },
+                'tasks': { url: 'points-tasks.html', title: '📋 任务中心' },
+                'friends': { url: 'campus-friends.html', title: '👥 好友系统' }
+            };
+            
+            const config = featureMap[feature];
+            if (config) {
+                showFeatureModal(config.url, config.title);
+            }
+        }
+        
+        // 打开形象编辑器（在iframe中）
+        function openAvatarEditor() {
+            showFeatureModal('points-avatar.html', '👤 虚拟形象');
+        }
+        
+        // 显示功能模态框
+        function showFeatureModal(url, title) {
+            const modal = document.getElementById('feature-modal');
+            const iframe = document.getElementById('feature-iframe');
+            const modalTitle = document.getElementById('modalTitle');
+            
+            modalTitle.textContent = title;
+            iframe.src = url;
+            modal.classList.remove('hidden');
+        }
+        
+        // 关闭功能模态框
+        function closeFeatureModal() {
+            const modal = document.getElementById('feature-modal');
+            const iframe = document.getElementById('feature-iframe');
+            
+            modal.classList.add('hidden');
+            iframe.src = '';
+            
+            // 重新加载积分数据（可能在iframe中有更新）
+            loadPointsData();
+        }
+        
+        // 为iframe内部提供跳转功能
+        window.openInGame = function(url, title) {
+            showFeatureModal(url, title);
+        };
+        
+        // 开始游戏
+        function startGame() {
+            // 检查是否是第一次启动游戏
+            const hasStartedBefore = localStorage.getItem('game_started');
+            
+            if (!hasStartedBefore) {
+                // 第一次启动：跳转到介绍页面
+                console.log('🎮 首次启动游戏，跳转到介绍页面');
+                localStorage.setItem('game_started', 'true');
+                window.location.href = '梦核校园最新力作(2).html';
+            } else {
+                // 第二次及以后：直接跳转到游戏
+                console.log('🎮 继续游戏，跳转到主游戏');
+                window.location.href = 'index.html';
+            }
+        }
+        
+        // 退出登录（保存所有数据）
+        function logout() {
+            if (confirm('确定要退出登录吗？所有数据将自动保存。')) {
+                // 1. 确保积分系统数据已保存
+                try {
+                    const pointsSystem = new PointsSystem();
+                    if (pointsSystem.currentUser) {
+                        pointsSystem.savePointsData();
+                        console.log('✅ 积分数据已保存');
+                    }
+                } catch (e) {
+                    console.error('❌ 保存积分数据失败:', e);
+                }
+                
+                // 2. 保存退出时间
+                const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                if (userData.userId) {
+                    userData.lastLogoutTime = new Date().toISOString();
+                    localStorage.setItem('campus_user', JSON.stringify(userData));
+                }
+                
+                // 3. 显示保存成功提示
+                const saveMsg = document.createElement('div');
+                saveMsg.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    padding: 30px 50px;
+                    border-radius: 16px;
+                    font-size: 18px;
+                    z-index: 10001;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                `;
+                saveMsg.textContent = '✅ 数据已保存，正在退出...';
+                document.body.appendChild(saveMsg);
+                
+                // 4. 延迟跳转（让用户看到保存提示）
+                setTimeout(() => {
+                    localStorage.removeItem('campus_user');
+                    window.location.href = 'login.html';
+                }, 800);
+            }
+        }
+        
+        // 自动保存机制
+        function autoSave() {
+            try {
+                const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                if (userData.userId) {
+                    const pointsSystem = new PointsSystem();
+                    pointsSystem.setCurrentUser(userData.userId);
+                    pointsSystem.savePointsData();
+                    console.log('💾 自动保存完成');
+                }
+            } catch (e) {
+                console.error('❌ 自动保存失败:', e);
+            }
+        }
+        
+        // 页面关闭前保存
+        window.addEventListener('beforeunload', () => {
+            autoSave();
+        });
+        
+        // 定期自动保存（每30秒）
+        setInterval(autoSave, 30000);
+        
+        // 星空滚动效果
+        function initStars() {
+            const canvas = document.getElementById('starsCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // 设置画布尺寸
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // 星星数组
+            const stars = [];
+            const starCount = 300; // 星星数量
+
+            // 星星类
+            class Star {
+                constructor() {
+                    this.reset();
+                }
+
+                reset() {
+                    this.x = Math.random() * canvas.width; // 随机水平位置
+                    this.y = -Math.random() * canvas.height; // 从画布上方开始
+                    this.radius = Math.random() * 1 + 0.5; // 星星半径（0.5到1.5之间）
+                    this.velocity = Math.random() * 0.5 + 0.1; // 星星下落速度
+                    this.alpha = Math.random() * 0.6 + 0.4; // 星星亮度（透明度0.4到1之间）
+                    this.alphaDelta = Math.random() * 0.05 - 0.025; // 透明度变化量，用于闪烁效果
+                }
+
+                update() {
+                    this.y += this.velocity; // 星星向下移动
+                    if (this.y > canvas.height) this.reset(); // 如果星星超出画布，重置到上方
+
+                    // 闪烁效果
+                    this.alpha += this.alphaDelta;
+                    if (this.alpha < 0.4 || this.alpha > 1) this.alphaDelta *= -1;
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                    ctx.fill();
+                }
+            }
+
+            // 流星类
+            class Meteor {
+                constructor() {
+                    this.reset();
+                }
+
+                reset() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = -Math.random() * canvas.height; // 流星从上方开始
+                    this.length = Math.random() * 50 + 20; // 流星长度
+                    this.angle = Math.random() * Math.PI / 4; // 流星角度
+                    this.speed = Math.random() * 5 + 5; // 流星速度
+                    this.alpha = Math.random() * 0.5 + 0.5; // 流星初始亮度
+                }
+
+                update() {
+                    this.x += Math.cos(this.angle) * this.speed;
+                    this.y += Math.sin(this.angle) * this.speed;
+                    this.alpha -= 0.01; // 透明度逐渐减少
+                    if (this.y > canvas.height || this.x > canvas.width || this.x < 0) {
+                        this.reset(); // 如果流星超出画布，重置
+                    }
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(
+                        this.x - this.length * Math.cos(this.angle), 
+                        this.y - this.length * Math.sin(this.angle)
+                    );
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // 初始化星星
+            for (let i = 0; i < starCount; i++) {
+                stars.push(new Star());
+            }
+
+            // 初始化流星
+            const meteors = [];
+            for (let i = 0; i < 2; i++) { // 流星数量
+                meteors.push(new Meteor());
+            }
+
+            // 动画循环
+            function animate() {
+                // 清除画布（完全透明，让底层渐变和光效显示）
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制星星
+                stars.forEach(star => {
+                    star.update();
+                    star.draw();
+                });
+
+                // 绘制流星
+                meteors.forEach(meteor => {
+                    meteor.update();
+                    meteor.draw();
+                });
+                
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+        
+        // 检查服务器配置
+        function checkServerConfig() {
+            const configServer = localStorage.getItem('api_server_url');
+            if (!configServer) {
+                // 如果不是本地环境，提示配置服务器
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    console.log('💡 提示：检测到非本地环境，建议配置云端服务器');
+                    console.log('💡 打开 server-config.html 配置服务器地址');
+                }
+            } else {
+                console.log('🌐 使用云端服务器:', configServer);
+            }
+        }
+        
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            initStars();
+            checkServerConfig();
+            console.log('✅ 自动保存已启动（每30秒）');
+            console.log('✨ 星空效果已启动');
+        });
+    </script>
+</body>
+</html>
+

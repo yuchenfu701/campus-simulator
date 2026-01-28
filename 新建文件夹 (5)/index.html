@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KARDS - 二战卡牌游戏</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="main-menu">
+    <!-- 主菜单背景 -->
+    <div class="menu-background">
+        <div class="vintage-pattern"></div>
+    </div>
+
+    <!-- 主菜单内容 -->
+    <div class="menu-container">
+        <!-- 游戏标题 -->
+        <div class="game-title">
+            <h1 class="title-main">KARDS</h1>
+            <p class="title-subtitle">二战卡牌战略</p>
+        </div>
+
+        <!-- 菜单按钮组 -->
+        <div class="menu-buttons">
+            <button class="menu-btn" onclick="window.location.href='game.html'">
+                <span class="btn-icon">⚔️</span>
+                <span class="btn-text">开始游戏</span>
+            </button>
+            <button class="menu-btn" onclick="showDeck()">
+                <span class="btn-icon">📚</span>
+                <span class="btn-text">卡牌图鉴</span>
+            </button>
+            <button class="menu-btn" onclick="showSettings()">
+                <span class="btn-icon">⚙️</span>
+                <span class="btn-text">设置</span>
+            </button>
+            <button class="menu-btn" onclick="showAbout()">
+                <span class="btn-icon">ℹ️</span>
+                <span class="btn-text">关于</span>
+            </button>
+            <button class="menu-btn" onclick="goBackToCampus()" style="background: rgba(102, 126, 234, 0.2); border: 2px solid #667eea;">
+                <span class="btn-icon">🏠</span>
+                <span class="btn-text">返回校园游戏</span>
+            </button>
+        </div>
+
+        <!-- 装饰性元素 -->
+        <div class="menu-decoration">
+            <div class="decoration-line"></div>
+            <div class="decoration-text">1940-1945</div>
+            <div class="decoration-line"></div>
+        </div>
+    </div>
+
+    <!-- 卡牌图鉴弹窗 -->
+    <div class="modal" id="deck-modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('deck-modal')">&times;</span>
+            <h2>卡牌图鉴</h2>
+            <div class="deck-gallery" id="deck-gallery">
+                <!-- 卡牌将通过JavaScript动态添加 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('settings-modal')">&times;</span>
+            <h2>游戏设置</h2>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label>音效音量</label>
+                    <input type="range" min="0" max="100" value="50" class="slider">
+                </div>
+                <div class="setting-item">
+                    <label>背景音乐</label>
+                    <input type="range" min="0" max="100" value="30" class="slider">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关于弹窗 -->
+    <div class="modal" id="about-modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('about-modal')">&times;</span>
+            <h2>关于游戏</h2>
+            <div class="about-content">
+                <p>一款以二战为背景的卡牌策略游戏</p>
+                <p>基于KARDS核心机制设计</p>
+                <div class="about-features">
+                    <h3>核心机制</h3>
+                    <ul>
+                        <li>🎯 三条战线：支援阵线 + 前线</li>
+                        <li>⚔️ 前线控制：控制前线才能攻击总部</li>
+                        <li>💎 指挥点系统：每回合补满，上限递增</li>
+                        <li>🚗 兵种差异：步兵、坦克、炮兵、战斗机、轰炸机</li>
+                        <li>📋 关键词系统：部署、闪击、奋战等</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="menu.js"></script>
+    <script>
+        // 返回校园游戏功能
+        function goBackToCampus() {
+            // 如果在iframe中，关闭iframe
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                // 直接跳转到校园小游戏页面
+                window.location.href = '../campus-games.html';
+            }
+        }
+    </script>
+</body>
+</html>
+

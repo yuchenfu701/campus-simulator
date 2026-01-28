@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coze API 直接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f3f4f6;
+        }
+        
+        .test-box {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        .config {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        
+        button:hover {
+            background: #2563eb;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>🔬 Coze API 直接测试</h1>
+        
+        <div class="config">
+            <strong>当前配置：</strong><br>
+            Bot ID: 7528957467150630946<br>
+            Token: pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="testSimpleAPI()">📡 测试基础API</button>
+            <button onclick="testBotInfo()">🤖 获取Bot信息</button>
+            <button onclick="testCreateConversation()">💬 创建对话</button>
+            <button onclick="clearResults()">🗑️ 清空结果</button>
+        </div>
+        
+        <div id="result" class="result info">等待测试...</div>
+    </div>
+
+    <script>
+        const config = {
+            botId: '7528957467150630946',
+            token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+        };
+        
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            const timestamp = new Date().toLocaleTimeString();
+            resultDiv.className = 'result ' + type;
+            resultDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+        
+        function clearResults() {
+            document.getElementById('result').innerHTML = '已清空，等待新测试...\n';
+            document.getElementById('result').className = 'result info';
+        }
+        
+        async function testSimpleAPI() {
+            clearResults();
+            log('🔄 开始测试基础API连接...');
+            
+            try {
+                // 测试1：基础连接测试
+                const response = await fetch('https://api.coze.cn/v1/bot/list', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`响应状态: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ API连接成功！', 'success');
+                    log('返回数据: ' + JSON.stringify(data, null, 2), 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ API连接失败: ${response.status}`, 'error');
+                    log('错误详情: ' + errorText, 'error');
+                    
+                    if (response.status === 401) {
+                        log('💡 Token可能已过期，请重新生成', 'error');
+                    } else if (response.status === 403) {
+                        log('💡 权限不足，请检查Token权限', 'error');
+                    }
+                }
+            } catch (error) {
+                log('💥 请求失败: ' + error.message, 'error');
+                log('💡 可能是网络问题或CORS限制', 'error');
+            }
+        }
+        
+        async function testBotInfo() {
+            clearResults();
+            log('🔄 开始获取Bot信息...');
+            
+            try {
+                const response = await fetch(`https://api.coze.cn/v1/bot/get_online_info?bot_id=${config.botId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`响应状态: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Bot信息获取成功！', 'success');
+                    log('Bot详情: ' + JSON.stringify(data, null, 2), 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ 获取Bot信息失败: ${response.status}`, 'error');
+                    log('错误详情: ' + errorText, 'error');
+                    
+                    if (response.status === 404) {
+                        log('💡 Bot ID不存在或不正确', 'error');
+                    }
+                }
+            } catch (error) {
+                log('💥 请求失败: ' + error.message, 'error');
+            }
+        }
+        
+        async function testCreateConversation() {
+            clearResults();
+            log('🔄 尝试创建对话会话...');
+            
+            try {
+                const response = await fetch('https://api.coze.cn/v1/conversation/create', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bot_id: config.botId
+                    })
+                });
+                
+                log(`响应状态: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ 对话会话创建成功！', 'success');
+                    log('会话详情: ' + JSON.stringify(data, null, 2), 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ 创建会话失败: ${response.status}`, 'error');
+                    log('错误详情: ' + errorText, 'error');
+                }
+            } catch (error) {
+                log('💥 请求失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 页面加载时的提示
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Coze API测试工具已就绪');
+            log('💡 请点击按钮开始测试');
+        });
+    </script>
+</body>
+</html> 

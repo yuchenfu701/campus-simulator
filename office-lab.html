@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验楼走廊 - 科学探索</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', 'Inter', sans-serif;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(to bottom, #f0f8ff 0%, #e6f3ff 50%, #ddeeff 100%);
+            /* 科学主题背景 */
+            background-image: 
+                repeating-linear-gradient(
+                    45deg,
+                    rgba(0, 100, 200, 0.05),
+                    rgba(0, 100, 200, 0.05) 2px,
+                    transparent 2px,
+                    transparent 30px
+                );
+        }
+        
+        /* 建筑标识 */
+        .building-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e40af;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: rgba(240, 248, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #3b82f6;
+        }
+        
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #1e40af;
+            font-size: 20px;
+            font-family: serif;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            z-index: 20;
+        }
+        
+        /* 透视走廊容器 */
+        .corridor-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            z-index: 10;
+            overflow: hidden;
+        }
+        
+        /* 走廊背景 */
+        .corridor-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, 
+                rgba(230, 243, 255, 0.4) 0%, 
+                rgba(220, 238, 255, 0.5) 50%, 
+                rgba(210, 233, 255, 0.6) 100%);
+            opacity: 0.8;
+        }
+        
+        /* 墙壁 */
+        .wall-left, .wall-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            height: 100%;
+        }
+        
+        .wall-left {
+            left: 0;
+            width: 50%;
+            background: linear-gradient(to right, rgba(30, 64, 175, 0.6), rgba(59, 130, 246, 0.4), transparent);
+            transform: skewX(-12deg);
+            transform-origin: top right;
+        }
+        
+        .wall-right {
+            right: 0;
+            width: 50%;
+            background: linear-gradient(to left, rgba(30, 64, 175, 0.6), rgba(59, 130, 246, 0.4), transparent);
+            transform: skewX(12deg);
+            transform-origin: top left;
+        }
+        
+        /* 地板 */
+        .corridor-floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(220, 238, 255, 0.8), rgba(230, 243, 255, 0.6), rgba(240, 248, 255, 0.4));
+        }
+        
+        /* 天花板 */
+        .corridor-ceiling {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+            background: linear-gradient(to bottom, rgba(240, 248, 255, 0.9), rgba(230, 243, 255, 0.7));
+            transform: perspective(1000px) rotateX(20deg);
+            transform-origin: bottom;
+        }
+        
+        /* 门容器 */
+        .door-container {
+            position: absolute;
+            width: 80px;
+            height: 120px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 15;
+        }
+        
+        .door-container.left {
+            left: 25%;
+            top: 40%;
+        }
+        
+        .door-container.right {
+            right: 25%;
+            top: 40%;
+        }
+        
+        .door-container:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        /* 实验楼特殊门效果 */
+        .door-container.left:hover .door-label {
+            color: #059669;
+            text-shadow: 0 0 10px rgba(5, 150, 105, 0.5);
+            animation: scienceGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        .door-container.right:hover .door-label {
+            color: #7c3aed;
+            text-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+            animation: chemGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes scienceGlow {
+            from { text-shadow: 0 0 5px rgba(5, 150, 105, 0.3); }
+            to { text-shadow: 0 0 15px rgba(5, 150, 105, 0.7), 0 0 25px rgba(5, 150, 105, 0.3); }
+        }
+        
+        @keyframes chemGlow {
+            from { text-shadow: 0 0 5px rgba(124, 58, 237, 0.3); }
+            to { text-shadow: 0 0 15px rgba(124, 58, 237, 0.7), 0 0 25px rgba(124, 58, 237, 0.3); }
+        }
+        
+        /* 门样式 */
+        .door {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #8B4513, #A0522D, #CD853F);
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 门把手 */
+        .door-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .door-handle.left { right: 10px; }
+        .door-handle.right { left: 10px; }
+        
+        /* 门标签 */
+        .door-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #374151;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 对话框样式 */
+        .dialogue-box {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .dialogue-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        
+        .dialogue-next {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .dialogue-next:hover {
+            background: #2563eb;
+        }
+        
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 返回按钮 */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1001;
+            transition: background 0.2s;
+        }
+        
+        .back-button:hover {
+            background: rgba(220, 38, 38, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 建筑标识 -->
+        <div class="building-label">实验楼</div>
+        
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一</div>
+        
+        <!-- 返回按钮 -->
+        <button class="back-button" onclick="closeOfficeSystem()">返回校园</button>
+        
+        <!-- 测试按钮 -->
+        <div style="position: absolute; top: 80px; right: 20px; z-index: 1002;">
+            <button onclick="cozeWebSDKBiology && cozeWebSDKBiology.showChatBot()" 
+                    style="background: rgba(124,58,237,0.8); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                🧬 生物老师AI
+            </button>
+        </div>
+        
+        <!-- 透视走廊 -->
+        <div class="corridor-container">
+            <div class="corridor-bg">
+                <!-- 墙壁 -->
+                <div class="wall-left"></div>
+                <div class="wall-right"></div>
+                
+                <!-- 天花板 -->
+                <div class="corridor-ceiling"></div>
+                
+                <!-- 地板 -->
+                <div class="corridor-floor"></div>
+                
+                <!-- 左侧门 - 物理实验室 -->
+                <div class="door-container left" id="leftDoor">
+                    <div class="door">
+                        <div class="door-handle left"></div>
+                        <div class="door-label">物理实验室 ⚗️</div>
+                    </div>
+                </div>
+                
+                <!-- 右侧门 - 生物实验室 -->
+                <div class="door-container right" id="rightDoor">
+                    <div class="door">
+                        <div class="door-handle right"></div>
+                        <div class="door-label">生物实验室 🧬AI</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对话框 -->
+        <div class="dialogue-box hidden" id="dialogueBox">
+            <div class="dialogue-text" id="dialogueText"></div>
+            <button class="dialogue-next" id="dialogueNext">
+                <span>点击继续</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            activeCharacter: null, // 'physics' | 'biology' | null
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 初始化 Coze SDK
+        let cozeWebSDKBiology; // 生物老师
+        
+        function initCozeSDK() {
+            try {
+                // 初始化生物老师AI
+                cozeWebSDKBiology = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7528245282262335503', 
+                    },
+                    componentProps: {
+                        title: '生物老师',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'fullscreen', // 全屏模式
+                            zIndex: 10001, // 确保在iframe之上
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                console.log('✅ Coze SDK 初始化成功 - 生物老师');
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+            }
+        }
+        
+        // 角色信息
+        const characterInfo = {
+            physics: {
+                name: "物理老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=physics+teacher+lab+coat+experiment+realistic+portrait&sign=physics001",
+                colorClass: "border-green-500/50 bg-green-900/80"
+            },
+            biology: {
+                name: "生物老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=biology+teacher+lab+microscope+realistic+portrait&sign=bio001",
+                colorClass: "border-purple-500/50 bg-purple-900/80"
+            }
+        };
+        
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: {
+                physics: [
+                    "欢迎来到物理实验室！",
+                    "初一的物理课主要学习基础概念。",
+                    "今天我们来观察光的折射现象。",
+                    "记住，实验安全最重要！"
+                ],
+                biology: [
+                    "欢迎来到生物实验室！",
+                    "初一的生物课要学习细胞结构。",
+                    "今天我们用显微镜观察植物细胞。",
+                    "生物世界很奇妙，要仔细观察！"
+                ]
+            },
+            2: {
+                physics: [
+                    "初二的物理内容更丰富了！",
+                    "我们要学习声、光、热等物理现象。",
+                    "今天做一个声音传播的实验。",
+                    "物理就在我们身边，要善于观察！"
+                ],
+                biology: [
+                    "初二的生物内容更丰富了！",
+                    "我们要学习人体系统和生理功能。",
+                    "今天解剖一只青蛙，了解内脏结构。",
+                    "生物实验要仔细记录观察结果！"
+                ]
+            },
+            3: {
+                physics: [
+                    "初三物理要准备中考了！",
+                    "力学、电学都是重点内容。",
+                    "多做实验有助于理解概念。",
+                    "物理公式要理解，不能死记硬背！"
+                ],
+                biology: [
+                    "初三生物也要中考了！",
+                    "遗传和进化是重点内容。",
+                    "生态系统的知识要理解透彻。",
+                    "生物实验技能在中考中很重要！"
+                ]
+            }
+        };
+        
+        // DOM元素
+        const elements = {
+            leftDoor: document.getElementById('leftDoor'),
+            rightDoor: document.getElementById('rightDoor'),
+            dialogueBox: document.getElementById('dialogueBox'),
+            dialogueText: document.getElementById('dialogueText'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            gradeDisplay: document.getElementById('gradeDisplay')
+        };
+        
+        // 初始化
+        function init() {
+            console.log('🧪 实验楼系统初始化');
+            
+            // 初始化Coze SDK
+            initCozeSDK();
+            
+            // 设置事件监听器
+            elements.leftDoor.addEventListener('click', () => handleDoorClick('physics'));
+            elements.rightDoor.addEventListener('click', () => handleDoorClick('biology'));
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 从父窗口获取年级信息
+            updateGradeDisplay();
+            
+            console.log('✅ 实验楼系统初始化完成');
+        }
+        
+        // 处理门点击事件
+        function handleDoorClick(character) {
+            console.log(`🚪 点击${character}门`);
+            
+            // 如果点击的是生物老师门，使用Coze SDK
+            if (character === 'biology') {
+                console.log('🧬 点击生物老师门，启动Coze对话');
+                
+                if (cozeWebSDKBiology) {
+                    try {
+                        cozeWebSDKBiology.showChatBot();
+                        showToast("正在连接生物老师...");
+                    } catch (error) {
+                        console.error('❌ 启动生物老师Coze对话失败:', error);
+                        showToast("连接生物老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.error('❌ 生物老师Coze SDK 未初始化');
+                    showToast("生物老师系统未准备好，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDoorClick(character);
+                }
+            } else {
+                // 其他门使用原有对话系统
+                handleOriginalDoorClick(character);
+            }
+        }
+        
+        // 原有的门点击处理逻辑（作为降级方案）
+        function handleOriginalDoorClick(character) {
+            gameState.activeCharacter = character;
+            gameState.currentDialogueIndex = 0;
+            
+            const dialogues = gradeDialogues[gameState.grade][character];
+            if (dialogues && dialogues.length > 0) {
+                showDialogue(dialogues[0]);
+            }
+        }
+        
+        // 显示提示消息
+        function showToast(message) {
+            console.log('📢 提示:', message);
+            // 这里可以添加UI提示显示逻辑
+        }
+        
+        // 显示对话
+        function showDialogue(text) {
+            elements.dialogueText.textContent = text;
+            elements.dialogueBox.classList.remove('hidden');
+            gameState.isDialogueOpen = true;
+        }
+        
+        // 处理下一句对话
+        function handleNextDialogue() {
+            if (!gameState.activeCharacter) return;
+            
+            gameState.currentDialogueIndex++;
+            const dialogues = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            
+            if (gameState.currentDialogueIndex < dialogues.length) {
+                showDialogue(dialogues[gameState.currentDialogueIndex]);
+            } else {
+                // 对话结束
+                elements.dialogueBox.classList.add('hidden');
+                gameState.isDialogueOpen = false;
+                gameState.activeCharacter = null;
+                gameState.currentDialogueIndex = 0;
+            }
+        }
+        
+        // 更新年级显示
+        function updateGradeDisplay() {
+            const gradeNames = ['', '初一', '初二', '初三'];
+            elements.gradeDisplay.textContent = gradeNames[gameState.grade] || '初一';
+        }
+        
+        // 关闭office系统
+        function closeOfficeSystem() {
+            console.log('🚪 关闭实验楼系统，返回主地图');
+            
+            // 直接跳转回主地图
+            window.location.href = 'index.html';
+        }
+        
+        // 监听父窗口消息
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'updateGrade') {
+                gameState.grade = event.data.grade || 1;
+                updateGradeDisplay();
+                console.log('📚 年级更新为:', gameState.grade);
+            }
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

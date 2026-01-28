@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面未找到 - 爱哲安民未来学校校园模拟器</title>
+    <script>
+        // GitHub Pages 404页面会自动重定向到首页
+        // 如果访问根路径，重定向到login.html
+        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+            window.location.href = '/login.html';
+        } else {
+            // 其他404页面，3秒后跳转到登录页
+            setTimeout(function() {
+                window.location.href = '/login.html';
+            }, 3000);
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-align: center;
+        }
+        .container {
+            padding: 40px;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        a {
+            color: white;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>404</h1>
+        <p>页面未找到</p>
+        <p>正在跳转到首页...</p>
+        <p><a href="/login.html">立即访问登录页</a></p>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园入口 - 安全守护</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #4b5563 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .office-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 入口大厅 */
+        .entrance-hall {
+            width: 900px;
+            height: 500px;
+            position: relative;
+            background: linear-gradient(to bottom, 
+                #f9fafb 0%, 
+                #f3f4f6 20%, 
+                #e5e7eb 40%, 
+                #d1d5db 60%, 
+                #9ca3af 80%, 
+                #6b7280 100%);
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        /* 地板纹理 */
+        .floor-texture {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 250px;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.1) 0px,
+                rgba(255, 255, 255, 0.1) 2px,
+                transparent 2px,
+                transparent 40px
+            );
+        }
+
+        /* 天花板装饰 */
+        .ceiling-decoration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                rgba(0, 0, 0, 0.05) 1px,
+                transparent 2px,
+                transparent 60px
+            );
+        }
+
+        /* 保安亭 */
+        .security-booth {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 250px;
+            background: linear-gradient(45deg, #8B4513, #A0522D, #CD853F);
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid #D2691E;
+        }
+
+        .security-booth:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+            filter: drop-shadow(0 0 20px rgba(139, 69, 19, 0.8));
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 保安亭标志 */
+        .booth-sign {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            color: #374151;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 保安大叔图标 */
+        .security-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 门装饰 */
+        .booth-door {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 80px;
+            background: linear-gradient(45deg, #654321, #8B4513);
+            border-radius: 8px 8px 0 0;
+            border: 2px solid #D2691E;
+        }
+
+        .door-handle {
+            position: absolute;
+            right: 8px;
+            top: 35px;
+            width: 6px;
+            height: 6px;
+            background: #FFD700;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 欢迎标语 */
+        .welcome-sign {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        /* 侧边装饰门 */
+        .side-door {
+            position: absolute;
+            width: 100px;
+            height: 140px;
+            background: linear-gradient(45deg, #8B4513, #A0522D);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            top: 60%;
+            transform: translateY(-50%);
+        }
+
+        .side-door.left {
+            left: 80px;
+            transform: translateY(-50%) perspective(600px) rotateY(15deg);
+        }
+
+        .side-door.right {
+            right: 80px;
+            transform: translateY(-50%) perspective(600px) rotateY(-15deg);
+        }
+
+        .side-door:hover {
+            filter: brightness(1.1);
+        }
+
+        .side-door-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #374151;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        /* 返回按钮 */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .back-button:hover {
+            background: rgba(220, 38, 38, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #374151;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 1001;
+        }
+
+        /* 测试按钮 */
+        .test-button {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(55, 65, 81, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 1002;
+        }
+
+        .test-button:hover {
+            background: rgba(31, 41, 55, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(55, 65, 81, 0.4);
+        }
+
+        /* 对话框样式 */
+        .dialogue-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: none;
+            z-index: 1000;
+        }
+
+        .dialogue-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .character-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            border: 3px solid #6b7280;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .character-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #374151;
+        }
+
+        .dialogue-content {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 15px;
+        }
+
+        .dialogue-controls {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .dialogue-next {
+            background: linear-gradient(45deg, #6b7280, #4b5563);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .dialogue-next:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="office-container">
+        <!-- 返回按钮 -->
+        <button class="back-button" onclick="closeOfficeSystem()">返回校园</button>
+        
+        <!-- 测试按钮 -->
+        <button class="test-button" onclick="cozeWebSDKSecurity && cozeWebSDKSecurity.showChatBot()">
+            🛡️ 保安大叔AI
+        </button>
+        
+        <!-- 校园入口大厅 -->
+        <div class="entrance-hall">
+            <!-- 欢迎标语 -->
+            <div class="welcome-sign">🏫 欢迎来到校园 🏫</div>
+            
+            <!-- 天花板装饰 -->
+            <div class="ceiling-decoration"></div>
+            
+            <!-- 地板纹理 -->
+            <div class="floor-texture"></div>
+            
+            <!-- 主保安亭 -->
+            <div class="security-booth" onclick="handleSecurityBoothClick()">
+                <div class="booth-sign">🛡️ 保安室 AI</div>
+                <div class="security-icon">👮‍♂️</div>
+                <div class="booth-door">
+                    <div class="door-handle"></div>
+                </div>
+            </div>
+            
+            <!-- 左侧装饰门 -->
+            <div class="side-door left">
+                <div class="side-door-label">访客登记</div>
+            </div>
+            
+            <!-- 右侧装饰门 -->
+            <div class="side-door right">
+                <div class="side-door-label">监控中心</div>
+            </div>
+        </div>
+
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一年级</div>
+
+        <!-- 对话框 -->
+        <div class="dialogue-container" id="dialogueContainer">
+            <div class="dialogue-header">
+                <div class="character-avatar" id="characterAvatar"></div>
+                <div class="character-name" id="characterName"></div>
+            </div>
+            <div class="dialogue-content" id="dialogueContent"></div>
+            <div class="dialogue-controls">
+                <button class="dialogue-next" id="dialogueNext">继续</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 初始化 Coze SDK
+        let cozeWebSDKSecurity; // 保安大叔
+        
+        function initCozeSDK() {
+            try {
+                // 初始化保安大叔AI
+                cozeWebSDKSecurity = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7528251186698010658', 
+                    },
+                    componentProps: {
+                        title: '保安大叔',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'fullscreen', // 全屏模式
+                            zIndex: 10001, // 确保在iframe之上
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                console.log('✅ Coze SDK 初始化成功 - 保安大叔');
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+            }
+        }
+        
+        // 保安大叔信息
+        const securityInfo = {
+            name: "保安大叔",
+            image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=security+guard+uncle+uniform+kind+realistic+portrait&sign=security001",
+        };
+
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: [
+                "同学你好！欢迎来到我们学校！",
+                "初一新生要记得佩戴学生证哦。",
+                "校园安全很重要，有问题随时找我。",
+                "祝你在这里学习愉快！"
+            ],
+            2: [
+                "初二的同学越来越懂事了！",
+                "进出校园要遵守时间规定。",
+                "注意人身和财物安全。",
+                "有什么安全问题都可以找我帮忙。"
+            ],
+            3: [
+                "初三的同学要中考了，加油！",
+                "这段时间会加强校园安全巡逻。",
+                "保持好的作息，注意身体健康。",
+                "我会为大家创造安全的学习环境！"
+            ]
+        };
+
+        // DOM 元素
+        const elements = {
+            dialogueContainer: document.getElementById('dialogueContainer'),
+            characterAvatar: document.getElementById('characterAvatar'),
+            characterName: document.getElementById('characterName'),
+            dialogueContent: document.getElementById('dialogueContent'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            gradeDisplay: document.getElementById('gradeDisplay')
+        };
+
+        // 处理保安亭点击事件
+        function handleSecurityBoothClick() {
+            console.log('🛡️ 点击保安亭，启动Coze对话');
+            
+            if (cozeWebSDKSecurity) {
+                try {
+                    cozeWebSDKSecurity.showChatBot();
+                    showToast("正在连接保安大叔...");
+                } catch (error) {
+                    console.error('❌ 启动保安大叔Coze对话失败:', error);
+                    showToast("连接保安大叔失败，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDialogue();
+                }
+            } else {
+                console.error('❌ 保安大叔Coze SDK 未初始化');
+                showToast("保安大叔系统未准备好，请稍后再试");
+                // 降级到原有对话系统
+                handleOriginalDialogue();
+            }
+        }
+        
+        // 原有的对话处理逻辑（作为降级方案）
+        function handleOriginalDialogue() {
+            gameState.currentDialogueIndex = 0;
+            const dialogues = gradeDialogues[gameState.grade];
+            if (dialogues && dialogues.length > 0) {
+                showDialogue(dialogues[0]);
+            }
+        }
+        
+        // 显示提示消息
+        function showToast(message) {
+            console.log('📢 提示:', message);
+            // 这里可以添加UI提示显示逻辑
+        }
+
+        // 显示对话
+        function showDialogue(content) {
+            elements.characterAvatar.style.backgroundImage = `url(${securityInfo.image})`;
+            elements.characterName.textContent = securityInfo.name;
+            elements.dialogueContent.textContent = content;
+            elements.dialogueContainer.style.display = 'block';
+            
+            gameState.isDialogueOpen = true;
+        }
+
+        // 处理下一句对话
+        function handleNextDialogue() {
+            const dialogues = gradeDialogues[gameState.grade];
+            gameState.currentDialogueIndex++;
+            
+            if (gameState.currentDialogueIndex < dialogues.length) {
+                showDialogue(dialogues[gameState.currentDialogueIndex]);
+            } else {
+                closeDialogue();
+            }
+        }
+
+        // 关闭对话
+        function closeDialogue() {
+            elements.dialogueContainer.style.display = 'none';
+            gameState.isDialogueOpen = false;
+            gameState.currentDialogueIndex = 0;
+        }
+
+        // 更新年级显示
+        function updateGradeDisplay() {
+            const gradeNames = ['初一年级', '初二年级', '初三年级'];
+            elements.gradeDisplay.textContent = gradeNames[gameState.grade - 1];
+            
+            // 可以从父窗口获取年级信息
+            try {
+                if (window.parent && window.parent.getPlayerGrade) {
+                    const parentGrade = window.parent.getPlayerGrade();
+                    if (parentGrade >= 1 && parentGrade <= 3) {
+                        gameState.grade = parentGrade;
+                        elements.gradeDisplay.textContent = gradeNames[parentGrade - 1];
+                    }
+                }
+            } catch (e) {
+                console.log('无法获取父窗口年级信息，使用默认值');
+            }
+        }
+
+        // 关闭办公系统
+        function closeOfficeSystem() {
+            try {
+                if (window.parent && window.parent.closeEducationSystem) {
+                    window.parent.closeEducationSystem();
+                } else {
+                    window.close();
+                }
+            } catch (e) {
+                console.log('关闭系统失败，尝试其他方式');
+                window.close();
+            }
+        }
+
+        // 初始化
+        function init() {
+            console.log('🛡️ 校园入口系统初始化');
+            
+            // 初始化Coze SDK
+            initCozeSDK();
+            
+            // 设置事件监听器
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 从父窗口获取年级信息
+            updateGradeDisplay();
+            
+            console.log('✅ 校园入口系统初始化完成');
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

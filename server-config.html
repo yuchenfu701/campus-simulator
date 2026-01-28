@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器配置 - 校园模拟器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, 
+                #0f172a 0%, 
+                #1e293b 25%, 
+                #312e81 50%, 
+                #1e293b 75%, 
+                #0f172a 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .config-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .label {
+            display: block;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1e293b;
+            transition: all 0.3s ease;
+        }
+        
+        .input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+            background: white;
+        }
+        
+        .input::placeholder {
+            color: #9ca3af;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+            transition: all 0.4s ease;
+            margin-bottom: 12px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(139, 92, 246, 0.6);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .status.info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .current-server {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .current-server-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        .current-server-url {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .tips {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tips-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .tips-content {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .tips-content ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+        
+        .tips-content li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="config-container">
+        <h1 class="title">🌐 服务器配置</h1>
+        <p class="subtitle">配置云端服务器地址，让所有人可以联机</p>
+        
+        <div class="current-server">
+            <div class="current-server-label">当前服务器地址：</div>
+            <div class="current-server-url" id="currentServer">加载中...</div>
+        </div>
+        
+        <div class="form-group">
+            <label class="label" for="serverUrl">服务器地址</label>
+            <input 
+                type="text" 
+                id="serverUrl" 
+                class="input" 
+                placeholder="https://your-app.up.railway.app"
+            >
+            <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; margin-top: 6px;">
+                输入你的云端服务器地址（不需要加 /api）
+            </div>
+        </div>
+        
+        <button class="btn" onclick="testConnection()">🔍 测试连接</button>
+        <button class="btn btn-secondary" onclick="saveConfig()">💾 保存配置</button>
+        <button class="btn btn-secondary" onclick="resetConfig()">🔄 重置为本地服务器</button>
+        
+        <div id="status"></div>
+        
+        <div class="tips">
+            <div class="tips-title">💡 使用提示</div>
+            <div class="tips-content">
+                <p><strong>如何获取服务器地址？</strong></p>
+                <ul>
+                    <li>如果使用Railway：在项目页面找到你的域名</li>
+                    <li>如果使用Render：在服务页面找到你的URL</li>
+                    <li>格式：<code>https://your-app.up.railway.app</code></li>
+                </ul>
+                <p style="margin-top: 12px;"><strong>配置后：</strong></p>
+                <ul>
+                    <li>所有功能将使用云端服务器</li>
+                    <li>数据存储在云端MongoDB</li>
+                    <li>支持多设备同步</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/api-client.js"></script>
+    <script>
+        // 显示当前服务器地址
+        function updateCurrentServer() {
+            const currentServer = apiClient.getServerURL();
+            document.getElementById('currentServer').textContent = currentServer;
+            
+            // 如果已配置，显示在输入框
+            const configServer = localStorage.getItem('api_server_url');
+            if (configServer) {
+                document.getElementById('serverUrl').value = configServer.replace('/api', '');
+            }
+        }
+        
+        // 测试连接
+        async function testConnection() {
+            const url = document.getElementById('serverUrl').value.trim();
+            const statusDiv = document.getElementById('status');
+            
+            if (!url) {
+                statusDiv.innerHTML = '<div class="status error">❌ 请输入服务器地址</div>';
+                return;
+            }
+            
+            statusDiv.innerHTML = '<div class="status info">🔄 正在测试连接...</div>';
+            
+            try {
+                // 临时设置服务器地址
+                const testURL = url.endsWith('/api') ? url : `${url}/api`;
+                const response = await fetch(`${testURL}/health`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = '<div class="status success">✅ 连接成功！服务器运行正常</div>';
+                } else {
+                    throw new Error('服务器返回错误');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ 连接失败：${error.message}<br>请检查服务器地址是否正确，确保服务器已部署并运行</div>`;
+            }
+        }
+        
+        // 保存配置
+        function saveConfig() {
+            const url = document.getElementById('serverUrl').value.trim();
+            const statusDiv = document.getElementById('status');
+            
+            if (!url) {
+                statusDiv.innerHTML = '<div class="status error">❌ 请输入服务器地址</div>';
+                return;
+            }
+            
+            // 设置服务器地址
+            apiClient.setServerURL(url);
+            
+            // 更新显示
+            updateCurrentServer();
+            
+            statusDiv.innerHTML = '<div class="status success">✅ 配置已保存！刷新页面后生效</div>';
+            
+            // 3秒后提示刷新
+            setTimeout(() => {
+                if (confirm('配置已保存！是否立即刷新页面？')) {
+                    window.location.reload();
+                }
+            }, 1000);
+        }
+        
+        // 重置配置
+        function resetConfig() {
+            if (confirm('确定要重置为本地服务器吗？')) {
+                apiClient.setServerURL('');
+                document.getElementById('serverUrl').value = '';
+                updateCurrentServer();
+                document.getElementById('status').innerHTML = '<div class="status success">✅ 已重置为本地服务器</div>';
+            }
+        }
+        
+        // 页面加载时更新显示
+        window.addEventListener('DOMContentLoaded', () => {
+            updateCurrentServer();
+        });
+    </script>
+</body>
+</html>
+
+

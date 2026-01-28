@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园走廊 - 梦核风格</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', 'Inter', sans-serif;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000; /* 黑色背景作为基底 */
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: #000; /* 黑色背景作为基底 */
+        }
+        
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 20px;
+            font-family: serif;
+            letter-spacing: 2px;
+            opacity: 0.7;
+            z-index: 20;
+        }
+        
+        /* 透视走廊容器 */
+        .corridor-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            z-index: 10;
+            overflow: hidden;
+            background: transparent; /* 确保容器背景透明 */
+        }
+        
+        /* 走廊背景 - 隐藏原有背景 */
+        .corridor-bg {
+            position: absolute;
+            inset: 0;
+            opacity: 0; /* 完全隐藏原走廊背景 */
+            pointer-events: none;
+        }
+        
+        /* 教室实景背景 */
+        .classroom-background {
+            position: absolute;
+            inset: 0;
+            background-image: url('images/classroom-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+        }
+        
+        /* 左右墙壁 */
+        .wall-left {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 50%;
+            background: linear-gradient(to right, #1a1a1a, #2d2d2d, transparent);
+            transform: skewX(-12deg);
+            transform-origin: top right;
+            opacity: 0; /* 隐藏原有墙壁 */
+        }
+        
+        .wall-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            width: 50%;
+            background: linear-gradient(to left, #1a1a1a, #2d2d2d, transparent);
+            transform: skewX(12deg);
+            transform-origin: top left;
+            opacity: 0; /* 隐藏原有墙壁 */
+        }
+        
+        /* 走廊地面 */
+        .corridor-floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, #1a1a1a, #2d2d2d, #141414);
+            opacity: 0; /* 隐藏原有地面 */
+        }
+        
+        /* 地板透视线条 */
+        .floor-line {
+            position: absolute;
+            bottom: 0;
+            width: 1px;
+            background-color: rgba(119, 119, 119, 0.2);
+            transform-origin: bottom;
+            opacity: 0; /* 隐藏地板线条 */
+        }
+        
+        .floor-line.center {
+            left: 50%;
+            height: 100%;
+            background-color: rgba(119, 119, 119, 0.3);
+        }
+        
+        .floor-line.left-1 {
+            left: 25%;
+            height: 75%;
+            transform: rotate(10deg);
+        }
+        
+        .floor-line.left-2 {
+            left: 33.333%;
+            height: 80%;
+            transform: rotate(5deg);
+        }
+        
+        .floor-line.right-1 {
+            left: 66.666%;
+            height: 80%;
+            transform: rotate(-5deg);
+        }
+        
+        .floor-line.right-2 {
+            left: 75%;
+            height: 75%;
+            transform: rotate(-10deg);
+        }
+        
+        /* 地板纹理 */
+        .floor-texture {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background-image: url('https://space.coze.cn/api/coze_space/gen_image?image_size=landscape_16_9&prompt=old+school+floor+texture+vintage+style&sign=5249d20b3d9f14de6850a3037e6b555d');
+            background-repeat: repeat;
+            opacity: 0; /* 隐藏地板纹理 */
+            transform: perspective(1000px) rotateX(20deg);
+            transform-origin: bottom center;
+        }
+        
+        /* 墙壁纹理 */
+        .wall-texture {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background-image: url('https://space.coze.cn/api/coze_space/gen_image?image_size=landscape_16_9&prompt=old+school+wall+texture+vintage+style&sign=b35339e6915b48f1d51d4bbfbbb137ee');
+            background-repeat: repeat;
+            opacity: 0; /* 隐藏墙壁纹理 */
+        }
+        
+        .wall-texture.left {
+            left: 0;
+            width: 50%;
+            transform: skewX(-12deg);
+            transform-origin: top right;
+        }
+        
+        .wall-texture.right {
+            right: 0;
+            width: 50%;
+            transform: skewX(12deg);
+            transform-origin: top left;
+        }
+        
+        /* 天花板 */
+        .ceiling {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+            background: linear-gradient(to bottom, #141414, #1a1a1a);
+            opacity: 0; /* 隐藏原有天花板 */
+        }
+        
+        /* 远处光效 */
+        .distant-light {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 288px;
+            height: 288px;
+            background-color: rgba(250, 204, 21, 0.05);
+            border-radius: 50%;
+            filter: blur(96px);
+            opacity: 0; /* 隐藏原有光效 */
+        }
+        
+        /* 门容器 */
+        .door-container {
+            position: absolute;
+            top: 33.333%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 100; /* 确保门在背景之上 */
+        }
+        
+        .door-container.left {
+            left: 15%;
+            transform: translateY(-50%) rotateY(12deg);
+        }
+        
+        .door-container.right {
+            right: 15%;
+            transform: translateY(-50%) rotateY(-12deg);
+        }
+        
+        .door-container:hover {
+            transform: translateY(-55%) rotateY(12deg) scale(1.05);
+            box-shadow: 0px 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .door-container.right:hover {
+            transform: translateY(-55%) rotateY(-12deg) scale(1.05);
+        }
+        
+        /* 英语老师凯蒂座位门特殊效果 */
+        .door-container.left:hover .door-label {
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            animation: aiGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        /* AI语文老师门特殊效果 */
+        .door-container.right:hover .door-label {
+            color: #ff6b35;
+            text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+            animation: aiGlowOrange 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes aiGlow {
+            from {
+                text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+            }
+            to {
+                text-shadow: 0 0 15px rgba(0, 255, 136, 0.7), 0 0 25px rgba(0, 255, 136, 0.3);
+            }
+        }
+        
+        @keyframes aiGlowOrange {
+            from {
+                text-shadow: 0 0 5px rgba(255, 107, 53, 0.3);
+            }
+            to {
+                text-shadow: 0 0 15px rgba(255, 107, 53, 0.7), 0 0 25px rgba(255, 107, 53, 0.3);
+            }
+        }
+        
+        .door-container.active {
+            transform: translateY(-50%) rotateY(12deg) scale(1.1);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        
+        .door-container.right.active {
+            transform: translateY(-50%) rotateY(-12deg) scale(1.1);
+        }
+        
+        .door-container:active {
+            transform: translateY(-50%) rotateY(12deg) scale(0.95);
+        }
+        
+        .door-container.right:active {
+            transform: translateY(-50%) rotateY(-12deg) scale(0.95);
+        }
+        
+        /* 门样式 */
+        .door {
+            width: 128px;
+            height: 256px;
+            border: 4px solid #4a4a4a;
+            background-color: rgba(38, 38, 38, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 门纹理 */
+        .door-wood {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=old+wood+texture+vintage&sign=442c92d444c837d9306c0e1bb9f2fcd5');
+            background-repeat: repeat;
+            opacity: 0.5; /* 降低门纹理的透明度 */
+        }
+        
+        /* 门把手 */
+        .door-handle {
+            position: absolute;
+            top: 50%;
+            width: 16px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #666666;
+        }
+        
+        .door-handle.left {
+            right: 16px;
+        }
+        
+        .door-handle.right {
+            left: 16px;
+        }
+        
+        .door-container.active .door-handle {
+            background-color: #eab308;
+        }
+        
+        /* 门标签 */
+        .door-label {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            white-space: nowrap;
+        }
+        
+        /* 门阴影 */
+        .door-shadow {
+            position: absolute;
+            bottom: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 112px;
+            height: 16px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            filter: blur(12px);
+        }
+        
+        /* 角色半身像 */
+        .character-portrait {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: translate(-50%, -50px) scale(0.8);
+        }
+        
+        .character-portrait.visible {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1);
+        }
+        
+        .portrait-frame {
+            width: 256px;
+            height: 320px;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        
+        .portrait-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .portrait-gradient {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent, transparent);
+        }
+        
+        .portrait-name {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+        
+        /* 对话框 */
+        .dialogue-box {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 24px;
+            z-index: 30;
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .dialogue-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .dialogue-content {
+            position: relative;
+            margin: 0 auto;
+            max-width: 800px;
+            backdrop-filter: blur(8px);
+            border-radius: 24px 24px 0 0;
+            border-top: 1px solid;
+            border-left: 1px solid;
+            border-right: 1px solid;
+            padding: 24px;
+            min-height: 160px;
+        }
+        
+        .dialogue-text {
+            color: white;
+            font-size: 20px;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+        
+        .dialogue-next {
+            position: absolute;
+            bottom: 16px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+        }
+        
+        .dialogue-next span {
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        
+        .dialogue-indicator {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .dialogue-indicator-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .dialogue-divider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.5), transparent);
+        }
+        
+        /* 梦核风格效果 - 已禁用以显示真实教室背景 */
+        .dreamcore-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent, rgba(0, 0, 0, 0.2));
+            pointer-events: none;
+            z-index: 40;
+            opacity: 0; /* 隐藏遮罩层，显示真实背景 */
+        }
+        
+        .film-grain {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=film+grain+texture+overlay&sign=60f9decbde017cc05ad1ebda6262bf06');
+            opacity: 0; /* 隐藏胶片颗粒效果 */
+            pointer-events: none;
+            z-index: 41;
+        }
+        
+        /* 动画 */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        .pulsing {
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        
+        /* 提示框样式 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        
+        .toast {
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease-out forwards, fadeOut 0.3s ease-in forwards 3s;
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        
+        @keyframes slideIn {
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一</div>
+        
+        <!-- 顶部控制按钮 -->
+        <div style="position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 8px;">
+            <button onclick="window.location.href='index.html'" 
+                    style="background: rgba(239,68,68,0.9); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                ← 返回地图
+            </button>
+            <button onclick="cozeWebSDK1 && cozeWebSDK1.showChatBot()" 
+                    style="background: rgba(0,255,136,0.8); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                👩‍🏫 英语老师凯蒂
+            </button>
+            <button onclick="cozeWebSDK2 && cozeWebSDK2.showChatBot()" 
+                    style="background: rgba(255,107,53,0.8); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                📚 语文老师AI
+            </button>
+        </div>
+        
+        <!-- 透视走廊容器 -->
+        <div class="corridor-container">
+            <!-- 教室实景背景 -->
+            <div class="classroom-background"></div>
+            
+            <div class="corridor-bg">
+                <!-- 走廊两侧墙壁 -->
+                <div class="wall-left"></div>
+                <div class="wall-right"></div>
+                
+                <!-- 走廊地面 -->
+                <div class="corridor-floor">
+                    <!-- 地板透视线条 -->
+                    <div class="floor-line center"></div>
+                    <div class="floor-line left-1"></div>
+                    <div class="floor-line left-2"></div>
+                    <div class="floor-line right-1"></div>
+                    <div class="floor-line right-2"></div>
+                    
+                    <!-- 地板纹理 -->
+                    <div class="floor-texture"></div>
+                </div>
+                
+                <!-- 墙壁纹理 -->
+                <div class="wall-texture left"></div>
+                <div class="wall-texture right"></div>
+                
+                <!-- 天花板 -->
+                <div class="ceiling"></div>
+                
+                <!-- 远处消失点的光效 -->
+                <div class="distant-light"></div>
+            </div>
+            
+            <!-- 左侧门 - 英语老师凯蒂的座位 -->
+            <div class="door-container left" id="leftDoor">
+                <div class="door">
+                    <div class="door-wood"></div>
+                    <div class="door-handle left"></div>
+                        <div class="door-label">英语老师凯蒂 👩‍🏫</div>
+                </div>
+                <div class="door-shadow"></div>
+            </div>
+            
+            <!-- 右侧门 - 语文老师办公室 -->
+            <div class="door-container right" id="rightDoor">
+                <div class="door">
+                    <div class="door-wood"></div>
+                    <div class="door-handle right"></div>
+                        <div class="door-label">语文老师办公室 🤖AI</div>
+                </div>
+                <div class="door-shadow"></div>
+            </div>
+            
+            <!-- 角色半身像 -->
+            <div class="character-portrait" id="characterPortrait">
+                <div class="portrait-frame">
+                    <img src="" alt="" class="portrait-image" id="portraitImage">
+                    <div class="portrait-gradient"></div>
+                    <div class="portrait-name" id="portraitName"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对话框 -->
+        <div class="dialogue-box" id="dialogueBox">
+            <div class="dialogue-content" id="dialogueContent">
+                <!-- 对话文本 -->
+                <p class="dialogue-text" id="dialogueText"></p>
+                
+                <!-- 继续提示 -->
+                <div class="dialogue-next" id="dialogueNext">
+                    <span>点击继续</span>
+                    <div class="dialogue-indicator">
+                        <div class="dialogue-indicator-dot pulsing"></div>
+                    </div>
+                </div>
+                
+                <!-- 装饰线 -->
+                <div class="dialogue-divider"></div>
+            </div>
+        </div>
+        
+        <!-- 梦核风格效果 -->
+        <div class="dreamcore-overlay"></div>
+        <div class="film-grain"></div>
+        
+        <!-- 提示框容器 -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            activeCharacter: null, // 'copyTeacher' | 'dean' | null
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 角色信息
+        const characterInfo = {
+            copyTeacher: {
+                name: "张老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=middle-aged+female+teacher+realistic+portrait+natural+colors+school+uniform+original+colors+high+quality&sign=6b80b5210b99a51c3d15894c22b76c67",
+                colorClass: "border-blue-500/50 bg-blue-900/80"
+            },
+            dean: {
+                name: "王主任",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=middle-aged+male+school+dean+realistic+portrait+natural+colors+formal+clothes+original+colors+high+quality&sign=dc303dce41d3046b576b209866a9429e",
+                colorClass: "border-red-500/50 bg-red-900/80"
+            }
+        };
+        
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: {
+                copyTeacher: [
+                    "同学你好，来复印东西吗？",
+                    "小心点使用复印机，别夹到手了。",
+                    "你们这届初一新生真有活力啊...",
+                    "好好学习，初中生活很快就会过去的。"
+                ],
+                dean: [
+                    "新生？来我办公室有什么事？",
+                    "校规都看了吗？要严格遵守纪律。",
+                    "初一打好基础很重要，别贪玩。",
+                    "有问题可以来找我，但别惹麻烦。"
+                ]
+            }
+        };
+        
+        // DOM元素
+        const elements = {
+            gradeDisplay: document.getElementById('gradeDisplay'),
+            leftDoor: document.getElementById('leftDoor'),
+            rightDoor: document.getElementById('rightDoor'),
+            characterPortrait: document.getElementById('characterPortrait'),
+            portraitImage: document.getElementById('portraitImage'),
+            portraitName: document.getElementById('portraitName'),
+            dialogueBox: document.getElementById('dialogueBox'),
+            dialogueContent: document.getElementById('dialogueContent'),
+            dialogueText: document.getElementById('dialogueText'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            toastContainer: document.getElementById('toastContainer')
+        };
+        
+        // 从本地存储加载进度
+        function loadGameProgress() {
+            const savedGrade = localStorage.getItem('dreamcoreCampusGrade');
+            if (savedGrade) {
+                gameState.grade = parseInt(savedGrade);
+                elements.gradeDisplay.textContent = ['初一', '初二', '初三'][gameState.grade - 1];
+            }
+        }
+        
+        // 保存进度到本地存储
+        function saveGameProgress() {
+            localStorage.setItem('dreamcoreCampusGrade', gameState.grade.toString());
+        }
+        
+        // 显示提示框
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            elements.toastContainer.appendChild(toast);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                toast.remove();
+            }, 3500);
+        }
+        
+        // 升级到下一年级
+        function progressToNextGrade() {
+            // 剧情限制为仅初一，不允许升级
+            showToast("这就是你的初一生活...时间仿佛凝固在了这里");
+        }
+        
+        // 初始化 Coze SDK
+        let cozeWebSDK1; // 英语老师凯蒂
+        let cozeWebSDK2; // 语文老师
+        
+        function initCozeSDK() {
+            try {
+                // 初始化英语老师凯蒂AI
+                cozeWebSDK1 = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7585189087343804456', 
+                    },
+                    componentProps: {
+                        title: '英语老师凯蒂',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'pc', // PC模式
+                            zIndex: 9999, // 确保在最上层
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                // 初始化语文老师AI
+                cozeWebSDK2 = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7527568017300668479', 
+                    },
+                    componentProps: {
+                        title: '语文老师',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'fullscreen', // 全屏模式
+                            zIndex: 10001, // 确保在iframe之上
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                console.log('✅ Coze SDK 初始化成功 - 英语老师凯蒂和语文老师');
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+            }
+        }
+        
+        // 处理门点击事件
+        function handleDoorClick(character) {
+            // 如果点击的是英语老师凯蒂的座位（copyTeacher），使用Coze SDK1
+            if (character === 'copyTeacher') {
+                console.log('👩‍🏫 点击英语老师凯蒂的座位，启动Coze对话');
+                
+                if (cozeWebSDK1) {
+                    try {
+                        cozeWebSDK1.showChatBot();
+                        showToast("正在连接英语老师凯蒂...");
+                    } catch (error) {
+                        console.error('❌ 启动凯蒂老师Coze对话失败:', error);
+                        showToast("连接凯蒂老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.error('❌ 凯蒂老师Coze SDK 未初始化');
+                    showToast("凯蒂老师系统未准备好，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDoorClick(character);
+                }
+            } 
+            // 如果点击的是语文老师门（dean），使用Coze SDK2
+            else if (character === 'dean') {
+                console.log('📚 点击语文老师门，启动Coze对话');
+                
+                if (cozeWebSDK2) {
+                    try {
+                        cozeWebSDK2.showChatBot();
+                        showToast("正在连接语文老师...");
+                    } catch (error) {
+                        console.error('❌ 启动语文老师Coze对话失败:', error);
+                        showToast("连接语文老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.error('❌ 语文老师Coze SDK 未初始化');
+                    showToast("语文老师系统未准备好，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDoorClick(character);
+                }
+            } 
+            else {
+                // 其他门使用原有对话系统
+                handleOriginalDoorClick(character);
+            }
+        }
+        
+        // 原有的门点击处理逻辑（作为降级方案）
+        function handleOriginalDoorClick(character) {
+            gameState.activeCharacter = character;
+            gameState.currentDialogueIndex = 0;
+            gameState.isDialogueOpen = true;
+            
+            // 更新UI
+            updateUI();
+            
+            // 设置角色信息
+            const info = characterInfo[character];
+            elements.portraitImage.src = info.image;
+            elements.portraitImage.alt = info.name;
+            elements.portraitName.textContent = info.name;
+            
+            // 设置对话框样式
+            elements.dialogueContent.className = `dialogue-content ${info.colorClass}`;
+            
+            // 显示当前对话
+            showCurrentDialogue();
+        }
+        
+        // 显示当前对话
+        function showCurrentDialogue() {
+            const dialogue = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            if (dialogue && dialogue[gameState.currentDialogueIndex]) {
+                elements.dialogueText.textContent = dialogue[gameState.currentDialogueIndex];
+            }
+        }
+        
+        // 处理对话继续
+        function handleNextDialogue() {
+            const dialogue = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            
+            if (gameState.currentDialogueIndex < (dialogue?.length || 0) - 1) {
+                gameState.currentDialogueIndex++;
+                showCurrentDialogue();
+            } else {
+                // 对话结束
+                gameState.isDialogueOpen = false;
+                gameState.activeCharacter = null;
+                updateUI();
+                
+                // 有50%的几率在对话结束后升级
+                if (Math.random() > 0.5) {
+                    progressToNextGrade();
+                }
+            }
+        }
+        
+        // 更新UI状态
+        function updateUI() {
+            // 更新门的激活状态
+            elements.leftDoor.classList.toggle('active', gameState.activeCharacter === 'copyTeacher');
+            elements.rightDoor.classList.toggle('active', gameState.activeCharacter === 'dean');
+            
+            // 更新角色半身像可见性
+            elements.characterPortrait.classList.toggle('visible', gameState.isDialogueOpen && gameState.activeCharacter);
+            
+            // 更新对话框可见性
+            elements.dialogueBox.classList.toggle('visible', gameState.isDialogueOpen);
+        }
+        
+        // 初始化游戏
+        function initGame() {
+            // 加载游戏进度
+            loadGameProgress();
+            
+            // 初始化 Coze SDK
+            setTimeout(initCozeSDK, 1000); // 延迟1秒确保SDK加载完成
+            
+            // 设置事件监听器
+            elements.leftDoor.addEventListener('click', () => handleDoorClick('copyTeacher'));
+            elements.rightDoor.addEventListener('click', () => handleDoorClick('dean'));
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 点击对话框任意位置也可以继续对话
+            elements.dialogueContent.addEventListener('click', (e) => {
+                if (e.target === elements.dialogueContent || e.target === elements.dialogueText) {
+                    handleNextDialogue();
+                }
+            });
+        }
+        
+        // 启动游戏
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>

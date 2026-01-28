@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爱哲安民未来学校校园模拟器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        .loading-container {
+            text-align: center;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 120px;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        
+        .loading-bar {
+            width: 300px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: white;
+            border-radius: 3px;
+            animation: loading 2s ease-in-out;
+        }
+        
+        @keyframes loading {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+        
+        .tip {
+            margin-top: 30px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="logo">🎓</div>
+        <div class="title">爱哲安民未来学校校园模拟器</div>
+        <div class="subtitle">Campus Life Simulator</div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+        <div class="tip">正在加载游戏资源...</div>
+    </div>
+    
+    <script>
+        // 2秒后跳转到登录页
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 2000);
+    </script>
+</body>
+</html>
+
+
+
+

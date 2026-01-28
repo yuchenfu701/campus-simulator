@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园论坛 - 北京四中</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, 
+                #0f172a 0%, 
+                #1e293b 25%, 
+                #312e81 50%, 
+                #1e293b 75%, 
+                #0f172a 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            color: white;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .back-btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .post-btn {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            color: white;
+            padding: 18px 32px;
+            border-radius: 16px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 24px;
+            width: 100%;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4),
+                        0 4px 16px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .post-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .post-btn:hover::before {
+            left: 100%;
+        }
+        
+        .post-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.6),
+                        0 8px 24px rgba(99, 102, 241, 0.5);
+        }
+        
+        .post-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.4s ease;
+        }
+        
+        .post-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+        
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .post-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 16px;
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4),
+                        0 0 0 2px rgba(139, 92, 246, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .post-info {
+            flex: 1;
+        }
+        
+        .post-author {
+            font-weight: 600;
+            color: white;
+            font-size: 16px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .post-time {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .post-content {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.7;
+            margin-bottom: 18px;
+            font-size: 15px;
+        }
+        
+        .post-actions {
+            display: flex;
+            gap: 20px;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 15px;
+        }
+        
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+        
+        .action-btn:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        .action-btn.liked {
+            color: #8b5cf6;
+            font-weight: 600;
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        .loading, .empty-state, .error-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 36px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        
+        .modal-actions button {
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-actions button.primary {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            color: white;
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+        }
+        
+        .modal-actions button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.6);
+        }
+        
+        .comments-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .comment-item {
+            padding: 8px 0;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">💬 校园论坛</div>
+        <button class="back-btn" onclick="goBack()">返回主菜单</button>
+    </div>
+    
+    <div class="container">
+        <button class="post-btn" onclick="showPostModal()">✍️ 发布新帖子</button>
+        
+        <div id="postsContainer">
+            <!-- 帖子将通过JS动态加载 -->
+            <div class="loading">加载中...</div>
+            </div>
+        </div>
+        
+    <!-- 发布帖子模态框 -->
+    <div id="postModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>发布新帖子</h2>
+            <textarea id="postContent" placeholder="分享你的想法..." maxlength="1000" rows="6"></textarea>
+            <div class="modal-actions">
+                <button onclick="closePostModal()">取消</button>
+                <button onclick="submitPost()" class="primary">发布</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/api-client.js"></script>
+    <script>
+        // 获取当前用户信息
+        const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+        const currentUserId = userData.userId || 'student_001';
+        const currentUserName = userData.name || '玩家';
+        
+        // 页面加载时获取帖子
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadPosts();
+        });
+        
+        // 加载帖子列表
+        async function loadPosts() {
+            const container = document.getElementById('postsContainer');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const response = await apiClient.getPosts();
+                if (response.success && response.data.length > 0) {
+                    renderPosts(response.data);
+                } else {
+                    container.innerHTML = '<div class="empty-state">暂无帖子，快来发布第一条吧！</div>';
+                }
+            } catch (error) {
+                console.error('加载帖子失败:', error);
+                
+                // 详细的错误提示
+                let errorHTML = '<div class="error-state">';
+                errorHTML += '<h3>❌ 加载失败</h3>';
+                errorHTML += '<p>' + error.message.replace(/\n/g, '<br>') + '</p>';
+                
+                // 添加诊断按钮
+                errorHTML += '<button onclick="testServerConnection()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍 测试服务器连接</button>';
+                errorHTML += '<div id="testResult" style="margin-top: 10px;"></div>';
+                errorHTML += '</div>';
+                
+                container.innerHTML = errorHTML;
+            }
+        }
+        
+        // 渲染帖子列表
+        function renderPosts(posts) {
+            const container = document.getElementById('postsContainer');
+            container.innerHTML = '';
+            
+            posts.forEach(post => {
+                const postCard = document.createElement('div');
+                postCard.className = 'post-card';
+                postCard.dataset.postId = post._id;
+                
+                // 格式化时间
+                const timeAgo = formatTimeAgo(new Date(post.createdAt));
+                
+                // 检查当前用户是否已点赞
+                const isLiked = post.likes.some(like => like.userId === currentUserId);
+                
+                postCard.innerHTML = `
+                    <div class="post-header">
+                        <div class="post-avatar">${post.authorAvatar || '👤'}</div>
+                        <div class="post-info">
+                            <div class="post-author">${post.authorName}</div>
+                            <div class="post-time">${timeAgo}</div>
+                        </div>
+                    </div>
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    <div class="post-actions">
+                        <div class="action-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post._id}')">
+                            👍 点赞 (${post.likeCount || 0})
+                        </div>
+                        <div class="action-btn" onclick="showComments('${post._id}')">
+                            💬 评论 (${post.commentCount || 0})
+                        </div>
+                        <div class="action-btn" onclick="sharePost('${post._id}')">📤 分享</div>
+                    </div>
+                    ${post.comments && post.comments.length > 0 ? `
+                        <div class="comments-section">
+                            ${post.comments.map(comment => `
+                                <div class="comment-item">
+                                    <strong>${comment.userName}:</strong> ${escapeHtml(comment.content)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                
+                container.appendChild(postCard);
+            });
+        }
+        
+        // 显示发布帖子模态框
+        function showPostModal() {
+            document.getElementById('postModal').style.display = 'flex';
+            document.getElementById('postContent').focus();
+        }
+        
+        // 关闭发布帖子模态框
+        function closePostModal() {
+            document.getElementById('postModal').style.display = 'none';
+            document.getElementById('postContent').value = '';
+        }
+        
+        // 提交帖子
+        async function submitPost() {
+            const content = document.getElementById('postContent').value.trim();
+            
+            if (!content) {
+                alert('请输入帖子内容');
+                return;
+            }
+            
+            if (content.length > 1000) {
+                alert('帖子内容不能超过1000字');
+                return;
+            }
+            
+            try {
+                // 先确保用户在数据库中存在
+                try {
+                    await apiClient.getUser(currentUserId);
+                } catch (error) {
+                    // 用户不存在，尝试创建用户
+                    console.log('用户不存在，尝试创建用户...');
+                    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                    await apiClient.createOrUpdateUser({
+                        userId: currentUserId,
+                        name: currentUserName,
+                        phone: userData.phone || `temp_${currentUserId}`,
+                        class: userData.class || '初一(1)班',
+                        avatar: userData.avatar || ''
+                    });
+                }
+                
+                // 发布帖子（传递用户信息，方便后端自动创建用户）
+                const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                const response = await apiClient.createPost(
+                    currentUserId, 
+                    content,
+                    currentUserName,
+                    userData.avatar || ''
+                );
+                if (response.success) {
+                alert('✅ 帖子发布成功！');
+                    closePostModal();
+                    await loadPosts(); // 重新加载帖子列表
+                } else {
+                    alert('发布失败：' + response.message);
+                }
+            } catch (error) {
+                if (error.message === 'API_UNAVAILABLE') {
+                    alert('⚠️ 服务器不可用，请检查后端服务是否启动');
+                } else {
+                    alert('发布失败：' + error.message);
+                }
+            }
+        }
+        
+        // 点赞/取消点赞
+        async function toggleLike(postId) {
+            try {
+                const response = await apiClient.likePost(postId, currentUserId, currentUserName);
+                if (response.success) {
+                    await loadPosts(); // 重新加载帖子列表
+                }
+            } catch (error) {
+                alert('操作失败：' + error.message);
+            }
+        }
+        
+        // 显示评论（简化版，可以后续扩展）
+        function showComments(postId) {
+            const comment = prompt('请输入评论内容：');
+            if (comment && comment.trim()) {
+                apiClient.commentPost(postId, currentUserId, currentUserName, comment.trim())
+                    .then(response => {
+                        if (response.success) {
+                            loadPosts();
+                        }
+                    })
+                    .catch(error => alert('评论失败：' + error.message));
+            }
+        }
+        
+        // 分享帖子
+        function sharePost(postId) {
+            if (navigator.share) {
+                navigator.share({
+                    title: '校园论坛帖子',
+                    text: '看看这个有趣的帖子！',
+                    url: window.location.href + '?post=' + postId
+                });
+            } else {
+                alert('分享功能需要浏览器支持');
+            }
+        }
+        
+        // 格式化时间
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return '刚刚';
+            if (minutes < 60) return `${minutes}分钟前`;
+            if (hours < 24) return `${hours}小时前`;
+            if (days < 7) return `${days}天前`;
+            return date.toLocaleDateString('zh-CN');
+        }
+        
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 测试服务器连接
+        async function testServerConnection() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = '<div style="color: #667eea;">🔄 正在测试连接...</div>';
+            
+            try {
+                const result = await apiClient.testConnection();
+                if (result.success) {
+                    resultDiv.innerHTML = '<div style="color: #48bb78;">✅ 服务器连接正常！<br>请刷新页面重试。</div>';
+                } else {
+                    resultDiv.innerHTML = `<div style="color: #f56565;">❌ 连接失败：${result.error}<br><br>请检查：<br>1. 服务器是否已启动（运行"启动服务器.bat"）<br>2. 访问 http://localhost:3000/api/health 查看服务器状态</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: #f56565;">❌ 测试失败：${error.message}</div>`;
+            }
+        }
+        
+        function goBack() {
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                window.location.href = 'main-menu.html';
+            }
+        }
+    </script>
+</body>
+</html>
+

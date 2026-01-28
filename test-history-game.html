@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试历史小游戏路径</title>
+</head>
+<body>
+    <h1>测试历史小游戏路径</h1>
+    <button onclick="testPath1()">测试路径1: 新建文件夹 (5)/index.html</button>
+    <button onclick="testPath2()">测试路径2: encodeURI编码</button>
+    <button onclick="testPath3()">测试路径3: 使用iframe</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+    <iframe id="test-iframe" style="width: 100%; height: 600px; border: 1px solid #ccc; margin-top: 20px;"></iframe>
+    
+    <script>
+        function testPath1() {
+            const path = '新建文件夹 (5)/index.html';
+            document.getElementById('result').innerHTML = '测试路径1: ' + path;
+            document.getElementById('test-iframe').src = path;
+        }
+        
+        function testPath2() {
+            const path = encodeURI('新建文件夹 (5)/index.html');
+            document.getElementById('result').innerHTML = '测试路径2: ' + path;
+            document.getElementById('test-iframe').src = path;
+        }
+        
+        function testPath3() {
+            const path = '新建文件夹 (5)/index.html';
+            document.getElementById('result').innerHTML = '测试路径3: ' + path;
+            const iframe = document.getElementById('test-iframe');
+            iframe.src = path;
+            iframe.onload = function() {
+                document.getElementById('result').innerHTML += '<br>✅ iframe加载成功';
+            };
+            iframe.onerror = function() {
+                document.getElementById('result').innerHTML += '<br>❌ iframe加载失败';
+            };
+        }
+    </script>
+</body>
+</html>
+

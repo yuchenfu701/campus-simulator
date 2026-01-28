@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI对话问题排查指南</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            line-height: 1.6;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .problem-section {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .solution-section {
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .info-section {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid #3b82f6;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .warning-section {
+            background: rgba(245, 158, 11, 0.2);
+            border: 2px solid #f59e0b;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .step {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .step-number {
+            background: #3b82f6;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #3b82f6, #1e40af);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-success { background: linear-gradient(45deg, #10b981, #059669); }
+        .btn-warning { background: linear-gradient(45deg, #f59e0b, #d97706); }
+        .btn-danger { background: linear-gradient(45deg, #ef4444, #dc2626); }
+        
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .highlight {
+            background: rgba(255, 255, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ AI对话问题排查指南</h1>
+        
+        <div class="problem-section">
+            <div class="section-title">
+                ❌ 常见问题现象
+            </div>
+            <ul>
+                <li>点击食堂大妈门后，AI对话框弹出但显示 <highlight class="highlight">"Please try again later"</highlight></li>
+                <li>SDK状态显示 <highlight class="highlight">"初始化失败"</highlight> 或 <highlight class="highlight">"Token无效"</highlight></li>
+                <li>浏览器控制台出现403、401等错误信息</li>
+                <li>对话框可以打开，但无法正常聊天</li>
+            </ul>
+        </div>
+        
+        <div class="solution-section">
+            <div class="section-title">
+                ✅ 解决步骤
+            </div>
+            
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>检查Token和Bot配置</strong>
+                <p>使用我们的诊断工具验证您的配置是否正确。</p>
+                <button class="btn-success" onclick="openDiagnosticTool()">🔍 打开诊断工具</button>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>验证Token有效性</strong>
+                <p>Personal Access Token可能已过期，需要重新生成。</p>
+                <button class="btn-warning" onclick="openCozeConsole()">🔑 前往Coze控制台</button>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>检查Bot权限</strong>
+                <p>确认Token有访问指定Bot的权限，Bot状态正常。</p>
+                <button class="btn-warning" onclick="openBotManagement()">🤖 Bot管理页面</button>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>尝试使用HTTPS</strong>
+                <p>某些情况下，本地HTTP环境可能被限制，尝试HTTPS环境。</p>
+                <code>https://localhost:8080</code> 或部署到支持HTTPS的服务器
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="section-title">
+                ℹ️ 技术细节
+            </div>
+            <p><strong>Bot ID:</strong> <code>7528957467150630946</code></p>
+            <p><strong>Token格式:</strong> 应该以 <code>pat_</code> 开头，长度通常在50-70个字符</p>
+            <p><strong>API端点:</strong> <code>https://api.coze.cn</code></p>
+            <p><strong>SDK版本:</strong> <code>1.2.0-beta.10</code></p>
+        </div>
+        
+        <div class="warning-section">
+            <div class="section-title">
+                ⚠️ 重要注意事项
+            </div>
+            <ul>
+                <li><strong>Token安全:</strong> 不要在公开代码中暴露真实Token</li>
+                <li><strong>Bot状态:</strong> 确保Bot已发布且状态为"运行中"</li>
+                <li><strong>网络环境:</strong> 某些企业网络可能屏蔽外部API调用</li>
+                <li><strong>浏览器限制:</strong> 某些浏览器可能阻止跨域请求</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <h3>🚀 快速操作</h3>
+            <button onclick="goBackToCafeteria()">🍽️ 返回食堂</button>
+            <button class="btn-success" onclick="openDiagnosticTool()">🔍 诊断工具</button>
+            <button class="btn-warning" onclick="openTestPage()">🧪 SDK测试页</button>
+            <button class="btn-danger" onclick="openMainGame()">🎮 返回主游戏</button>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; font-size: 0.9em; opacity: 0.8;">
+            <p>📧 如果问题仍然存在，请检查Coze官方文档或联系技术支持</p>
+        </div>
+    </div>
+
+    <script>
+        function openDiagnosticTool() {
+            const url = window.location.origin + window.location.pathname.replace('troubleshooting.html', 'token-test.html');
+            window.open(url, '_blank', 'width=1000,height=800');
+        }
+        
+        function openTestPage() {
+            const url = window.location.origin + window.location.pathname.replace('troubleshooting.html', 'coze-test.html');
+            window.open(url, '_blank', 'width=1000,height=800');
+        }
+        
+        function goBackToCafeteria() {
+            const url = window.location.origin + window.location.pathname.replace('troubleshooting.html', 'office-cafeteria.html');
+            window.location.href = url;
+        }
+        
+        function openMainGame() {
+            const url = window.location.origin + window.location.pathname.replace('troubleshooting.html', 'index.html');
+            window.location.href = url;
+        }
+        
+        function openCozeConsole() {
+            window.open('https://www.coze.cn/space', '_blank');
+        }
+        
+        function openBotManagement() {
+            window.open('https://www.coze.cn/space/bots', '_blank');
+        }
+    </script>
+</body>
+</html> 

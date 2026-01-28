@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操场 - 运动天地</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', 'Inter', sans-serif;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(to bottom, #90ee90 0%, #32cd32 50%, #228b22 100%);
+            /* 运动主题背景 */
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(34, 139, 34, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(50, 205, 50, 0.1) 0%, transparent 50%),
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.05),
+                    rgba(255, 255, 255, 0.05) 2px,
+                    transparent 2px,
+                    transparent 60px
+                );
+        }
+        
+        /* 建筑标识 */
+        .building-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #006400;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: rgba(144, 238, 144, 0.9);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #32cd32;
+        }
+        
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #006400;
+            font-size: 20px;
+            font-family: serif;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            z-index: 20;
+        }
+        
+        /* 透视走廊容器 */
+        .corridor-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            z-index: 10;
+            overflow: hidden;
+        }
+        
+        /* 走廊背景 */
+        .corridor-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, 
+                rgba(144, 238, 144, 0.4) 0%, 
+                rgba(50, 205, 50, 0.5) 50%, 
+                rgba(34, 139, 34, 0.6) 100%);
+            opacity: 0.8;
+        }
+        
+        /* 墙壁 */
+        .wall-left, .wall-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            height: 100%;
+        }
+        
+        .wall-left {
+            left: 0;
+            width: 50%;
+            background: linear-gradient(to right, rgba(34, 139, 34, 0.6), rgba(50, 205, 50, 0.4), transparent);
+            transform: skewX(-12deg);
+            transform-origin: top right;
+        }
+        
+        .wall-right {
+            right: 0;
+            width: 50%;
+            background: linear-gradient(to left, rgba(34, 139, 34, 0.6), rgba(50, 205, 50, 0.4), transparent);
+            transform: skewX(12deg);
+            transform-origin: top left;
+        }
+        
+        /* 地板 */
+        .corridor-floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(50, 205, 50, 0.8), rgba(144, 238, 144, 0.6), rgba(240, 255, 240, 0.4));
+        }
+        
+        /* 天花板 */
+        .corridor-ceiling {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+            background: linear-gradient(to bottom, rgba(240, 255, 240, 0.9), rgba(144, 238, 144, 0.7));
+            transform: perspective(1000px) rotateX(20deg);
+            transform-origin: bottom;
+        }
+        
+        /* 门容器 */
+        .door-container {
+            position: absolute;
+            width: 80px;
+            height: 120px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 15;
+        }
+        
+        .door-container.left {
+            left: 25%;
+            top: 40%;
+        }
+        
+        .door-container.right {
+            right: 25%;
+            top: 40%;
+        }
+        
+        .door-container:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        /* 操场特殊门效果 */
+        .door-container.left:hover .door-label {
+            color: #dc2626;
+            text-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+            animation: sportsGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        .door-container.right:hover .door-label {
+            color: #1d4ed8;
+            text-shadow: 0 0 10px rgba(29, 78, 216, 0.5);
+            animation: equipmentGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes sportsGlow {
+            from { text-shadow: 0 0 5px rgba(220, 38, 38, 0.3); }
+            to { text-shadow: 0 0 15px rgba(220, 38, 38, 0.7), 0 0 25px rgba(220, 38, 38, 0.3); }
+        }
+        
+        @keyframes equipmentGlow {
+            from { text-shadow: 0 0 5px rgba(29, 78, 216, 0.3); }
+            to { text-shadow: 0 0 15px rgba(29, 78, 216, 0.7), 0 0 25px rgba(29, 78, 216, 0.3); }
+        }
+        
+        /* 门样式 */
+        .door {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #8B4513, #A0522D, #CD853F);
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 门把手 */
+        .door-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .door-handle.left { right: 10px; }
+        .door-handle.right { left: 10px; }
+        
+        /* 门标签 */
+        .door-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #374151;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 对话框样式 */
+        .dialogue-box {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #32cd32;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .dialogue-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        
+        .dialogue-next {
+            background: #32cd32;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .dialogue-next:hover {
+            background: #228b22;
+        }
+        
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 返回按钮 */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1001;
+            transition: background 0.2s;
+        }
+        
+        .back-button:hover {
+            background: rgba(220, 38, 38, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 建筑标识 -->
+        <div class="building-label">操场</div>
+        
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一</div>
+        
+        <!-- 返回按钮 -->
+        <button class="back-button" onclick="closeOfficeSystem()">返回校园</button>
+        
+        <!-- 调试面板 -->
+        <div style="position: absolute; top: 70px; right: 20px; z-index: 1001;">
+            <!-- SDK状态指示器 -->
+            <div id="sdkStatus" style="background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 11px; margin-bottom: 8px; min-width: 120px;">
+                <div>🤖 SDK状态: <span id="statusText" style="color: #fbbf24;">初始化中...</span></div>
+            </div>
+            
+            <!-- 调试按钮 -->
+            <button onclick="testCoachAI()" style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 5px; display: block; width: 100%;">🏃‍♂️ 测试体育老师AI</button>
+            <button onclick="hideCoachAI()" style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 5px; display: block; width: 100%;">❌ 隐藏对话框</button>
+            <button onclick="reinitializeCoachSDK()" style="background: #f59e0b; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; display: block; width: 100%;">🔄 重新初始化</button>
+        </div>
+        
+        <!-- 透视走廊 -->
+        <div class="corridor-container">
+            <div class="corridor-bg">
+                <!-- 墙壁 -->
+                <div class="wall-left"></div>
+                <div class="wall-right"></div>
+                
+                <!-- 天花板 -->
+                <div class="corridor-ceiling"></div>
+                
+                <!-- 地板 -->
+                <div class="corridor-floor"></div>
+                
+                <!-- 左侧门 - 体育办公室 -->
+                <div class="door-container left" id="leftDoor">
+                    <div class="door">
+                        <div class="door-handle left"></div>
+                        <div class="door-label">体育办公室 🏃‍♂️<br><small style="color: #22c55e; font-weight: bold;">🤖 AI对话</small></div>
+                    </div>
+                </div>
+                
+                <!-- 右侧门 - 器材室 -->
+                <div class="door-container right" id="rightDoor">
+                    <div class="door">
+                        <div class="door-handle right"></div>
+                        <div class="door-label">器材室 ⚽</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对话框 -->
+        <div class="dialogue-box hidden" id="dialogueBox">
+            <div class="dialogue-text" id="dialogueText"></div>
+            <button class="dialogue-next" id="dialogueNext">
+                <span>点击继续</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            activeCharacter: null, // 'coach' | 'equipment' | null
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 初始化 Coze SDK
+        let cozeWebSDKCoach; // 体育老师
+        
+        // 更新状态指示器
+        function updateSDKStatus(status, color = '#fbbf24') {
+            const statusElement = document.getElementById('statusText');
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.style.color = color;
+            }
+            console.log(`📊 SDK状态更新: ${status}`);
+        }
+        
+        function initCozeSDK() {
+            updateSDKStatus('加载中...', '#fbbf24');
+            
+            // 等待Coze SDK加载完成
+            if (typeof CozeWebSDK === 'undefined') {
+                console.warn('⚠️ Coze SDK 尚未加载，延迟初始化');
+                updateSDKStatus('等待SDK加载...', '#f59e0b');
+                setTimeout(initCozeSDK, 500);
+                return;
+            }
+            
+            try {
+                // 初始化体育老师AI
+                cozeWebSDKCoach = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7527593507730030602', 
+                    },
+                    componentProps: {
+                        title: '体育老师',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'fullscreen', // 全屏模式
+                            zIndex: 10001, // 确保在iframe之上
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                console.log('✅ Coze SDK 初始化成功 - 体育老师');
+                updateSDKStatus('初始化成功', '#22c55e');
+                
+                // 添加事件监听
+                if (cozeWebSDKCoach.on) {
+                    cozeWebSDKCoach.on('error', (error) => {
+                        console.error('🚨 Coze SDK 运行时错误:', error);
+                        updateSDKStatus('运行时错误', '#ef4444');
+                    });
+                    
+                    cozeWebSDKCoach.on('ready', () => {
+                        console.log('✅ Coze SDK 准备就绪');
+                        updateSDKStatus('准备就绪', '#22c55e');
+                    });
+                }
+                
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+                console.error('详细错误信息:', error.message || error);
+                updateSDKStatus('初始化失败', '#ef4444');
+            }
+        }
+        
+        // 角色信息
+        const characterInfo = {
+            coach: {
+                name: "体育老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=PE+teacher+coach+sports+realistic+portrait&sign=coach001",
+                colorClass: "border-red-500/50 bg-red-900/80"
+            },
+            equipment: {
+                name: "器材管理员",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=sports+equipment+manager+realistic+portrait&sign=equip001",
+                colorClass: "border-blue-500/50 bg-blue-900/80"
+            }
+        };
+        
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: {
+                coach: [
+                    "欢迎来到操场！准备上体育课了吗？",
+                    "初一的同学要先做好热身运动。",
+                    "今天我们练习跑步和基础体操。",
+                    "运动能强身健体，也能放松心情！"
+                ],
+                equipment: [
+                    "需要借用体育器材吗？",
+                    "初一推荐使用轻便的器材。",
+                    "用完记得归还，保持器材整洁。",
+                    "安全第一，正确使用体育器材！"
+                ]
+            },
+            2: {
+                coach: [
+                    "初二的同学体能更好了！",
+                    "今天我们练习球类运动。",
+                    "团队合作在体育中很重要。",
+                    "坚持锻炼，你们都很棒！"
+                ],
+                equipment: [
+                    "初二可以使用更多种类的器材了！",
+                    "篮球、足球、排球都有。",
+                    "注意检查器材是否完好。",
+                    "爱护器材，人人有责！"
+                ]
+            },
+            3: {
+                coach: [
+                    "初三了，体育中考也要准备！",
+                    "1000米跑步是必考项目。",
+                    "立定跳远和投掷也要多练习。",
+                    "体育成绩也很重要，加油！"
+                ],
+                equipment: [
+                    "中考体育项目的器材都准备好了！",
+                    "可以提前熟悉考试用的器材。",
+                    "多练习使用标准器材。",
+                    "祝你们体育中考取得好成绩！"
+                ]
+            }
+        };
+        
+        // DOM元素
+        const elements = {
+            leftDoor: document.getElementById('leftDoor'),
+            rightDoor: document.getElementById('rightDoor'),
+            dialogueBox: document.getElementById('dialogueBox'),
+            dialogueText: document.getElementById('dialogueText'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            gradeDisplay: document.getElementById('gradeDisplay')
+        };
+        
+        // 初始化
+        function init() {
+            console.log('🏃‍♂️ 操场系统初始化');
+            
+            // 初始化Coze SDK
+            initCozeSDK();
+            
+            // 设置事件监听器
+            elements.leftDoor.addEventListener('click', () => handleDoorClick('coach'));
+            elements.rightDoor.addEventListener('click', () => handleDoorClick('equipment'));
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 从父窗口获取年级信息
+            updateGradeDisplay();
+            
+            console.log('✅ 操场系统初始化完成');
+        }
+        
+        // 处理门点击事件
+        function handleDoorClick(character) {
+            console.log(`🚪 点击${character}门`);
+            
+            // 如果点击的是体育老师门，使用Coze SDK
+            if (character === 'coach') {
+                console.log('🏃‍♂️ 点击体育老师门，启动Coze对话');
+                
+                if (cozeWebSDKCoach) {
+                    try {
+                        updateSDKStatus('启动对话中...', '#3b82f6');
+                        cozeWebSDKCoach.showChatBot();
+                        updateSDKStatus('对话已启动', '#22c55e');
+                        showToast("正在连接体育老师...");
+                    } catch (error) {
+                        console.error('❌ 启动体育老师Coze对话失败:', error);
+                        updateSDKStatus('启动失败', '#ef4444');
+                        showToast("连接体育老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.warn('⚠️ 体育老师 SDK 未初始化，尝试重新初始化');
+                    updateSDKStatus('重新初始化...', '#f59e0b');
+                    initCozeSDK();
+                    setTimeout(() => {
+                        if (cozeWebSDKCoach) {
+                            updateSDKStatus('启动对话中...', '#3b82f6');
+                            cozeWebSDKCoach.showChatBot();
+                            updateSDKStatus('对话已启动', '#22c55e');
+                        } else {
+                            console.error('❌ 重新初始化后仍然失败');
+                            updateSDKStatus('彻底失败', '#ef4444');
+                    handleOriginalDoorClick(character);
+                        }
+                    }, 1000);
+                }
+            } else {
+                // 其他门使用原有对话系统
+                handleOriginalDoorClick(character);
+            }
+        }
+        
+        // 原有的门点击处理逻辑（作为降级方案）
+        function handleOriginalDoorClick(character) {
+            gameState.activeCharacter = character;
+            gameState.currentDialogueIndex = 0;
+            
+            const dialogues = gradeDialogues[gameState.grade][character];
+            if (dialogues && dialogues.length > 0) {
+                showDialogue(dialogues[0]);
+            }
+        }
+        
+        // 显示提示消息
+        function showToast(message) {
+            console.log('📢 提示:', message);
+            // 这里可以添加UI提示显示逻辑
+        }
+        
+        // 显示对话
+        function showDialogue(text) {
+            elements.dialogueText.textContent = text;
+            elements.dialogueBox.classList.remove('hidden');
+            gameState.isDialogueOpen = true;
+        }
+        
+        // 处理下一句对话
+        function handleNextDialogue() {
+            if (!gameState.activeCharacter) return;
+            
+            gameState.currentDialogueIndex++;
+            const dialogues = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            
+            if (gameState.currentDialogueIndex < dialogues.length) {
+                showDialogue(dialogues[gameState.currentDialogueIndex]);
+            } else {
+                // 对话结束
+                elements.dialogueBox.classList.add('hidden');
+                gameState.isDialogueOpen = false;
+                gameState.activeCharacter = null;
+                gameState.currentDialogueIndex = 0;
+            }
+        }
+        
+        // 更新年级显示
+        function updateGradeDisplay() {
+            const gradeNames = ['', '初一', '初二', '初三'];
+            elements.gradeDisplay.textContent = gradeNames[gameState.grade] || '初一';
+        }
+        
+        // 关闭office系统
+        function closeOfficeSystem() {
+            console.log('🚪 关闭操场系统');
+            
+            // 通知父窗口关闭
+            if (window.parent !== window) {
+                window.parent.postMessage({ action: 'closeOffice' }, '*');
+            }
+        }
+        
+        // 测试体育老师AI对话
+        function testCoachAI() {
+            console.log('🧪 测试体育老师AI对话');
+            handleDoorClick('coach');
+        }
+        
+        // 隐藏体育老师AI对话框
+        function hideCoachAI() {
+            console.log('❌ 隐藏体育老师AI对话框');
+            if (cozeWebSDKCoach) {
+                try {
+                    cozeWebSDKCoach.hideChatBot();
+                    updateSDKStatus('对话已隐藏', '#fbbf24');
+                } catch (error) {
+                    console.error('❌ 隐藏对话框失败:', error);
+                    updateSDKStatus('操作失败', '#ef4444');
+                }
+            }
+        }
+        
+        // 重新初始化SDK
+        function reinitializeCoachSDK() {
+            console.log('🔄 重新初始化 Coze SDK');
+            updateSDKStatus('重置中...', '#f59e0b');
+            cozeWebSDKCoach = null;
+            setTimeout(() => {
+                initCozeSDK();
+            }, 500);
+        }
+        
+        // 监听父窗口消息
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'updateGrade') {
+                gameState.grade = event.data.grade || 1;
+                updateGradeDisplay();
+                console.log('📚 年级更新为:', gameState.grade);
+            }
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

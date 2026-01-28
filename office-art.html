@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>艺术楼走廊 - 创意天地</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', 'Inter', sans-serif;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(to bottom, #fef3e2 0%, #fde68a 50%, #f59e0b 100%);
+            /* 艺术主题背景 */
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 20%, rgba(34, 197, 94, 0.1) 0%, transparent 50%);
+        }
+        
+        /* 建筑标识 */
+        .building-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #d97706;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: rgba(254, 243, 226, 0.9);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #f59e0b;
+        }
+        
+        /* 年级显示 */
+        .grade-display {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #d97706;
+            font-size: 20px;
+            font-family: serif;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            z-index: 20;
+        }
+        
+        /* 透视走廊容器 */
+        .corridor-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            z-index: 10;
+            overflow: hidden;
+        }
+        
+        /* 走廊背景 */
+        .corridor-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, 
+                rgba(254, 243, 226, 0.4) 0%, 
+                rgba(253, 230, 138, 0.5) 50%, 
+                rgba(245, 158, 11, 0.6) 100%);
+            opacity: 0.8;
+        }
+        
+        /* 墙壁 */
+        .wall-left, .wall-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            height: 100%;
+        }
+        
+        .wall-left {
+            left: 0;
+            width: 50%;
+            background: linear-gradient(to right, rgba(217, 119, 6, 0.6), rgba(245, 158, 11, 0.4), transparent);
+            transform: skewX(-12deg);
+            transform-origin: top right;
+        }
+        
+        .wall-right {
+            right: 0;
+            width: 50%;
+            background: linear-gradient(to left, rgba(217, 119, 6, 0.6), rgba(245, 158, 11, 0.4), transparent);
+            transform: skewX(12deg);
+            transform-origin: top left;
+        }
+        
+        /* 地板 */
+        .corridor-floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(253, 230, 138, 0.8), rgba(254, 243, 226, 0.6), rgba(255, 251, 235, 0.4));
+        }
+        
+        /* 天花板 */
+        .corridor-ceiling {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+            background: linear-gradient(to bottom, rgba(255, 251, 235, 0.9), rgba(254, 243, 226, 0.7));
+            transform: perspective(1000px) rotateX(20deg);
+            transform-origin: bottom;
+        }
+        
+        /* 门容器 */
+        .door-container {
+            position: absolute;
+            width: 80px;
+            height: 120px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 15;
+        }
+        
+        .door-container.left {
+            left: 25%;
+            top: 40%;
+        }
+        
+        .door-container.right {
+            right: 25%;
+            top: 40%;
+        }
+        
+        .door-container.center {
+            left: 50%;
+            top: 40%;
+            transform: translateX(-50%);
+        }
+        
+        .door-container:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        .door-container.center:hover {
+            transform: translateX(-50%) scale(1.05);
+        }
+        
+        /* 艺术楼特殊门效果 */
+        .door-container.left:hover .door-label {
+            color: #ec4899;
+            text-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+            animation: musicGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        .door-container.right:hover .door-label {
+            color: #8b5cf6;
+            text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+            animation: artGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        .door-container.center:hover .door-label {
+            color: #f59e0b;
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            animation: artTeacherGlow 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes musicGlow {
+            from { text-shadow: 0 0 5px rgba(236, 72, 153, 0.3); }
+            to { text-shadow: 0 0 15px rgba(236, 72, 153, 0.7), 0 0 25px rgba(236, 72, 153, 0.3); }
+        }
+        
+        @keyframes artGlow {
+            from { text-shadow: 0 0 5px rgba(139, 92, 246, 0.3); }
+            to { text-shadow: 0 0 15px rgba(139, 92, 246, 0.7), 0 0 25px rgba(139, 92, 246, 0.3); }
+        }
+        
+        @keyframes artTeacherGlow {
+            from { text-shadow: 0 0 5px rgba(245, 158, 11, 0.3); }
+            to { text-shadow: 0 0 15px rgba(245, 158, 11, 0.7), 0 0 25px rgba(245, 158, 11, 0.3); }
+        }
+        
+        /* 门样式 */
+        .door {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #8B4513, #A0522D, #CD853F);
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 门把手 */
+        .door-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .door-handle.left { right: 10px; }
+        .door-handle.right { left: 10px; }
+        .door-handle.center { left: 50%; transform: translate(-50%, -50%); }
+        
+        /* 门标签 */
+        .door-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #374151;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 对话框样式 */
+        .dialogue-box {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .dialogue-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        
+        .dialogue-next {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .dialogue-next:hover {
+            background: #d97706;
+        }
+        
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 返回按钮 */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1001;
+            transition: background 0.2s;
+        }
+        
+        .back-button:hover {
+            background: rgba(220, 38, 38, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 建筑标识 -->
+        <div class="building-label">艺术楼</div>
+        
+        <!-- 年级显示 -->
+        <div class="grade-display" id="gradeDisplay">初一</div>
+        
+        <!-- 返回按钮 -->
+        <button class="back-button" onclick="closeOfficeSystem()">返回校园</button>
+        
+        <!-- 透视走廊 -->
+        <div class="corridor-container">
+            <div class="corridor-bg">
+                <!-- 墙壁 -->
+                <div class="wall-left"></div>
+                <div class="wall-right"></div>
+                
+                <!-- 天花板 -->
+                <div class="corridor-ceiling"></div>
+                
+                <!-- 地板 -->
+                <div class="corridor-floor"></div>
+                
+                <!-- 左侧门 - 音乐教室 -->
+                <div class="door-container left" id="leftDoor">
+                    <div class="door">
+                        <div class="door-handle left"></div>
+                        <div class="door-label">音乐教室 🎵</div>
+                    </div>
+                </div>
+                
+                <!-- 右侧门 - 美术教室 -->
+                <div class="door-container right" id="rightDoor">
+                    <div class="door">
+                        <div class="door-handle right"></div>
+                        <div class="door-label">美术教室 🎨</div>
+                    </div>
+                </div>
+                
+                <!-- 中间门 - 艺术老师办公室 -->
+                <div class="door-container center" id="centerDoor">
+                    <div class="door">
+                        <div class="door-handle center"></div>
+                        <div class="door-label">艺术老师办公室 🎭AI</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对话框 -->
+        <div class="dialogue-box hidden" id="dialogueBox">
+            <div class="dialogue-text" id="dialogueText"></div>
+            <button class="dialogue-next" id="dialogueNext">
+                <span>点击继续</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            grade: 1, // 1:初一, 2:初二, 3:初三
+            activeCharacter: null, // 'music' | 'art' | null
+            isDialogueOpen: false,
+            currentDialogueIndex: 0
+        };
+        
+        // 角色信息
+        const characterInfo = {
+            music: {
+                name: "音乐老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=music+teacher+piano+realistic+portrait&sign=music001",
+                colorClass: "border-pink-500/50 bg-pink-900/80"
+            },
+            art: {
+                name: "美术老师",
+                image: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=art+teacher+painting+brush+realistic+portrait&sign=art001",
+                colorClass: "border-purple-500/50 bg-purple-900/80"
+            }
+        };
+        
+        // 各年级的对话内容
+        const gradeDialogues = {
+            1: {
+                music: [
+                    "欢迎来到音乐教室！",
+                    "初一的音乐课主要培养音乐兴趣。",
+                    "我们从基础的节拍开始学习。",
+                    "音乐能陶冶情操，让心灵更美好！"
+                ],
+                art: [
+                    "这里是美术教室，充满创意的地方！",
+                    "初一学习基础绘画技巧。",
+                    "今天我们练习素描。",
+                    "艺术来源于生活，要善于观察！"
+                ]
+            },
+            2: {
+                music: [
+                    "初二的音乐课更有趣了！",
+                    "我们可以学习简单的乐器演奏。",
+                    "今天练习合唱，注意音准。",
+                    "音乐是情感的表达，要用心感受！"
+                ],
+                art: [
+                    "初二开始学习色彩搭配！",
+                    "水彩画需要掌握水分控制。",
+                    "我们来画一幅风景画。",
+                    "每个人都有自己的艺术风格！"
+                ]
+            },
+            3: {
+                music: [
+                    "初三的音乐课要为艺考做准备！",
+                    "声乐技巧很重要，要多练习。",
+                    "乐理知识也是考试重点。",
+                    "坚持练习，你们都很有天赋！"
+                ],
+                art: [
+                    "初三要准备艺术特长生考试了！",
+                    "人物画是考试的难点。",
+                    "作品要有自己的创意和想法。",
+                    "艺术需要天赋，更需要努力！"
+                ]
+            }
+        };
+        
+        // DOM元素
+        const elements = {
+            leftDoor: document.getElementById('leftDoor'),
+            rightDoor: document.getElementById('rightDoor'),
+            centerDoor: document.getElementById('centerDoor'),
+            dialogueBox: document.getElementById('dialogueBox'),
+            dialogueText: document.getElementById('dialogueText'),
+            dialogueNext: document.getElementById('dialogueNext'),
+            gradeDisplay: document.getElementById('gradeDisplay')
+        };
+        
+        // Coze SDK 实例
+        let cozeWebSDKArtTeacher;
+        
+        // 初始化 Coze SDK
+        function initCozeSDK() {
+            try {
+                // 初始化艺术老师AI
+                cozeWebSDKArtTeacher = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: '7589460445871112242',
+                    },
+                    componentProps: {
+                        title: '艺术老师',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'pc', // PC模式
+                            zIndex: 9999, // 确保在最上层
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx',
+                        onRefreshToken: function () {
+                            return 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx'
+                        }
+                    },
+                });
+                
+                console.log('✅ Coze SDK 初始化成功 - 艺术老师');
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+            }
+        }
+        
+        // 显示提示消息
+        function showToast(message) {
+            console.log('📢 提示:', message);
+            // 这里可以添加UI提示显示逻辑
+        }
+        
+        // 初始化
+        function init() {
+            console.log('🎨 艺术楼系统初始化');
+            
+            // 设置事件监听器
+            elements.leftDoor.addEventListener('click', () => handleDoorClick('music'));
+            elements.rightDoor.addEventListener('click', () => handleDoorClick('art'));
+            elements.centerDoor.addEventListener('click', () => handleDoorClick('artTeacher'));
+            elements.dialogueNext.addEventListener('click', handleNextDialogue);
+            
+            // 初始化 Coze SDK
+            initCozeSDK();
+            
+            // 从父窗口获取年级信息
+            updateGradeDisplay();
+            
+            console.log('✅ 艺术楼系统初始化完成');
+        }
+        
+        // 处理门点击事件
+        function handleDoorClick(character) {
+            console.log(`🚪 点击${character}门`);
+            
+            // 如果点击的是艺术老师办公室门，使用Coze SDK
+            if (character === 'artTeacher') {
+                console.log('🎭 点击艺术老师办公室门，启动Coze对话');
+                
+                if (cozeWebSDKArtTeacher) {
+                    try {
+                        cozeWebSDKArtTeacher.showChatBot();
+                        showToast("正在连接艺术老师...");
+                    } catch (error) {
+                        console.error('❌ 启动艺术老师Coze对话失败:', error);
+                        showToast("连接艺术老师失败，请稍后再试");
+                        // 降级到原有对话系统
+                        handleOriginalDoorClick(character);
+                    }
+                } else {
+                    console.error('❌ 艺术老师Coze SDK 未初始化');
+                    showToast("艺术老师系统未准备好，请稍后再试");
+                    // 降级到原有对话系统
+                    handleOriginalDoorClick(character);
+                }
+            } else {
+                // 其他门使用原有对话系统
+                handleOriginalDoorClick(character);
+            }
+        }
+        
+        // 原有的门点击处理逻辑（作为降级方案）
+        function handleOriginalDoorClick(character) {
+            gameState.activeCharacter = character;
+            gameState.currentDialogueIndex = 0;
+            
+            const dialogues = gradeDialogues[gameState.grade][character];
+            if (dialogues && dialogues.length > 0) {
+                showDialogue(dialogues[0]);
+            }
+        }
+        
+        // 显示对话
+        function showDialogue(text) {
+            elements.dialogueText.textContent = text;
+            elements.dialogueBox.classList.remove('hidden');
+            gameState.isDialogueOpen = true;
+        }
+        
+        // 处理下一句对话
+        function handleNextDialogue() {
+            if (!gameState.activeCharacter) return;
+            
+            gameState.currentDialogueIndex++;
+            const dialogues = gradeDialogues[gameState.grade][gameState.activeCharacter];
+            
+            if (gameState.currentDialogueIndex < dialogues.length) {
+                showDialogue(dialogues[gameState.currentDialogueIndex]);
+            } else {
+                // 对话结束
+                elements.dialogueBox.classList.add('hidden');
+                gameState.isDialogueOpen = false;
+                gameState.activeCharacter = null;
+                gameState.currentDialogueIndex = 0;
+            }
+        }
+        
+        // 更新年级显示
+        function updateGradeDisplay() {
+            const gradeNames = ['', '初一', '初二', '初三'];
+            elements.gradeDisplay.textContent = gradeNames[gameState.grade] || '初一';
+        }
+        
+        // 关闭office系统
+        function closeOfficeSystem() {
+            console.log('🚪 关闭艺术楼系统，返回主地图');
+            
+            // 如果 Coze 对话框打开，先关闭它
+            if (cozeWebSDKArtTeacher) {
+                try {
+                    cozeWebSDKArtTeacher.hideChatBot();
+                } catch (error) {
+                    console.log('对话框已关闭或未打开');
+                }
+            }
+            
+            // 尝试通知父窗口关闭（如果是 iframe）
+            if (window.parent !== window) {
+                try {
+                    window.parent.postMessage({ action: 'closeOffice' }, '*');
+                    // 等待一小段时间，如果父窗口没有响应，则直接跳转
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 100);
+                } catch (error) {
+                    // 如果 postMessage 失败，直接跳转
+                    window.location.href = 'index.html';
+                }
+            } else {
+                // 直接打开的情况，直接跳转回主地图
+                window.location.href = 'index.html';
+            }
+        }
+        
+        // 监听父窗口消息
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'updateGrade') {
+                gameState.grade = event.data.grade || 1;
+                updateGradeDisplay();
+                console.log('📚 年级更新为:', gameState.grade);
+            }
+        });
+        
+        // 监听键盘事件 - ESC键退出
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // 如果 Coze 对话框打开，先关闭它
+                if (cozeWebSDKArtTeacher) {
+                    try {
+                        cozeWebSDKArtTeacher.hideChatBot();
+                        console.log('💬 已关闭对话窗口');
+                        return; // 只关闭对话框，不退出页面
+                    } catch (error) {
+                        // 如果关闭失败，则退出页面
+                        closeOfficeSystem();
+                    }
+                } else {
+                    // 没有对话框打开，直接退出
+                    closeOfficeSystem();
+                }
+            }
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

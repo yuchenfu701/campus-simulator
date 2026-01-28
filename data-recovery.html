@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据恢复工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-item strong {
+            color: #333;
+            display: inline-block;
+            width: 120px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        button.danger {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+        }
+        
+        .status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .status.success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .status.error {
+            background: #f56565;
+            color: white;
+        }
+        
+        .status.warning {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .status.info {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        
+        input[type="text"] {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 300px;
+            margin-right: 10px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 数据恢复工具</h1>
+        
+        <!-- 当前用户信息 -->
+        <div class="section">
+            <h2>1. 当前登录用户</h2>
+            <div id="currentUserInfo"></div>
+        </div>
+        
+        <!-- localStorage数据检查 -->
+        <div class="section">
+            <h2>2. 本地存储数据（localStorage）</h2>
+            <div id="localStorageInfo"></div>
+            <button onclick="checkLocalStorage()">🔍 检查本地数据</button>
+            <button onclick="exportLocalStorage()">💾 导出本地数据</button>
+            <div id="localStorageResult"></div>
+        </div>
+        
+        <!-- MongoDB数据检查 -->
+        <div class="section">
+            <h2>3. 服务器数据（MongoDB）</h2>
+            <div id="mongoDBInfo"></div>
+            <button onclick="checkMongoDB()">🔍 检查服务器数据</button>
+            <button onclick="syncToServer()">🔄 同步到服务器</button>
+            <button onclick="syncFromServer()">⬇️ 从服务器恢复</button>
+            <div id="mongoDBResult"></div>
+        </div>
+        
+        <!-- 数据恢复 -->
+        <div class="section">
+            <h2>4. 数据恢复</h2>
+            <p>如果数据丢失，可以尝试以下方法：</p>
+            
+            <!-- 列出所有localStorage中的用户 -->
+            <div style="margin-top: 15px; margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">📋 本地存储中的所有用户：</h3>
+                <button onclick="listAllLocalUsers()">🔍 查看所有本地用户</button>
+                <div id="allLocalUsers" style="margin-top: 10px;"></div>
+            </div>
+            
+            <!-- 搜索功能 -->
+            <div style="margin-top: 15px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">🔍 搜索用户数据：</h3>
+                <div style="margin-bottom: 10px;">
+                    <label>按用户ID搜索（如：user_13812345678）：</label><br>
+                    <input type="text" id="recoverUserId" placeholder="user_13812345678" style="width: 300px; margin-right: 10px;">
+                    <button onclick="recoverUserData()">🔧 恢复该用户数据</button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label>按手机号搜索（如：13812345678）：</label><br>
+                    <input type="text" id="recoverPhone" placeholder="13812345678" style="width: 300px; margin-right: 10px;">
+                    <button onclick="recoverByPhone()">🔧 按手机号恢复</button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label>按名字搜索（如：谢嘉泽）：</label><br>
+                    <input type="text" id="recoverName" placeholder="谢嘉泽" style="width: 300px; margin-right: 10px;">
+                    <button onclick="recoverByName()">🔧 按名字恢复</button>
+                </div>
+            </div>
+            <div id="recoverResult"></div>
+        </div>
+        
+        <!-- 数据迁移 -->
+        <div class="section">
+            <h2>5. 数据迁移</h2>
+            <p>将localStorage数据迁移到MongoDB，或从MongoDB恢复数据</p>
+            <button onclick="migrateData()">🚀 执行数据迁移</button>
+            <div id="migrateResult"></div>
+        </div>
+    </div>
+    
+    <script src="js/api-client.js"></script>
+    <script src="js/points-system.js"></script>
+    <script>
+        // 检查当前用户
+        function checkCurrentUser() {
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            const userInfoDiv = document.getElementById('currentUserInfo');
+            
+            if (userData.userId) {
+                userInfoDiv.innerHTML = `
+                    <div class="info-item">
+                        <strong>用户ID：</strong>${userData.userId}
+                    </div>
+                    <div class="info-item">
+                        <strong>昵称：</strong>${userData.nickname || '未设置'}
+                    </div>
+                    <div class="info-item">
+                        <strong>手机号：</strong>${userData.phone || '未设置'}
+                    </div>
+                    <div class="info-item">
+                        <strong>登录时间：</strong>${userData.loginTime || '未知'}
+                    </div>
+                `;
+            } else {
+                userInfoDiv.innerHTML = '<div class="status error">❌ 未找到登录用户信息，请先登录</div>';
+            }
+        }
+        
+        // 检查localStorage数据
+        function checkLocalStorage() {
+            const resultDiv = document.getElementById('localStorageResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 正在检查...</div>';
+            
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            const pointsData = localStorage.getItem('campus_points_system');
+            
+            let html = '';
+            
+            if (userData.userId) {
+                html += '<div class="status success">✅ 找到用户信息</div>';
+            } else {
+                html += '<div class="status error">❌ 未找到用户信息</div>';
+            }
+            
+            if (pointsData) {
+                const parsed = JSON.parse(pointsData);
+                const students = Object.keys(parsed.students || {});
+                html += `<div class="status success">✅ 找到积分数据（${students.length}个用户）</div>`;
+                
+                if (userData.userId && parsed.students[userData.userId]) {
+                    const student = parsed.students[userData.userId];
+                    html += `
+                        <div class="data-preview">
+                            <strong>当前用户数据：</strong><br>
+                            积分：${student.points || 0}<br>
+                            总获得：${student.totalEarned || 0}<br>
+                            背包物品：${(student.inventory || []).length}个<br>
+                            成就：${(student.achievements || []).length}个
+                        </div>
+                    `;
+                }
+            } else {
+                html += '<div class="status error">❌ 未找到积分数据</div>';
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        // 检查MongoDB数据
+        async function checkMongoDB() {
+            const resultDiv = document.getElementById('mongoDBResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 正在检查服务器数据...</div>';
+            
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            
+            if (!userData.userId) {
+                resultDiv.innerHTML = '<div class="status error">❌ 请先登录</div>';
+                return;
+            }
+            
+            try {
+                const apiClient = new APIClient();
+                const user = await apiClient.getUser(userData.userId);
+                
+                if (user.success && user.data) {
+                    const data = user.data;
+                    resultDiv.innerHTML = `
+                        <div class="status success">✅ 服务器中找到用户数据</div>
+                        <div class="data-preview">
+                            <strong>服务器数据：</strong><br>
+                            积分：${data.points || 0}<br>
+                            总获得：${data.totalEarned || 0}<br>
+                            好友数量：${(data.friends || []).length}个<br>
+                            背包物品：${(data.inventory || []).length}个
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="status warning">⚠️ 服务器中未找到用户数据</div>';
+                }
+            } catch (error) {
+                let errorMsg = error.message;
+                if (error.message.includes('file://') || error.message.includes('使用HTTP服务器')) {
+                    errorMsg = `
+                        <div class="status error">
+                            ❌ 无法连接到服务器<br><br>
+                            <strong>原因：</strong>您直接双击了HTML文件，使用了文件协议（file://）<br><br>
+                            <strong>解决方法：</strong><br>
+                            1. 双击运行 <code>启动HTTP服务器.bat</code><br>
+                            2. 等待服务器启动（会显示 http://localhost:8000）<br>
+                            3. 在浏览器中访问：<code>http://localhost:8000/data-recovery.html</code><br><br>
+                            <strong>或者：</strong>使用VS Code的Live Server插件打开
+                        </div>
+                    `;
+                }
+                resultDiv.innerHTML = errorMsg;
+            }
+        }
+        
+        // 同步到服务器
+        async function syncToServer() {
+            const resultDiv = document.getElementById('mongoDBResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 正在同步到服务器...</div>';
+            
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            const pointsData = localStorage.getItem('campus_points_system');
+            
+            if (!userData.userId) {
+                resultDiv.innerHTML = '<div class="status error">❌ 请先登录</div>';
+                return;
+            }
+            
+            if (!pointsData) {
+                resultDiv.innerHTML = '<div class="status error">❌ 本地没有积分数据</div>';
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(pointsData);
+                const student = parsed.students[userData.userId];
+                
+                if (!student) {
+                    resultDiv.innerHTML = '<div class="status error">❌ 本地没有该用户的数据</div>';
+                    return;
+                }
+                
+                const apiClient = new APIClient();
+                
+                // 先确保用户存在
+                await apiClient.createOrUpdateUser({
+                    userId: userData.userId,
+                    name: userData.nickname || student.name,
+                    phone: userData.phone || `temp_${userData.userId}`,
+                    points: student.points || 100,
+                    totalEarned: student.totalEarned || student.points || 100,
+                    virtualAvatar: student.avatar || {},
+                    inventory: student.inventory || []
+                });
+                
+                resultDiv.innerHTML = '<div class="status success">✅ 数据已同步到服务器</div>';
+            } catch (error) {
+                let errorMsg = error.message;
+                if (error.message.includes('file://') || error.message.includes('使用HTTP服务器')) {
+                    errorMsg = `
+                        <div class="status error">
+                            ❌ 无法连接到服务器<br><br>
+                            <strong>原因：</strong>您直接双击了HTML文件，使用了文件协议（file://）<br><br>
+                            <strong>解决方法：</strong><br>
+                            1. 双击运行 <code>启动HTTP服务器.bat</code><br>
+                            2. 等待服务器启动（会显示 http://localhost:8000）<br>
+                            3. 在浏览器中访问：<code>http://localhost:8000/data-recovery.html</code>
+                        </div>
+                    `;
+                } else {
+                    errorMsg = `<div class="status error">❌ 同步失败：${error.message}</div>`;
+                }
+                resultDiv.innerHTML = errorMsg;
+            }
+        }
+        
+        // 从服务器恢复
+        async function syncFromServer() {
+            const resultDiv = document.getElementById('mongoDBResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 正在从服务器恢复数据...</div>';
+            
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            
+            if (!userData.userId) {
+                resultDiv.innerHTML = '<div class="status error">❌ 请先登录</div>';
+                return;
+            }
+            
+            try {
+                const apiClient = new APIClient();
+                const user = await apiClient.getUser(userData.userId);
+                
+                if (user.success && user.data) {
+                    const data = user.data;
+                    
+                    // 恢复积分数据到localStorage
+                    let pointsData = localStorage.getItem('campus_points_system');
+                    if (!pointsData) {
+                        pointsData = { students: {}, config: {} };
+                    } else {
+                        pointsData = JSON.parse(pointsData);
+                    }
+                    
+                    pointsData.students[userData.userId] = {
+                        id: userData.userId,
+                        name: data.name || userData.nickname,
+                        points: data.points || 100,
+                        totalEarned: data.totalEarned || data.points || 100,
+                        avatar: data.virtualAvatar || {},
+                        inventory: data.inventory || [],
+                        achievements: data.achievements || [],
+                        pointsHistory: data.pointsHistory || []
+                    };
+                    
+                    localStorage.setItem('campus_points_system', JSON.stringify(pointsData));
+                    
+                    resultDiv.innerHTML = '<div class="status success">✅ 数据已从服务器恢复</div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="status warning">⚠️ 服务器中没有数据</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">❌ 恢复失败：${error.message}</div>`;
+            }
+        }
+        
+        // 显示所有本地用户
+        function showAllLocalUsers() {
+            const listDiv = document.getElementById('allUsersList');
+            const pointsData = localStorage.getItem('campus_points_system');
+            
+            if (!pointsData) {
+                listDiv.innerHTML = '<div class="status warning">⚠️ 本地没有积分数据</div>';
+                return;
+            }
+            
+            const parsed = JSON.parse(pointsData);
+            const students = parsed.students || {};
+            const userIds = Object.keys(students);
+            
+            if (userIds.length === 0) {
+                listDiv.innerHTML = '<div class="status warning">⚠️ 没有找到用户数据</div>';
+                return;
+            }
+            
+            let html = '<div class="data-preview"><strong>找到 ' + userIds.length + ' 个用户：</strong><br><br>';
+            
+            userIds.forEach(userId => {
+                const student = students[userId];
+                html += `
+                    <div style="padding: 8px; margin: 5px 0; background: white; border-radius: 4px; border-left: 3px solid #667eea;">
+                        <strong>用户ID：</strong>${userId}<br>
+                        <strong>名字：</strong>${student.name || '未设置'}<br>
+                        <strong>积分：</strong>${student.points || 0} | <strong>总获得：</strong>${student.totalEarned || 0}<br>
+                        <button onclick="setRecoverUserId('${userId}')" style="margin-top: 5px; padding: 4px 8px; font-size: 12px;">使用此ID恢复</button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            listDiv.innerHTML = html;
+        }
+        
+        // 设置恢复用户ID
+        function setRecoverUserId(userId) {
+            document.getElementById('recoverUserId').value = userId;
+            document.getElementById('recoverResult').innerHTML = '<div class="status info">💡 已填入用户ID，点击"从本地存储恢复"按钮</div>';
+        }
+        
+        // 从本地存储恢复（不依赖服务器）
+        function recoverFromLocalStorage() {
+            const input = document.getElementById('recoverUserId').value.trim();
+            const resultDiv = document.getElementById('recoverResult');
+            
+            if (!input) {
+                resultDiv.innerHTML = '<div class="status error">❌ 请输入用户ID或名字</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="status info">🔄 正在从本地存储恢复数据...</div>';
+            
+            const pointsData = localStorage.getItem('campus_points_system');
+            if (!pointsData) {
+                resultDiv.innerHTML = '<div class="status error">❌ 本地没有积分数据</div>';
+                return;
+            }
+            
+            const parsed = JSON.parse(pointsData);
+            const students = parsed.students || {};
+            
+            // 查找用户：先按ID，再按名字
+            let foundStudent = null;
+            let foundUserId = null;
+            
+            if (input.startsWith('user_')) {
+                // 输入的是用户ID
+                foundStudent = students[input];
+                foundUserId = input;
+            } else {
+                // 输入的是名字，查找匹配的用户
+                for (const [userId, student] of Object.entries(students)) {
+                    if (student.name === input || student.name.includes(input)) {
+                        foundStudent = student;
+                        foundUserId = userId;
+                        break;
+                    }
+                }
+            }
+            
+            if (!foundStudent) {
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ 未找到用户数据</div>
+                    <div style="margin-top: 10px;">
+                        <button onclick="showAllLocalUsers()">📋 查看所有可用用户</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 恢复当前登录用户的数据
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            if (userData.userId && userData.userId !== foundUserId) {
+                // 更新当前登录用户ID
+                userData.userId = foundUserId;
+                userData.nickname = foundStudent.name;
+                localStorage.setItem('campus_user', JSON.stringify(userData));
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="status success">✅ 数据已从本地存储恢复！</div>
+                <div class="data-preview">
+                    <strong>恢复的数据：</strong><br>
+                    用户ID：${foundUserId}<br>
+                    名字：${foundStudent.name || '未设置'}<br>
+                    积分：${foundStudent.points || 0}<br>
+                    总获得：${foundStudent.totalEarned || 0}<br>
+                    背包物品：${(foundStudent.inventory || []).length}个<br>
+                    成就：${(foundStudent.achievements || []).length}个<br><br>
+                    <strong>✅ 请刷新页面查看恢复的数据</strong>
+                </div>
+            `;
+        }
+        
+        // 恢复指定用户数据（从服务器）
+        async function recoverUserData() {
+            const input = document.getElementById('recoverUserId').value.trim();
+            const resultDiv = document.getElementById('recoverResult');
+            
+            if (!input) {
+                resultDiv.innerHTML = '<div class="status error">❌ 请输入用户ID或名字</div>';
+                return;
+            }
+            
+            // 先尝试从本地存储恢复
+            const pointsData = localStorage.getItem('campus_points_system');
+            if (pointsData) {
+                const parsed = JSON.parse(pointsData);
+                const students = parsed.students || {};
+                
+                let foundUserId = null;
+                if (input.startsWith('user_')) {
+                    foundUserId = input;
+                } else {
+                    for (const [userId, student] of Object.entries(students)) {
+                        if (student.name === input || student.name.includes(input)) {
+                            foundUserId = userId;
+                            break;
+                        }
+                    }
+                }
+                
+                if (foundUserId && students[foundUserId]) {
+                    // 本地有数据，直接恢复
+                    recoverFromLocalStorage();
+                    return;
+                }
+            }
+            
+            // 本地没有，尝试从服务器恢复
+            resultDiv.innerHTML = '<div class="status info">🔄 正在从服务器恢复数据...</div>';
+            
+            let userId = input;
+            if (!input.startsWith('user_')) {
+                resultDiv.innerHTML = '<div class="status warning">⚠️ 请输入用户ID（格式：user_手机号），或使用"从本地存储恢复"功能</div>';
+                return;
+            }
+            
+            try {
+                const apiClient = new APIClient();
+                const user = await apiClient.getUser(userId);
+                
+                if (user.success && user.data) {
+                    const data = user.data;
+                    
+                    // 恢复积分数据
+                    let pointsData = localStorage.getItem('campus_points_system');
+                    if (!pointsData) {
+                        pointsData = { students: {}, config: {} };
+                    } else {
+                        pointsData = JSON.parse(pointsData);
+                    }
+                    
+                    pointsData.students[userId] = {
+                        id: userId,
+                        name: data.name,
+                        points: data.points || 100,
+                        totalEarned: data.totalEarned || data.points || 100,
+                        avatar: data.virtualAvatar || {},
+                        inventory: data.inventory || [],
+                        achievements: data.achievements || [],
+                        pointsHistory: data.pointsHistory || []
+                    };
+                    
+                    localStorage.setItem('campus_points_system', JSON.stringify(pointsData));
+                    
+                    resultDiv.innerHTML = `
+                        <div class="status success">✅ 数据已恢复</div>
+                        <div class="data-preview">
+                            积分：${data.points || 0}<br>
+                            总获得：${data.totalEarned || 0}<br>
+                            好友：${(data.friends || []).length}个
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="status error">❌ 未找到该用户数据</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">❌ 恢复失败：${error.message}</div>`;
+            }
+        }
+        
+        // 按手机号恢复
+        function recoverByPhone() {
+            const phone = document.getElementById('recoverPhone').value.trim();
+            if (!phone) {
+                document.getElementById('recoverResult').innerHTML = '<div class="status error">❌ 请输入手机号</div>';
+                return;
+            }
+            const userId = 'user_' + phone;
+            document.getElementById('recoverUserId').value = userId;
+            recoverFromLocalStorage();
+        }
+        
+        // 按名字恢复
+        function recoverByName() {
+            const name = document.getElementById('recoverName').value.trim();
+            if (!name) {
+                document.getElementById('recoverResult').innerHTML = '<div class="status error">❌ 请输入名字</div>';
+                return;
+            }
+            document.getElementById('recoverUserId').value = name;
+            recoverFromLocalStorage();
+        }
+        
+        // 列出所有本地用户
+        function listAllLocalUsers() {
+            const listDiv = document.getElementById('allLocalUsers');
+            const pointsData = localStorage.getItem('campus_points_system');
+            
+            if (!pointsData) {
+                listDiv.innerHTML = '<div class="status warning">⚠️ 本地没有积分数据</div>';
+                return;
+            }
+            
+            const parsed = JSON.parse(pointsData);
+            const students = parsed.students || {};
+            const userIds = Object.keys(students);
+            
+            if (userIds.length === 0) {
+                listDiv.innerHTML = '<div class="status warning">⚠️ 没有找到用户数据</div>';
+                return;
+            }
+            
+            let html = '<div class="data-preview"><strong>找到 ' + userIds.length + ' 个用户：</strong><br><br>';
+            
+            userIds.forEach(userId => {
+                const student = students[userId];
+                html += `
+                    <div style="padding: 10px; margin: 8px 0; background: white; border-radius: 6px; border-left: 4px solid #667eea; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <strong>用户ID：</strong><code>${userId}</code><br>
+                        <strong>名字：</strong>${student.name || '未设置'}<br>
+                        <strong>积分：</strong>${student.points || 0} | <strong>总获得：</strong>${student.totalEarned || 0}<br>
+                        <strong>背包物品：</strong>${(student.inventory || []).length}个 | <strong>成就：</strong>${(student.achievements || []).length}个<br>
+                        <button onclick="document.getElementById('recoverUserId').value='${userId}'; recoverFromLocalStorage();" style="margin-top: 8px; padding: 6px 12px; font-size: 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ 恢复此用户数据</button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            listDiv.innerHTML = html;
+        }
+        
+        // 导出localStorage数据
+        function exportLocalStorage() {
+            const userData = localStorage.getItem('campus_user');
+            const pointsData = localStorage.getItem('campus_points_system');
+            
+            const exportData = {
+                user: userData ? JSON.parse(userData) : null,
+                points: pointsData ? JSON.parse(pointsData) : null,
+                exportTime: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `campus_data_backup_${new Date().getTime()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert('✅ 数据已导出！');
+        }
+        
+        // 执行数据迁移
+        async function migrateData() {
+            const resultDiv = document.getElementById('migrateResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 正在执行数据迁移...</div>';
+            
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            
+            if (!userData.userId) {
+                resultDiv.innerHTML = '<div class="status error">❌ 请先登录</div>';
+                return;
+            }
+            
+            try {
+                // 先同步到服务器
+                await syncToServer();
+                
+                // 再从服务器恢复（确保数据一致）
+                await syncFromServer();
+                
+                resultDiv.innerHTML = '<div class="status success">✅ 数据迁移完成！</div>';
+            } catch (error) {
+                let errorMsg = error.message;
+                if (error.message.includes('file://') || error.message.includes('使用HTTP服务器')) {
+                    errorMsg = `
+                        <div class="status error">
+                            ❌ 无法连接到服务器<br><br>
+                            <strong>原因：</strong>您直接双击了HTML文件，使用了文件协议（file://）<br><br>
+                            <strong>解决方法：</strong><br>
+                            1. 双击运行 <code>启动HTTP服务器.bat</code><br>
+                            2. 等待服务器启动（会显示 http://localhost:8000）<br>
+                            3. 在浏览器中访问：<code>http://localhost:8000/data-recovery.html</code>
+                        </div>
+                    `;
+                } else {
+                    errorMsg = `<div class="status error">❌ 迁移失败：${error.message}</div>`;
+                }
+                resultDiv.innerHTML = errorMsg;
+            }
+        }
+        
+        // 页面加载时执行
+        window.addEventListener('DOMContentLoaded', () => {
+            checkCurrentUser();
+            checkLocalStorage();
+        });
+    </script>
+</body>
+</html>
+

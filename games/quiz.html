@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识问答 - 爱哲安民未来学校</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .header .info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .info-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 5px;
+        }
+        
+        .question-container {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .question-text {
+            font-size: 20px;
+            color: #333;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .question-category {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .option {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            text-align: left;
+        }
+        
+        .option:hover {
+            border-color: #667eea;
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .option.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .option.correct {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            border-color: #48bb78;
+        }
+        
+        .option.wrong {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+            border-color: #f56565;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .result-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .result-modal.show {
+            display: flex;
+        }
+        
+        .result-content {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .result-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .result-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .result-info {
+            color: #666;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>📝 知识问答</h1>
+            <div class="info">
+                <div class="info-item">
+                    <span>题目</span>
+                    <span class="info-value" id="questionNum">1/10</span>
+                </div>
+                <div class="info-item">
+                    <span>得分</span>
+                    <span class="info-value" id="score">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="question-container">
+            <div>
+                <span class="question-category" id="category">语文</span>
+                <div class="question-text" id="questionText">加载中...</div>
+            </div>
+        </div>
+        
+        <div class="options" id="options"></div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()" disabled>提交答案</button>
+            <button class="btn btn-secondary" onclick="goBack()">返回</button>
+        </div>
+    </div>
+    
+    <div class="result-modal" id="resultModal">
+        <div class="result-content">
+            <div class="result-icon" id="resultIcon">🎉</div>
+            <div class="result-title" id="resultTitle">答题完成！</div>
+            <div class="result-info">
+                <p>正确: <span id="finalCorrect">0</span>/10</p>
+                <p>得分: <span id="finalScore">0</span></p>
+                <p style="margin-top: 15px; color: #667eea; font-weight: bold;">+10 积分</p>
+            </div>
+            <button class="btn btn-primary" onclick="startNewGame()">再来一局</button>
+        </div>
+    </div>
+    
+    <script>
+        // 题库数据
+        const questions = [
+            // 语文
+            { category: '语文', question: '"床前明月光"的下一句是？', options: ['疑是地上霜', '举头望明月', '低头思故乡', '春眠不觉晓'], correct: 0 },
+            { category: '语文', question: '《红楼梦》的作者是？', options: ['曹雪芹', '施耐庵', '罗贯中', '吴承恩'], correct: 0 },
+            { category: '语文', question: '"但愿人长久"的下一句是？', options: ['千里共婵娟', '把酒问青天', '高处不胜寒', '人有悲欢离合'], correct: 0 },
+            
+            // 数学
+            { category: '数学', question: '2的3次方等于？', options: ['6', '8', '9', '12'], correct: 1 },
+            { category: '数学', question: '圆的周长公式是？', options: ['πr²', '2πr', 'πd', '2πd'], correct: 1 },
+            { category: '数学', question: '三角形的内角和是？', options: ['90°', '180°', '270°', '360°'], correct: 1 },
+            
+            // 英语
+            { category: '英语', question: '"Hello"的中文意思是？', options: ['再见', '你好', '谢谢', '对不起'], correct: 1 },
+            { category: '英语', question: '"Apple"的中文意思是？', options: ['苹果', '香蕉', '橙子', '葡萄'], correct: 0 },
+            { category: '英语', question: '"Thank you"的中文意思是？', options: ['不客气', '谢谢', '对不起', '请'], correct: 1 },
+            
+            // 科学
+            { category: '科学', question: '水的化学式是？', options: ['H₂O', 'CO₂', 'O₂', 'H₂'], correct: 0 },
+            { category: '科学', question: '光速约为？', options: ['3×10⁸ m/s', '3×10⁶ m/s', '3×10¹⁰ m/s', '3×10¹² m/s'], correct: 0 },
+            { category: '科学', question: '地球绕太阳公转一周需要？', options: ['365天', '366天', '364天', '367天'], correct: 0 },
+            
+            // 历史
+            { category: '历史', question: '中华人民共和国成立于？', options: ['1948年', '1949年', '1950年', '1951年'], correct: 1 },
+            { category: '历史', question: '中国古代四大发明不包括？', options: ['造纸术', '指南针', '火药', '计算机'], correct: 3 },
+            { category: '历史', question: '《史记》的作者是？', options: ['司马迁', '司马光', '司马相如', '司马懿'], correct: 0 },
+            
+            // 地理
+            { category: '地理', question: '中国的首都是？', options: ['上海', '北京', '广州', '深圳'], correct: 1 },
+            { category: '地理', question: '世界上最大的海洋是？', options: ['大西洋', '印度洋', '太平洋', '北冰洋'], correct: 2 },
+            { category: '地理', question: '珠穆朗玛峰位于？', options: ['中国和尼泊尔', '中国和印度', '中国和巴基斯坦', '中国和缅甸'], correct: 0 }
+        ];
+        
+        // 游戏状态
+        let gameState = {
+            currentQuestions: [],
+            currentIndex: 0,
+            selectedOption: null,
+            score: 0,
+            correctCount: 0
+        };
+        
+        // 初始化游戏
+        function initGame() {
+            // 随机选择10道题
+            const shuffled = [...questions].sort(() => Math.random() - 0.5);
+            gameState.currentQuestions = shuffled.slice(0, 10);
+            gameState.currentIndex = 0;
+            gameState.selectedOption = null;
+            gameState.score = 0;
+            gameState.correctCount = 0;
+            
+            loadQuestion();
+        }
+        
+        // 加载题目
+        function loadQuestion() {
+            const question = gameState.currentQuestions[gameState.currentIndex];
+            
+            document.getElementById('category').textContent = question.category;
+            document.getElementById('questionText').textContent = question.question;
+            document.getElementById('questionNum').textContent = `${gameState.currentIndex + 1}/10`;
+            document.getElementById('submitBtn').disabled = true;
+            gameState.selectedOption = null;
+            
+            // 渲染选项
+            const optionsContainer = document.getElementById('options');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, index) => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'option';
+                optionElement.textContent = option;
+                optionElement.onclick = () => selectOption(index);
+                optionsContainer.appendChild(optionElement);
+            });
+        }
+        
+        // 选择选项
+        function selectOption(index) {
+            if (gameState.selectedOption !== null) return;
+            
+            gameState.selectedOption = index;
+            document.getElementById('submitBtn').disabled = false;
+            
+            // 更新UI
+            const options = document.querySelectorAll('.option');
+            options.forEach((opt, i) => {
+                if (i === index) {
+                    opt.classList.add('selected');
+                } else {
+                    opt.classList.remove('selected');
+                }
+            });
+        }
+        
+        // 提交答案
+        function submitAnswer() {
+            if (gameState.selectedOption === null) return;
+            
+            const question = gameState.currentQuestions[gameState.currentIndex];
+            const options = document.querySelectorAll('.option');
+            const isCorrect = gameState.selectedOption === question.correct;
+            
+            // 显示正确答案
+            options.forEach((opt, index) => {
+                opt.onclick = null;
+                if (index === question.correct) {
+                    opt.classList.add('correct');
+                } else if (index === gameState.selectedOption && !isCorrect) {
+                    opt.classList.add('wrong');
+                }
+            });
+            
+            if (isCorrect) {
+                gameState.correctCount++;
+                gameState.score += 10;
+                document.getElementById('score').textContent = gameState.score;
+            }
+            
+            // 禁用提交按钮
+            document.getElementById('submitBtn').disabled = true;
+            
+            // 下一题或结束
+            setTimeout(() => {
+                gameState.currentIndex++;
+                if (gameState.currentIndex < gameState.currentQuestions.length) {
+                    loadQuestion();
+                } else {
+                    showResult();
+                }
+            }, 1500);
+        }
+        
+        // 显示结果
+        function showResult() {
+            document.getElementById('finalCorrect').textContent = gameState.correctCount;
+            document.getElementById('finalScore').textContent = gameState.score;
+            
+            if (gameState.correctCount === 10) {
+                document.getElementById('resultIcon').textContent = '🏆';
+                document.getElementById('resultTitle').textContent = '完美！全对！';
+            } else if (gameState.correctCount >= 7) {
+                document.getElementById('resultIcon').textContent = '🎉';
+                document.getElementById('resultTitle').textContent = '很棒！';
+            } else {
+                document.getElementById('resultIcon').textContent = '💪';
+                document.getElementById('resultTitle').textContent = '继续加油！';
+            }
+            
+            document.getElementById('resultModal').classList.add('show');
+            
+            // 奖励积分
+            awardPoints(10);
+        }
+        
+        // 奖励积分
+        function awardPoints(points) {
+            try {
+                if (typeof PointsSystem !== 'undefined') {
+                    const pointsSystem = new PointsSystem();
+                    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                    if (userData.userId) {
+                        pointsSystem.setCurrentUser(userData.userId);
+                        pointsSystem.addPoints(points, '知识问答游戏');
+                        console.log(`✅ 获得 ${points} 积分`);
+                    }
+                }
+            } catch (e) {
+                console.log('积分系统未加载');
+            }
+        }
+        
+        // 开始新游戏
+        function startNewGame() {
+            document.getElementById('resultModal').classList.remove('show');
+            initGame();
+        }
+        
+        // 返回
+        function goBack() {
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                window.location.href = '../campus-games.html';
+            }
+        }
+        
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+        
+        // 加载积分系统
+        if (typeof PointsSystem === 'undefined') {
+            const script = document.createElement('script');
+            script.src = '../js/points-system.js';
+            document.head.appendChild(script);
+        }
+    </script>
+</body>
+</html>
+

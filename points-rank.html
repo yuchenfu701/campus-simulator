@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排行榜 - 校园积乐园</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, 
+                #0f172a 0%, 
+                #1e293b 25%, 
+                #312e81 50%, 
+                #1e293b 75%, 
+                #0f172a 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 80px;
+            position: relative;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        /* 顶部 */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .page-subtitle {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* 前三名展示 */
+        .top-three {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .top-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px 18px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.4s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .top-card:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border-color: rgba(139, 92, 246, 0.5);
+        }
+        
+        .top-card.first {
+            order: 2;
+            padding: 30px 20px;
+        }
+        
+        .top-card.second {
+            order: 1;
+        }
+        
+        .top-card.third {
+            order: 3;
+        }
+        
+        .rank-badge {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .top-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        
+        .first .top-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+        }
+        
+        .second .top-avatar {
+            background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+        }
+        
+        .third .top-avatar {
+            background: linear-gradient(135deg, #cd7f32, #daa520);
+        }
+        
+        .top-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .top-class {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .top-points {
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* 排行榜列表 */
+        .rank-list {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+        
+        .rank-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.3s;
+        }
+        
+        .rank-item:last-child {
+            border-bottom: none;
+        }
+        
+        .rank-item:hover {
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .rank-number {
+            width: 40px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+        }
+        
+        .rank-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: 12px;
+        }
+        
+        .rank-info {
+            flex: 1;
+        }
+        
+        .rank-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .rank-class {
+            font-size: 11px;
+            color: #999;
+        }
+        
+        .rank-points {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        /* 当前用户高亮 */
+        .rank-item.current-user {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-radius: 8px;
+            border: 2px solid #667eea;
+        }
+        
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 5px 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .nav-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .nav-item.active {
+            color: #667eea;
+        }
+        
+        .nav-icon {
+            font-size: 24px;
+        }
+        
+        .nav-label {
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部 -->
+    <div class="header">
+        <div class="page-title">🏆 积分排行榜</div>
+        <div class="page-subtitle">展示校园学霸风采</div>
+    </div>
+    
+    <!-- 前三名 -->
+    <div class="top-three" id="topThree">
+        <!-- 动态生成 -->
+    </div>
+    
+    <!-- 排行榜列表 -->
+    <div class="rank-list" id="rankList">
+        <!-- 动态生成 -->
+    </div>
+    
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+        <div class="nav-item" onclick="goToPage('mall')">
+            <div class="nav-icon">🏪</div>
+            <div class="nav-label">商城</div>
+        </div>
+        <div class="nav-item" onclick="goToPage('inventory')">
+            <div class="nav-icon">🎒</div>
+            <div class="nav-label">背包</div>
+        </div>
+        <div class="nav-item" onclick="goToPage('avatar')">
+            <div class="nav-icon">👤</div>
+            <div class="nav-label">形象</div>
+        </div>
+        <div class="nav-item active" onclick="goToPage('rank')">
+            <div class="nav-icon">🏆</div>
+            <div class="nav-label">排行榜</div>
+        </div>
+        <div class="nav-item" onclick="goToPage('tasks')">
+            <div class="nav-icon">📋</div>
+            <div class="nav-label">任务</div>
+        </div>
+    </div>
+    
+    <script src="js/points-system.js"></script>
+    <script>
+        // 获取当前登录用户
+        const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+        const userId = userData.userId || 'student_001';  // 兼容旧数据
+        
+        const pointsSystem = new PointsSystem();
+        pointsSystem.setCurrentUser(userId);
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            renderRanking();
+        });
+        
+        function renderRanking() {
+            pointsSystem.updateLeaderboard();
+            const leaderboard = pointsSystem.getLeaderboard(50);
+            const currentStudent = pointsSystem.getCurrentStudent();
+            
+            // 渲染前三名
+            const topThree = document.getElementById('topThree');
+            topThree.innerHTML = '';
+            
+            const medals = ['🥇', '🥈', '🥉'];
+            const classes = ['first', 'second', 'third'];
+            
+            leaderboard.slice(0, 3).forEach((student, index) => {
+                const card = document.createElement('div');
+                card.className = `top-card ${classes[index]}`;
+                card.innerHTML = `
+                    <div class="rank-badge">${medals[index]}</div>
+                    <div class="top-avatar">👤</div>
+                    <div class="top-name">${student.name}</div>
+                    <div class="top-class">${student.class}</div>
+                    <div class="top-points">💎 ${student.totalPoints}</div>
+                `;
+                topThree.appendChild(card);
+            });
+            
+            // 渲染4-50名
+            const rankList = document.getElementById('rankList');
+            rankList.innerHTML = '';
+            
+            leaderboard.slice(3).forEach(student => {
+                const item = document.createElement('div');
+                item.className = 'rank-item';
+                
+                // 如果是当前用户，添加高亮
+                if (currentStudent && student.name === currentStudent.name) {
+                    item.classList.add('current-user');
+                }
+                
+                item.innerHTML = `
+                    <div class="rank-number">#${student.rank}</div>
+                    <div class="rank-avatar">👤</div>
+                    <div class="rank-info">
+                        <div class="rank-name">${student.name}</div>
+                        <div class="rank-class">${student.class}</div>
+                    </div>
+                    <div class="rank-points">💎 ${student.totalPoints}</div>
+                `;
+                
+                rankList.appendChild(item);
+            });
+        }
+        
+        // 页面跳转（在游戏内打开）
+        function goToPage(page) {
+            console.log('🔄 尝试跳转到页面:', page);
+            
+            const pages = {
+                'mall': 'points-mall.html',
+                'inventory': 'points-inventory.html',
+                'avatar': 'points-avatar.html',
+                'rank': 'points-rank.html',
+                'tasks': 'points-tasks.html'
+            };
+            
+            const titles = {
+                'mall': '💎 积分商城',
+                'inventory': '🎒 我的背包',
+                'avatar': '👤 虚拟形象',
+                'rank': '🏆 排行榜',
+                'tasks': '📋 任务中心'
+            };
+            
+            // 检查页面是否存在
+            if (!pages[page]) {
+                console.error('❌ 未知的页面:', page);
+                alert('❌ 页面不存在');
+                return;
+            }
+            
+            // 如果当前页面就是目标页面，不跳转
+            const currentPage = window.location.pathname.split('/').pop();
+            if (pages[page] === currentPage) {
+                console.log('ℹ️ 已在目标页面');
+                return;
+            }
+            
+            // 如果在iframe中，尝试调用父窗口的openInGame函数
+            if (window.parent && window.parent !== window) {
+                console.log('📦 检测到iframe环境');
+                try {
+                    if (typeof window.parent.openInGame === 'function') {
+                        console.log('✅ 调用父窗口的openInGame函数');
+                        window.parent.openInGame(pages[page], titles[page]);
+                        return;
+                    } else {
+                        console.warn('⚠️ 父窗口没有openInGame函数，尝试直接跳转');
+                    }
+                } catch (e) {
+                    console.error('❌ 调用父窗口函数失败:', e);
+                    console.log('🔄 降级为直接跳转');
+                }
+            }
+            
+            // 直接跳转（不在iframe中或父窗口函数不可用）
+            console.log('🔄 直接跳转到:', pages[page]);
+            try {
+                // 使用replace而不是href，避免历史记录堆积
+                window.location.replace(pages[page]);
+            } catch (e) {
+                console.error('❌ 页面跳转失败:', e);
+                alert('❌ 页面跳转失败，请刷新重试');
+            }
+        }
+    </script>
+</body>
+</html>
+

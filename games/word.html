@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成语接龙 - 爱哲安民未来学校</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .header .info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .info-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 5px;
+        }
+        
+        .chain-container {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .chain-item {
+            display: inline-block;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 5px;
+            font-size: 18px;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chain-item.player {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .chain-item.computer {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+        
+        .current-word {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-radius: 12px;
+        }
+        
+        .input-container {
+            margin-bottom: 20px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .word-input {
+            width: 100%;
+            padding: 16px;
+            font-size: 20px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .word-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .word-input.error {
+            border-color: #f56565;
+            background: #fff5f5;
+        }
+        
+        .hint {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .result-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .result-modal.show {
+            display: flex;
+        }
+        
+        .result-content {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .result-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .result-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .result-info {
+            color: #666;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>📖 成语接龙</h1>
+            <div class="info">
+                <div class="info-item">
+                    <span>轮次</span>
+                    <span class="info-value" id="round">1</span>
+                </div>
+                <div class="info-item">
+                    <span>得分</span>
+                    <span class="info-value" id="score">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chain-container" id="chainContainer"></div>
+        
+        <div class="current-word" id="currentWord">开始</div>
+        
+        <div class="input-container">
+            <label class="input-label">请输入以 "<span id="nextChar">开</span>" 开头的四字成语：</label>
+            <input type="text" class="word-input" id="wordInput" placeholder="输入成语" maxlength="4" autofocus>
+            <div class="hint">提示：必须是四字成语，且以指定字开头</div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" onclick="submitWord()">提交</button>
+            <button class="btn btn-secondary" onclick="goBack()">返回</button>
+        </div>
+    </div>
+    
+    <div class="result-modal" id="resultModal">
+        <div class="result-content">
+            <div class="result-icon" id="resultIcon">🎉</div>
+            <div class="result-title" id="resultTitle">游戏结束！</div>
+            <div class="result-info">
+                <p>轮次: <span id="finalRound">0</span></p>
+                <p>得分: <span id="finalScore">0</span></p>
+                <p style="margin-top: 15px; color: #667eea; font-weight: bold;">+15 积分</p>
+            </div>
+            <button class="btn btn-primary" onclick="startNewGame()">再来一局</button>
+        </div>
+    </div>
+    
+    <script>
+        // 常用成语库
+        const idioms = [
+            '一心一意', '一马当先', '一鸣惊人', '一箭双雕', '一石二鸟',
+            '二龙戏珠', '二话不说', '二心两意',
+            '三心二意', '三生有幸', '三头六臂', '三思而行', '三言两语',
+            '四海为家', '四通八达', '四面八方', '四平八稳',
+            '五光十色', '五颜六色', '五湖四海', '五体投地',
+            '六神无主', '六亲不认', '六根清净',
+            '七上八下', '七嘴八舌', '七手八脚', '七窍生烟',
+            '八仙过海', '八面玲珑', '八面威风',
+            '九牛一毛', '九死一生', '九霄云外',
+            '十全十美', '十拿九稳', '十指连心',
+            '百发百中', '百战百胜', '百思不解', '百花齐放',
+            '千军万马', '千言万语', '千变万化', '千钧一发',
+            '万水千山', '万紫千红', '万无一失',
+            '开门见山', '开天辟地', '开卷有益', '开诚布公',
+            '天高地厚', '天衣无缝', '天经地义', '天马行空',
+            '地大物博', '地动山摇', '地久天长',
+            '人山人海', '人杰地灵', '人云亦云', '人定胜天',
+            '山清水秀', '山穷水尽', '山高水长',
+            '水到渠成', '水落石出', '水涨船高',
+            '龙飞凤舞', '龙马精神', '龙腾虎跃',
+            '虎头蛇尾', '虎视眈眈', '虎口拔牙',
+            '马到成功', '马不停蹄', '马马虎虎',
+            '鸟语花香', '鸟尽弓藏',
+            '花好月圆', '花团锦簇', '花言巧语',
+            '风和日丽', '风平浪静', '风调雨顺',
+            '雨过天晴', '雨后春笋',
+            '春华秋实', '春暖花开', '春意盎然',
+            '秋高气爽', '秋收冬藏',
+            '冬暖夏凉', '冬日可爱',
+            '日新月异', '日积月累', '日理万机',
+            '月明星稀', '月下老人',
+            '星罗棋布', '星火燎原',
+            '光明正大', '光天化日', '光彩夺目',
+            '明察秋毫', '明明白白', '明争暗斗',
+            '暗无天日', '暗度陈仓',
+            '正大光明', '正本清源',
+            '大公无私', '大显身手', '大智若愚',
+            '小试牛刀', '小题大做',
+            '多才多艺', '多事之秋',
+            '少不更事', '少见多怪',
+            '高瞻远瞩', '高谈阔论', '高枕无忧',
+            '低三下四', '低声下气',
+            '前赴后继', '前因后果', '前功尽弃',
+            '后发制人', '后来居上',
+            '左顾右盼', '左右逢源',
+            '右军习气',
+            '上下一心', '上行下效', '上蹿下跳',
+            '下不为例', '下里巴人',
+            '内忧外患', '内外交困',
+            '外强中干', '外柔内刚',
+            '中流砥柱', '中庸之道',
+            '东张西望', '东奔西走', '东山再起',
+            '西窗剪烛', '西风残照',
+            '南辕北辙', '南征北战',
+            '北面称臣',
+            '古往今来', '古色古香',
+            '今非昔比', '今朝有酒',
+            '来龙去脉', '来日方长',
+            '去伪存真', '去粗取精',
+            '真才实学', '真知灼见',
+            '假公济私', '假戏真做',
+            '学以致用', '学富五车',
+            '用武之地', '用心良苦',
+            '苦尽甘来', '苦口婆心',
+            '甘拜下风', '甘之如饴',
+            '心旷神怡', '心平气和', '心满意足',
+            '神采飞扬', '神机妙算', '神出鬼没',
+            '飞黄腾达', '飞沙走石',
+            '扬眉吐气', '扬长避短',
+            '气吞山河', '气宇轩昂',
+            '和颜悦色', '和风细雨',
+            '足智多谋', '足不出户',
+            '谋事在人', '谋财害命',
+            '人定胜天', '人杰地灵',
+            '天伦之乐', '天翻地覆',
+            '乐不思蜀', '乐极生悲',
+            '悲欢离合', '悲天悯人',
+            '合二为一', '合情合理',
+            '离乡背井', '离经叛道',
+            '井井有条', '井然有序',
+            '条分缕析', '条条框框',
+            '析毫剖厘',
+            '理直气壮', '理所当然',
+            '壮心不已', '壮志凌云',
+            '云开见日', '云消雾散',
+            '日新月异', '日积月累',
+            '异想天开', '异曲同工',
+            '开天辟地', '开门见山',
+            '工力悉敌', '工于心计',
+            '地大物博', '地动山摇',
+            '博古通今', '博学多才',
+            '今非昔比', '今朝有酒',
+            '才高八斗', '才子佳人',
+            '斗转星移', '斗志昂扬',
+            '人定胜天', '人杰地灵',
+            '扬眉吐气', '扬长避短',
+            '短兵相接', '短小精悍',
+            '接二连三', '接踵而至',
+            '三心二意', '三生有幸',
+            '至理名言', '至高无上',
+            '言传身教', '言简意赅',
+            '上下一心', '上行下效',
+            '效颦学步', '效死疆场',
+            '步调一致', '步步为营',
+            '营私舞弊', '营营苟苟',
+            '弊绝风清', '弊衣疏食',
+            '清风明月', '清心寡欲',
+            '月明星稀', '月下老人',
+            '欲罢不能', '欲盖弥彰',
+            '彰明较著', '彰善瘅恶',
+            '恶贯满盈', '恶语中伤',
+            '盈千累万', '盈科后进',
+            '万水千山', '万紫千红',
+            '进寸退尺', '进退两难',
+            '难能可贵', '难言之隐',
+            '贵人多忘', '贵耳贱目',
+            '隐姓埋名', '隐恶扬善',
+            '名不虚传', '名正言顺',
+            '善始善终', '善罢甘休',
+            '休戚相关', '休养生息',
+            '息息相关', '息事宁人',
+            '人定胜天', '人杰地灵',
+            '天高地厚', '天衣无缝',
+            '厚此薄彼', '厚德载物',
+            '物尽其用', '物是人非',
+            '用武之地', '用心良苦',
+            '非分之想', '非同小可',
+            '可想而知', '可歌可泣',
+            '泣不成声', '泣下如雨',
+            '声东击西', '声名狼藉',
+            '雨过天晴', '雨后春笋',
+            '晴空万里', '晴天霹雳',
+            '里应外合', '里通外国',
+            '合二为一', '合情合理',
+            '国泰民安', '国色天香',
+            '理直气壮', '理所当然',
+            '香火不绝', '香消玉殒',
+            '绝处逢生', '绝无仅有',
+            '有备无患', '有口皆碑',
+            '患得患失', '患难与共',
+            '共商国是', '共度难关',
+            '关山迢递', '关门大吉',
+            '吉人天相', '吉星高照',
+            '照本宣科', '照猫画虎',
+            '虎头蛇尾', '虎视眈眈',
+            '眈眈逐逐', '逐鹿中原',
+            '原封不动', '原形毕露',
+            '露才扬己', '露宿风餐',
+            '餐风饮露', '餐云卧石',
+            '石破天惊', '石沉大海',
+            '海阔天空', '海枯石烂',
+            '烂醉如泥', '烂若披锦',
+            '锦上添花', '锦囊妙计',
+            '计上心来', '计日程功',
+            '功成名就', '功亏一篑',
+            '篑土成山', '篑土成丘',
+            '丘山之功', '丘壑纵横',
+            '横七竖八', '横冲直撞',
+            '撞头磕脑', '撞钟击鼓',
+            '鼓乐齐鸣', '鼓角齐鸣',
+            '鸣金收兵', '鸣锣开道',
+            '道听途说', '道貌岸然',
+            '然荻读书', '然糠自照',
+            '照本宣科', '照猫画虎',
+            '虎头蛇尾', '虎视眈眈',
+            '眈眈逐逐', '逐鹿中原',
+            '原封不动', '原形毕露',
+            '露才扬己', '露宿风餐',
+            '餐风饮露', '餐云卧石',
+            '石破天惊', '石沉大海',
+            '海阔天空', '海枯石烂',
+            '烂醉如泥', '烂若披锦',
+            '锦上添花', '锦囊妙计',
+            '计上心来', '计日程功',
+            '功成名就', '功亏一篑',
+            '篑土成山', '篑土成丘',
+            '丘山之功', '丘壑纵横',
+            '横七竖八', '横冲直撞',
+            '撞头磕脑', '撞钟击鼓',
+            '鼓乐齐鸣', '鼓角齐鸣',
+            '鸣金收兵', '鸣锣开道',
+            '道听途说', '道貌岸然',
+            '然荻读书', '然糠自照'
+        ];
+        
+        // 游戏状态
+        let gameState = {
+            chain: [],
+            currentLastChar: '开',
+            round: 1,
+            score: 0,
+            usedIdioms: new Set(),
+            isGameOver: false
+        };
+        
+        // 初始化游戏
+        function initGame() {
+            gameState.chain = [];
+            gameState.currentLastChar = '开';
+            gameState.round = 1;
+            gameState.score = 0;
+            gameState.usedIdioms = new Set();
+            gameState.isGameOver = false;
+            
+            updateDisplay();
+            document.getElementById('wordInput').value = '';
+            document.getElementById('wordInput').focus();
+        }
+        
+        // 更新显示
+        function updateDisplay() {
+            document.getElementById('round').textContent = gameState.round;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('nextChar').textContent = gameState.currentLastChar;
+            
+            const container = document.getElementById('chainContainer');
+            container.innerHTML = '';
+            
+            gameState.chain.forEach((item, index) => {
+                const element = document.createElement('span');
+                element.className = `chain-item ${item.type}`;
+                element.textContent = item.word;
+                container.appendChild(element);
+            });
+            
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 检查是否为有效成语
+        function isValidIdiom(word) {
+            return idioms.includes(word) && word.length === 4;
+        }
+        
+        // 提交成语
+        function submitWord() {
+            if (gameState.isGameOver) return;
+            
+            const input = document.getElementById('wordInput');
+            const word = input.value.trim();
+            
+            // 验证
+            if (word.length !== 4) {
+                showError('请输入四字成语！');
+                return;
+            }
+            
+            if (!word.startsWith(gameState.currentLastChar)) {
+                showError(`成语必须以"${gameState.currentLastChar}"开头！`);
+                return;
+            }
+            
+            if (!isValidIdiom(word)) {
+                showError('这不是一个有效的成语！');
+                return;
+            }
+            
+            if (gameState.usedIdioms.has(word)) {
+                showError('这个成语已经用过了！');
+                return;
+            }
+            
+            // 添加玩家成语
+            gameState.chain.push({ word: word, type: 'player' });
+            gameState.usedIdioms.add(word);
+            gameState.score += 10;
+            gameState.round++;
+            
+            // 获取下一个字（成语的最后一个字）
+            gameState.currentLastChar = word[word.length - 1];
+            
+            input.value = '';
+            input.classList.remove('error');
+            updateDisplay();
+            
+            // 电脑回应
+            setTimeout(() => {
+                computerTurn();
+            }, 1000);
+        }
+        
+        // 电脑回合
+        function computerTurn() {
+            // 查找以当前字开头的未使用成语
+            const availableIdioms = idioms.filter(idiom => 
+                idiom.startsWith(gameState.currentLastChar) && 
+                !gameState.usedIdioms.has(idiom)
+            );
+            
+            if (availableIdioms.length === 0) {
+                // 电脑无法继续，玩家获胜
+                endGame(true);
+                return;
+            }
+            
+            // 随机选择一个
+            const computerWord = availableIdioms[Math.floor(Math.random() * availableIdioms.length)];
+            
+            gameState.chain.push({ word: computerWord, type: 'computer' });
+            gameState.usedIdioms.add(computerWord);
+            gameState.currentLastChar = computerWord[computerWord.length - 1];
+            
+            updateDisplay();
+            
+            // 检查玩家是否能继续
+            const playerCanContinue = idioms.some(idiom => 
+                idiom.startsWith(gameState.currentLastChar) && 
+                !gameState.usedIdioms.has(idiom)
+            );
+            
+            if (!playerCanContinue) {
+                // 玩家无法继续，游戏结束
+                endGame(false);
+            }
+        }
+        
+        // 显示错误
+        function showError(message) {
+            const input = document.getElementById('wordInput');
+            input.classList.add('error');
+            setTimeout(() => {
+                input.classList.remove('error');
+            }, 2000);
+            alert(message);
+        }
+        
+        // 结束游戏
+        function endGame(playerWon) {
+            gameState.isGameOver = true;
+            
+            document.getElementById('finalRound').textContent = gameState.round - 1;
+            document.getElementById('finalScore').textContent = gameState.score;
+            
+            if (playerWon) {
+                document.getElementById('resultIcon').textContent = '🏆';
+                document.getElementById('resultTitle').textContent = '恭喜获胜！';
+            } else {
+                document.getElementById('resultIcon').textContent = '💪';
+                document.getElementById('resultTitle').textContent = '再接再厉！';
+            }
+            
+            document.getElementById('resultModal').classList.add('show');
+            
+            // 奖励积分
+            awardPoints(15);
+        }
+        
+        // 奖励积分
+        function awardPoints(points) {
+            try {
+                if (typeof PointsSystem !== 'undefined') {
+                    const pointsSystem = new PointsSystem();
+                    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                    if (userData.userId) {
+                        pointsSystem.setCurrentUser(userData.userId);
+                        pointsSystem.addPoints(points, '成语接龙游戏');
+                        console.log(`✅ 获得 ${points} 积分`);
+                    }
+                }
+            } catch (e) {
+                console.log('积分系统未加载');
+            }
+        }
+        
+        // 开始新游戏
+        function startNewGame() {
+            document.getElementById('resultModal').classList.remove('show');
+            initGame();
+        }
+        
+        // 返回
+        function goBack() {
+            if (window.parent && window.parent.document.getElementById('close-web-btn')) {
+                window.parent.document.getElementById('close-web-btn').click();
+            } else {
+                window.location.href = '../campus-games.html';
+            }
+        }
+        
+        // 回车提交
+        document.getElementById('wordInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitWord();
+            }
+        });
+        
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+        
+        // 加载积分系统
+        if (typeof PointsSystem === 'undefined') {
+            const script = document.createElement('script');
+            script.src = '../js/points-system.js';
+            document.head.appendChild(script);
+        }
+    </script>
+</body>
+</html>
+

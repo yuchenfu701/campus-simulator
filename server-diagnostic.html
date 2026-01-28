@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器连接诊断</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .diagnostic-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        
+        .diagnostic-item h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .status.error {
+            background: #f56565;
+            color: white;
+        }
+        
+        .status.warning {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .status.info {
+            background: #4299e1;
+            color: white;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .solution {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+        }
+        
+        .solution h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .solution ol {
+            margin-left: 20px;
+        }
+        
+        .solution li {
+            margin-bottom: 8px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 服务器连接诊断</h1>
+        
+        <div class="diagnostic-item">
+            <h3>1. 页面协议检查</h3>
+            <div id="protocolStatus"></div>
+        </div>
+        
+        <div class="diagnostic-item">
+            <h3>2. API服务器地址</h3>
+            <div id="apiUrl"></div>
+        </div>
+        
+        <div class="diagnostic-item">
+            <h3>3. 服务器连接测试</h3>
+            <button onclick="testConnection()">🔄 测试连接</button>
+            <div id="connectionResult"></div>
+        </div>
+        
+        <div id="solution" class="solution" style="display: none;">
+            <h3>💡 解决方案</h3>
+            <div id="solutionContent"></div>
+        </div>
+    </div>
+    
+    <script src="js/api-client.js"></script>
+    <script>
+        // 检查页面协议
+        function checkProtocol() {
+            const protocol = window.location.protocol;
+            const protocolDiv = document.getElementById('protocolStatus');
+            
+            if (protocol === 'file:') {
+                protocolDiv.innerHTML = '<div class="status error">❌ 使用文件协议（file://）</div>' +
+                    '<p style="margin-top: 10px;">这会导致CORS错误，无法连接到API服务器。</p>';
+                showSolution('fileProtocol');
+            } else if (protocol === 'http:' || protocol === 'https:') {
+                protocolDiv.innerHTML = '<div class="status success">✅ 使用HTTP协议</div>';
+            } else {
+                protocolDiv.innerHTML = '<div class="status warning">⚠️ 未知协议：' + protocol + '</div>';
+            }
+        }
+        
+        // 显示API地址
+        function showApiUrl() {
+            const apiUrlDiv = document.getElementById('apiUrl');
+            const apiClient = new APIClient();
+            const url = apiClient.getServerURL();
+            apiUrlDiv.innerHTML = '<div class="status info">' + url + '</div>';
+        }
+        
+        // 测试连接
+        async function testConnection() {
+            const resultDiv = document.getElementById('connectionResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 正在测试连接...</div>';
+            
+            try {
+                const apiClient = new APIClient();
+                const result = await apiClient.testConnection();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = '<div class="status success">✅ 服务器连接正常！</div>' +
+                        '<p style="margin-top: 10px;">服务器响应：' + JSON.stringify(result.data) + '</p>';
+                    document.getElementById('solution').style.display = 'none';
+                } else {
+                    resultDiv.innerHTML = '<div class="status error">❌ 连接失败：' + result.error + '</div>';
+                    showSolution('connectionFailed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="status error">❌ 测试失败：' + error.message + '</div>';
+                showSolution('connectionFailed');
+            }
+        }
+        
+        // 显示解决方案
+        function showSolution(type) {
+            const solutionDiv = document.getElementById('solution');
+            const contentDiv = document.getElementById('solutionContent');
+            
+            solutionDiv.style.display = 'block';
+            
+            if (type === 'fileProtocol') {
+                contentDiv.innerHTML = `
+                    <ol>
+                        <li><strong>使用VS Code的Live Server插件（推荐）</strong>
+                            <ul>
+                                <li>安装Live Server插件</li>
+                                <li>右键点击HTML文件，选择"Open with Live Server"</li>
+                            </ul>
+                        </li>
+                        <li><strong>使用Python简单服务器</strong>
+                            <ul>
+                                <li>打开命令行，进入项目目录</li>
+                                <li>运行：<code>python -m http.server 8000</code></li>
+                                <li>访问：<code>http://localhost:8000/main-menu.html</code></li>
+                            </ul>
+                        </li>
+                        <li><strong>使用Node.js的http-server</strong>
+                            <ul>
+                                <li>安装：<code>npm install -g http-server</code></li>
+                                <li>运行：<code>http-server -p 8000</code></li>
+                                <li>访问：<code>http://localhost:8000/main-menu.html</code></li>
+                            </ul>
+                        </li>
+                    </ol>
+                `;
+            } else if (type === 'connectionFailed') {
+                contentDiv.innerHTML = `
+                    <ol>
+                        <li><strong>检查服务器是否已启动</strong>
+                            <ul>
+                                <li>双击运行 <code>启动服务器.bat</code></li>
+                                <li>或手动运行：<code>cd server && npm start</code></li>
+                                <li>应该看到"服务器启动成功"和"监听端口: 3000"</li>
+                            </ul>
+                        </li>
+                        <li><strong>检查端口是否被占用</strong>
+                            <ul>
+                                <li>如果3000端口被占用，修改 <code>server/.env</code> 中的PORT值</li>
+                            </ul>
+                        </li>
+                        <li><strong>手动测试服务器</strong>
+                            <ul>
+                                <li>在浏览器中访问：<code>http://localhost:3000/api/health</code></li>
+                                <li>应该看到JSON响应：<code>{"success":true,"message":"服务器运行正常"}</code></li>
+                            </ul>
+                        </li>
+                        <li><strong>检查防火墙</strong>
+                            <ul>
+                                <li>确保防火墙没有阻止3000端口</li>
+                            </ul>
+                        </li>
+                    </ol>
+                `;
+            }
+        }
+        
+        // 页面加载时执行检查
+        window.addEventListener('DOMContentLoaded', () => {
+            checkProtocol();
+            showApiUrl();
+        });
+    </script>
+</body>
+</html>
+

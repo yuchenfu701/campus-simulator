@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教师办公室 - 爱哲安民未来学校</title>
+    
+    <!-- Coze SDK -->
+    <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.10/libs/cn/index.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #E0F2F7 0%, #B2E0E6 100%);
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 背景图层 */
+        .background {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, #E8F5F7 0%, #C8E4E8 100%);
+            z-index: 1;
+        }
+        
+        /* 地板 */
+        .floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30%;
+            background: linear-gradient(180deg, #D4A574 0%, #C19563 100%);
+            z-index: 2;
+        }
+        
+        /* 地板瓷砖效果 */
+        .floor::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: 
+                repeating-linear-gradient(90deg, transparent 0, transparent 100px, rgba(0,0,0,0.05) 100px, rgba(0,0,0,0.05) 101px),
+                repeating-linear-gradient(0deg, transparent 0, transparent 100px, rgba(0,0,0,0.05) 100px, rgba(0,0,0,0.05) 101px);
+        }
+        
+        /* 左侧办公位 */
+        .desk-left {
+            position: absolute;
+            left: 10%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30%;
+            height: 40%;
+            z-index: 10;
+        }
+        
+        /* 右侧办公位 */
+        .desk-right {
+            position: absolute;
+            right: 10%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30%;
+            height: 40%;
+            z-index: 10;
+        }
+        
+        /* 办公桌 */
+        .desk {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 120px;
+            background: linear-gradient(180deg, #8B6F47 0%, #6B5537 100%);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .desk::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 5px;
+            right: 5px;
+            height: 10px;
+            background: linear-gradient(180deg, #A0846F 0%, #8B6F47 100%);
+            border-radius: 10px 10px 0 0;
+        }
+        
+        /* 椅子 */
+        .chair {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(180deg, #5D4E37 0%, #4A3C2A 100%);
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .chair::before {
+            content: '';
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 35px;
+            background: linear-gradient(180deg, #6B5D4F 0%, #5D4E37 100%);
+            border-radius: 5px 5px 0 0;
+        }
+        
+        /* 电脑 */
+        .computer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 60px;
+        }
+        
+        .monitor {
+            width: 80px;
+            height: 50px;
+            background: linear-gradient(135deg, #34495E 0%, #2C3E50 100%);
+            border: 3px solid #1A252F;
+            border-radius: 5px;
+            position: relative;
+        }
+        
+        .screen {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+            border-radius: 2px;
+        }
+        
+        .monitor-stand {
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 10px;
+            background: #2C3E50;
+            border-radius: 2px;
+        }
+        
+        /* 键盘 */
+        .keyboard {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 15px;
+            background: #34495E;
+            border-radius: 3px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* 书架 */
+        .bookshelf {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 100px;
+            background: linear-gradient(180deg, #8B6F47 0%, #6B5537 100%);
+            border: 2px solid #5D4A37;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .shelf {
+            flex: 1;
+            border-bottom: 2px solid #5D4A37;
+            display: flex;
+            padding: 3px;
+            gap: 2px;
+        }
+        
+        .shelf:last-child {
+            border-bottom: none;
+        }
+        
+        .book {
+            flex: 1;
+            background: linear-gradient(180deg, #E74C3C 0%, #C0392B 100%);
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        
+        .book:nth-child(2) {
+            background: linear-gradient(180deg, #3498DB 0%, #2980B9 100%);
+        }
+        
+        .book:nth-child(3) {
+            background: linear-gradient(180deg, #2ECC71 0%, #27AE60 100%);
+        }
+        
+        .book:nth-child(4) {
+            background: linear-gradient(180deg, #F39C12 0%, #E67E22 100%);
+        }
+        
+        /* 盆栽 */
+        .plant {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            width: 40px;
+            height: 60px;
+        }
+        
+        .pot {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 20px;
+            background: linear-gradient(180deg, #E74C3C 0%, #C0392B 100%);
+            border-radius: 0 0 5px 5px;
+            clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+        }
+        
+        .leaves {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+        }
+        
+        .leaf {
+            position: absolute;
+            width: 15px;
+            height: 25px;
+            background: linear-gradient(135deg, #27AE60 0%, #229954 100%);
+            border-radius: 50% 0;
+        }
+        
+        .leaf:nth-child(1) {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) rotate(-15deg);
+        }
+        
+        .leaf:nth-child(2) {
+            top: 5px;
+            left: 5px;
+            transform: rotate(-45deg);
+        }
+        
+        .leaf:nth-child(3) {
+            top: 5px;
+            right: 5px;
+            transform: rotate(45deg);
+        }
+        
+        /* 名牌 */
+        .nameplate {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #3498DB 0%, #2980B9 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+            white-space: nowrap;
+            z-index: 20;
+        }
+        
+        .nameplate::before {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #2980B9;
+        }
+        
+        /* 交互提示 */
+        .interaction-hint {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(46, 204, 113, 0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 30;
+        }
+        
+        .desk-left:hover .interaction-hint,
+        .desk-right:hover .interaction-hint {
+            opacity: 1;
+        }
+        
+        /* 退出按钮 */
+        .exit-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        
+        .exit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        
+        /* 标题 */
+        .room-title {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            font-weight: bold;
+            color: #2C3E50;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .desk-left, .desk-right {
+                width: 40%;
+            }
+            
+            .room-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 背景 -->
+        <div class="background"></div>
+        <div class="floor"></div>
+        
+        <!-- 房间标题 -->
+        <div class="room-title">📚 教师办公室 📚</div>
+        
+        <!-- 退出按钮 -->
+        <button class="exit-button" onclick="exitRoom()">← 返回校园</button>
+        
+        <!-- 左侧办公位 - 英语李响老师 -->
+        <div class="desk-left" onclick="interactWithTeacher('李响')">
+            <div class="nameplate">英语老师 - 李响</div>
+            <div class="bookshelf">
+                <div class="shelf">
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                </div>
+                <div class="shelf">
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                </div>
+            </div>
+            <div class="desk">
+                <div class="computer">
+                    <div class="monitor">
+                        <div class="screen"></div>
+                        <div class="monitor-stand"></div>
+                    </div>
+                </div>
+                <div class="keyboard"></div>
+                <div class="plant">
+                    <div class="leaves">
+                        <div class="leaf"></div>
+                        <div class="leaf"></div>
+                        <div class="leaf"></div>
+                    </div>
+                    <div class="pot"></div>
+                </div>
+                <div class="chair"></div>
+            </div>
+            <div class="interaction-hint">💬 点击与李响老师对话</div>
+        </div>
+        
+        <!-- 右侧办公位 - 待分配 -->
+        <div class="desk-right" onclick="interactWithDesk('right')">
+            <div class="nameplate">办公位（暂未分配）</div>
+            <div class="bookshelf">
+                <div class="shelf">
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                </div>
+                <div class="shelf">
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                    <div class="book"></div>
+                </div>
+            </div>
+            <div class="desk">
+                <div class="computer">
+                    <div class="monitor">
+                        <div class="screen"></div>
+                        <div class="monitor-stand"></div>
+                    </div>
+                </div>
+                <div class="keyboard"></div>
+                <div class="chair"></div>
+            </div>
+            <div class="interaction-hint">🔒 暂无老师在此</div>
+        </div>
+    </div>
+    
+    <script>
+        // Coze AI 配置
+        const API_TOKEN = 'pat_SHVN6HkybDTmUskP6sgOHdjMoP2l7bEbNeVyPEqQEGcRWsetmcyY6pm8QT1Bv1Yx';
+        const BOT_ID = '7584781738845945875'; // 英语李响老师的Bot ID
+        
+        // 初始化 Coze SDK 弹窗客户端
+        let cozeWebSDK1 = null;
+        
+        // 页面加载完成后初始化 Coze SDK
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                cozeWebSDK1 = new CozeWebSDK.WebChatClient({
+                    config: {
+                        bot_id: BOT_ID,
+                    },
+                    componentProps: {
+                        title: '李响老师 - 英语学习助手',
+                    },
+                    ui: {
+                        base: {
+                            icon: 'https://lf-coze-web-cdn.coze.cn/obj/coze-web-cn/obric/coze/favicon.1970.png',
+                            layout: 'pc',
+                            zIndex: 9999,
+                        },
+                        asstBtn: {
+                            isNeed: false,
+                        },
+                    },
+                    auth: {
+                        type: 'token',
+                        token: API_TOKEN,
+                        onRefreshToken: function () {
+                            return API_TOKEN;
+                        }
+                    },
+                });
+                console.log('✅ Coze SDK 初始化成功');
+            } catch (error) {
+                console.error('❌ Coze SDK 初始化失败:', error);
+            }
+        });
+        
+        // 与李响老师对话 - 调用 Coze SDK 弹窗
+        function interactWithTeacher(teacherName) {
+            console.log('与老师对话:', teacherName);
+            
+            if (cozeWebSDK1) {
+                // 显示 Coze 官方对话框
+                cozeWebSDK1.showChatBot();
+                console.log('💬 已打开与李响老师的对话窗口');
+            } else {
+                console.error('❌ Coze SDK 未初始化');
+                alert('对话系统初始化中，请稍后再试！');
+            }
+        }
+        
+        // 点击右侧办公位
+        function interactWithDesk(position) {
+            alert('这个办公位暂时还没有老师入驻哦！');
+        }
+        
+        // 退出房间
+        function exitRoom() {
+            // 如果 Coze 对话框打开，先关闭它
+            if (cozeWebSDK1) {
+                try {
+                    cozeWebSDK1.hideChatBot();
+                } catch (error) {
+                    console.log('对话框已关闭');
+                }
+            }
+            // 返回到主游戏地图
+            window.history.back();
+        }
+        
+        // 监听键盘事件 - ESC键退出
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // 尝试隐藏 Coze 对话框，如果失败则退出房间
+                if (cozeWebSDK1) {
+                    try {
+                        cozeWebSDK1.hideChatBot();
+                        console.log('💬 已关闭对话窗口');
+                    } catch (error) {
+                        exitRoom();
+                    }
+                } else {
+                    exitRoom();
+                }
+            }
+        });
+        
+        console.log('🏫 教师办公室场景加载完成');
+        console.log('💡 提示: 点击左侧办公位与李响老师对话，按ESC键关闭对话或返回校园');
+    </script>
+</body>
+</html>
+
