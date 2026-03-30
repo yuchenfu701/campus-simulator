@@ -667,6 +667,87 @@
             }
         }
         
+        /* 地图选择弹窗 */
+        #map-select-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(6px);
+            animation: fadeIn 0.25s ease;
+        }
+        #map-select-overlay.hidden { display: none; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        .map-select-box {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border: 1px solid rgba(167,139,250,0.35);
+            border-radius: 28px;
+            padding: 44px 40px 36px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+            animation: popUp 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
+        }
+        @keyframes popUp {
+            from { opacity:0; transform: scale(0.85) translateY(20px); }
+            to   { opacity:1; transform: scale(1) translateY(0); }
+        }
+        .map-select-box h2 {
+            color: #e0d7ff;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .map-select-box p {
+            color: #a5b4fc;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .map-btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+        .map-btn {
+            background: rgba(255,255,255,0.06);
+            border: 2px solid rgba(167,139,250,0.3);
+            border-radius: 18px;
+            padding: 26px 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+            color: #e0d7ff;
+        }
+        .map-btn:hover {
+            background: rgba(167,139,250,0.18);
+            border-color: #a78bfa;
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 12px 30px rgba(139,92,246,0.35);
+        }
+        .map-btn:active { transform: scale(0.97); }
+        .map-btn .btn-icon { font-size: 52px; display: block; margin-bottom: 12px; }
+        .map-btn .btn-label { font-size: 17px; font-weight: 700; }
+        .map-btn .btn-sub { font-size: 12px; color: #a5b4fc; margin-top: 5px; }
+        .map-cancel-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 8px 20px;
+            border-radius: 10px;
+            transition: color 0.2s;
+        }
+        .map-cancel-btn:hover { color: #9ca3af; }
+
         /* iframe模态框 */
         .feature-modal {
             position: fixed;
@@ -894,6 +975,27 @@
         </div>
     </div>
     
+    <!-- 地图选择弹窗 -->
+    <div id="map-select-overlay" class="hidden">
+        <div class="map-select-box">
+            <h2>🎮 选择地图</h2>
+            <p>选择你想要进入的校园世界</p>
+            <div class="map-btn-group">
+                <div class="map-btn" onclick="enterMap('2d')">
+                    <span class="btn-icon">🗺️</span>
+                    <div class="btn-label">2D 爱哲地图</div>
+                    <div class="btn-sub">经典校园模拟器</div>
+                </div>
+                <div class="map-btn" onclick="enterMap('3d')">
+                    <span class="btn-icon">🏫</span>
+                    <div class="btn-label">3D 虚拟地图</div>
+                    <div class="btn-sub">沉浸式3D教学楼漫游</div>
+                </div>
+            </div>
+            <button class="map-cancel-btn" onclick="closeMapSelect()">取消</button>
+        </div>
+    </div>
+
     <!-- 通用iframe模态框 -->
     <div id="feature-modal" class="feature-modal hidden">
         <div class="modal-header">
@@ -1185,19 +1287,29 @@
             showFeatureModal(url, title);
         };
         
-        // 开始游戏
+        // 开始游戏 → 弹出地图选择
         function startGame() {
-            // 检查是否是第一次启动游戏
+            document.getElementById('map-select-overlay').classList.remove('hidden');
+        }
+
+        // 关闭地图选择弹窗
+        function closeMapSelect() {
+            document.getElementById('map-select-overlay').classList.add('hidden');
+        }
+
+        // 进入对应地图
+        function enterMap(type) {
+            closeMapSelect();
+            if (type === '3d') {
+                window.location.href = '校园企业家，教学楼小副本/index.html';
+                return;
+            }
+            // 2D 爱哲地图：原来的逻辑
             const hasStartedBefore = localStorage.getItem('game_started');
-            
             if (!hasStartedBefore) {
-                // 第一次启动：跳转到介绍页面
-                console.log('🎮 首次启动游戏，跳转到介绍页面');
                 localStorage.setItem('game_started', 'true');
                 window.location.href = '梦核校园最新力作(2).html';
             } else {
-                // 第二次及以后：直接跳转到游戏
-                console.log('🎮 继续游戏，跳转到主游戏');
                 window.location.href = 'index.html';
             }
         }
