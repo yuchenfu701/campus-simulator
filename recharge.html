@@ -180,6 +180,272 @@
             font-size: 14px;
             color: #666;
         }
+
+        /* ── 投喂板块 ── */
+        .feed-section {
+            margin-top: 30px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+            padding: 48px 36px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        }
+
+        /* 星星背景 */
+        .feed-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px),
+                radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+            background-size: 40px 40px, 80px 80px;
+            background-position: 0 0, 20px 20px;
+            pointer-events: none;
+        }
+
+        /* 光晕装饰 */
+        .feed-section::after {
+            content: '';
+            position: absolute;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(102,126,234,0.25) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -80px; right: -80px;
+            pointer-events: none;
+        }
+
+        .feed-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            padding: 5px 16px;
+            border-radius: 20px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 15px rgba(245,87,108,0.4);
+        }
+
+        .feed-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 1px;
+        }
+
+        .feed-title span {
+            background: linear-gradient(135deg, #f093fb, #f5576c, #fda085);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .feed-slogan {
+            font-size: 15px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 36px;
+            line-height: 1.8;
+            position: relative;
+            z-index: 1;
+        }
+
+        .feed-slogan em {
+            color: rgba(255,255,255,0.9);
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        .feed-qr-wrapper {
+            position: relative;
+            z-index: 1;
+            display: inline-block;
+        }
+
+        /* 外圈光环 */
+        .feed-qr-glow {
+            position: absolute;
+            inset: -12px;
+            border-radius: 28px;
+            background: linear-gradient(135deg, #f093fb, #f5576c, #4776e6, #8e54e9);
+            background-size: 300% 300%;
+            animation: gradientShift 4s ease infinite;
+            z-index: -1;
+            opacity: 0.85;
+            filter: blur(2px);
+        }
+
+        @keyframes gradientShift {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .feed-qr-inner {
+            background: white;
+            border-radius: 20px;
+            padding: 18px;
+            position: relative;
+        }
+
+        .feed-qr-inner img {
+            width: 220px;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+            cursor: zoom-in;
+            transition: transform 0.2s;
+        }
+
+        .feed-qr-inner img:hover {
+            transform: scale(1.03);
+        }
+
+        /* 放大弹窗 */
+        #qr-lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.82);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            animation: lbFadeIn 0.2s ease;
+            cursor: pointer;
+        }
+
+        #qr-lightbox.hidden { display: none; }
+
+        @keyframes lbFadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .qr-lightbox-box {
+            position: relative;
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+            animation: lbPopUp 0.28s cubic-bezier(0.175,0.885,0.32,1.275);
+            cursor: default;
+        }
+
+        @keyframes lbPopUp {
+            from { opacity:0; transform: scale(0.8); }
+            to   { opacity:1; transform: scale(1); }
+        }
+
+        .qr-lightbox-box img {
+            width: min(80vw, 380px);
+            height: auto;
+            display: block;
+            border-radius: 12px;
+        }
+
+        .qr-lightbox-label {
+            text-align: center;
+            margin-top: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #07c160;
+            letter-spacing: 1px;
+        }
+
+        .qr-lightbox-close {
+            position: absolute;
+            top: -14px;
+            right: -14px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f5576c, #f093fb);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(245,87,108,0.5);
+            transition: transform 0.2s;
+            line-height: 1;
+        }
+
+        .qr-lightbox-close:hover {
+            transform: scale(1.15) rotate(90deg);
+        }
+
+        .feed-qr-label {
+            position: absolute;
+            bottom: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #07c160, #0ea650);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 5px 18px;
+            border-radius: 20px;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(7,193,96,0.45);
+        }
+
+        .feed-tips {
+            margin-top: 38px;
+            display: flex;
+            justify-content: center;
+            gap: 28px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .feed-tip-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: rgba(255,255,255,0.55);
+            font-size: 13px;
+        }
+
+        .feed-tip-item .dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            flex-shrink: 0;
+        }
+
+        .feed-heart {
+            position: absolute;
+            font-size: 18px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 2;
+            animation: floatHeart 3s ease-in-out infinite;
+        }
+        .feed-heart:nth-child(1) { left: 8%;  top: 20%; animation-delay: 0s;   font-size: 14px; }
+        .feed-heart:nth-child(2) { left: 88%; top: 30%; animation-delay: 0.8s; font-size: 20px; }
+        .feed-heart:nth-child(3) { left: 15%; top: 70%; animation-delay: 1.6s; font-size: 12px; }
+        .feed-heart:nth-child(4) { left: 80%; top: 75%; animation-delay: 2.4s; font-size: 16px; }
+
+        @keyframes floatHeart {
+            0%   { opacity: 0;   transform: translateY(0)    scale(0.8); }
+            30%  { opacity: 0.7; }
+            100% { opacity: 0;   transform: translateY(-60px) scale(1.2); }
+        }
     </style>
 </head>
 <body>
@@ -260,8 +526,48 @@
                 </div>
             </div>
         </div>
+        <!-- 投喂板块 -->
+        <div class="feed-section">
+            <!-- 漂浮爱心 -->
+            <div class="feed-heart">💜</div>
+            <div class="feed-heart">✨</div>
+            <div class="feed-heart">💫</div>
+            <div class="feed-heart">🌟</div>
+
+            <div class="feed-badge">💝 &nbsp;投喂开发者</div>
+
+            <div class="feed-title">用一杯奶茶的价格<br><span>为校园注入新活力</span></div>
+
+            <div class="feed-slogan">
+                每一份投喂都是对我们最大的鼓励 🎉<br>
+                你的支持让<em>爱哲安民未来学校</em>变得更好
+            </div>
+
+            <div class="feed-qr-wrapper">
+                <div class="feed-qr-glow"></div>
+                <div class="feed-qr-inner">
+                    <img src="f6e6f21e2455a7be1ffbd036a5e3886f.jpg" alt="微信支付收款码" onclick="openQR()" title="点击放大" />
+                    <div class="feed-qr-label">💚 点击放大 · 微信扫码投喂</div>
+                </div>
+            </div>
+
+            <div class="feed-tips">
+                <div class="feed-tip-item"><span class="dot"></span>扫码即可完成投喂</div>
+                <div class="feed-tip-item"><span class="dot"></span>金额随心，一分也是爱</div>
+                <div class="feed-tip-item"><span class="dot"></span>感谢每一位支持者</div>
+            </div>
+        </div>
     </div>
     
+    <!-- 付款码放大弹窗 -->
+    <div id="qr-lightbox" class="hidden" onclick="closeQR()">
+        <div class="qr-lightbox-box" onclick="event.stopPropagation()">
+            <button class="qr-lightbox-close" onclick="closeQR()">✕</button>
+            <img src="f6e6f21e2455a7be1ffbd036a5e3886f.jpg" alt="微信支付收款码" />
+            <div class="qr-lightbox-label">💚 微信扫码投喂开发者</div>
+        </div>
+    </div>
+
     <script src="js/points-system.js"></script>
     <script>
         // 获取当前登录用户
@@ -326,6 +632,21 @@
             }
         }
         
+        function openQR() {
+            document.getElementById('qr-lightbox').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeQR() {
+            document.getElementById('qr-lightbox').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // ESC键关闭
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeQR();
+        });
+
         function goBack() {
             // 如果在iframe中，关闭iframe
             if (window.parent && window.parent.document.getElementById('close-web-btn')) {
