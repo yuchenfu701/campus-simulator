@@ -8071,8 +8071,7 @@
             if (window.parent && window.parent !== window) {
                 try {
                     if (typeof window.parent.openInGame === 'function') {
-                        // 路径基准为根目录下的 index.html
-                        window.parent.openInGame('games/run-map-select.html', '🏃 校园跑酷');
+                        window.parent.openInGame('main-menu.html', '🏠 主菜单');
                         return;
                     }
                     const closeBtn = window.parent.document.getElementById('close-web-btn');
@@ -8081,8 +8080,8 @@
                     console.error('退出失败:', err);
                 }
             }
-            // 直接访问时：路径相对于本文件所在目录
-            window.location.href = '../games/run-map-select.html';
+            // 直接访问时（从主菜单 window.location 跳转而来）
+            window.location.href = '../main-menu.html';
         }
 
         // 新增：切换二段跳模式
