@@ -521,11 +521,21 @@
             }, 600);
         }
         
-        // 模式路径映射
-        const modePaths = {
-            'classic': '../games/run.html',
-            'stickman': '../杨沐尧/index.html',
-            'pokemon': '../马里奥/index.html'
+        // 路径说明：父页面 openInGame 里 iframe.src 相对「根目录 index.html」解析，
+        // 不能用 ../games/...（会跳到 github.io/games/ 导致 404）。
+        const modeConfig = {
+            'classic': {
+                iframePath: 'games/run.html',
+                directPath: 'run.html'
+            },
+            'stickman': {
+                iframePath: '杨沐尧/index.html',
+                directPath: '../杨沐尧/index.html'
+            },
+            'pokemon': {
+                iframePath: '马里奥/index.html',
+                directPath: '../马里奥/index.html'
+            }
         };
         
         const modeTitles = {
@@ -545,23 +555,23 @@
                 element.style.transform = '';
             }, 200);
             
-            const gamePath = modePaths[mode];
+            const cfg = modeConfig[mode];
             const gameTitle = modeTitles[mode];
             
-            if (!gamePath) {
+            if (!cfg) {
                 alert('模式不存在！');
                 return;
             }
             
             console.log(`🎮 选择模式: ${gameTitle}`);
             
-            // 如果在iframe中，尝试调用父窗口的openInGame函数
+            // 如果在iframe中，尝试调用父窗口的openInGame函数（路径相对网站根目录）
             if (window.parent && window.parent !== window) {
                 console.log('📦 检测到iframe环境');
                 try {
                     if (typeof window.parent.openInGame === 'function') {
                         console.log('✅ 调用父窗口的openInGame函数');
-                        window.parent.openInGame(gamePath, gameTitle);
+                        window.parent.openInGame(cfg.iframePath, gameTitle);
                         return;
                     } else {
                         console.warn('⚠️ 父窗口没有openInGame函数');
@@ -571,13 +581,13 @@
                 }
             }
             
-            // 直接跳转
-            console.log('🔄 直接跳转到:', gamePath);
+            // 直接打开本页时：路径相对 games/run-mode-select.html
+            console.log('🔄 直接跳转到:', cfg.directPath);
             try {
-                window.location.href = gamePath;
+                window.location.href = cfg.directPath;
             } catch (e) {
                 console.error('❌ 页面跳转失败:', e);
-                alert('❌ 无法打开游戏，请检查文件路径是否正确\n\n路径: ' + gamePath);
+                alert('❌ 无法打开游戏，请检查文件路径是否正确\n\n路径: ' + cfg.directPath);
             }
         }
         
