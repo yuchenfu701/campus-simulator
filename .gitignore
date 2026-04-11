@@ -49,6 +49,7 @@ tests/
 docs/_build/
 docs/.vuepress/dist/
 
-
-
+# Blender 源文件（常超 GitHub 100MB 限制，仅本地保留）
+*.blend
+*.blend1
 

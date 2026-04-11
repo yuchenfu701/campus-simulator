@@ -3,8 +3,31 @@
 ## 📋 准备工作
 
 确保你已经准备好：
-- ✅ MongoDB Atlas连接字符串（已保存）
-- ✅ GitHub账号（如果没有，去 https://github.com 注册）
+- ✅ **新** MongoDB Atlas 账号与连接字符串（见下文「从零开始」）
+- ✅ GitHub 账号（Railway 用 GitHub 登录；若 GitHub 也登不上，请用新邮箱重新注册）
+
+---
+
+## 零、从头开始：旧账号登不上时（推荐顺序）
+
+按下面顺序做，避免漏步骤。每一步都可以用**未用过 Atlas 的新邮箱**注册（与旧集群无关）。
+
+| 顺序 | 做什么 | 说明 |
+|------|--------|------|
+| 1 | **MongoDB Atlas** 新注册 | https://www.mongodb.com/cloud/atlas/register |
+| 2 | 新建 **免费集群**（Free）、建 **Database User**（记下用户名+密码） | 密码若含 `@ # : /` 等，写入连接串前需 [URL 编码](https://www.mongodb.com/docs/manual/reference/connection-string/) |
+| 3 | **Network Access** 添加 `0.0.0.0/0`（允许任意 IP，云端服务器才能连上） | 生产环境可再改为你服务器出口 IP |
+| 4 | **Connect → Drivers** 复制连接串，把 `<password>` 换成真实密码，路径改为库名 `/campus_simulator` | 得到完整的 `MONGODB_URI` |
+| 5 | **GitHub** 上传/推送本项目的 **`server` 文件夹** 为仓库（或整仓推送，见下文 Root Directory） | 见「第一步」 |
+| 6 | **Railway** 用 GitHub 登录 → New Project → Deploy from GitHub | 旧项目删不删均可；新项目更干净 |
+| 7 | Railway **Variables** 里填 `MONGODB_URI`、`CORS_ORIGIN`、`NODE_ENV` | 见「第二步 §3」 |
+| 8 | 浏览器打开 **`server-config.html`**，填新 Railway 域名 → 测试 → 保存 | 若仍指向旧地址，点「重置为本地服务器」再填新域名 |
+
+**连接串格式示例（请全部换成你自己的用户名、密码、主机名）：**
+
+```
+mongodb+srv://<数据库用户名>:<URL编码后的密码>@<你的集群地址>.mongodb.net/campus_simulator?retryWrites=true&w=majority
+```
 
 ---
 
@@ -79,6 +102,13 @@
    - 点击仓库名称
    - Railway会自动开始部署
 
+3. **若 GitHub 里是「整个 test 大仓库」（根目录有 index.html，而不是只有 server）**
+   - 打开该服务的 **Settings**
+   - 找到 **Root Directory**（或「根目录」）
+   - 填写：`server`
+   - 保存后重新部署  
+   否则 Railway 会在仓库根目录找 `package.json`，会部署失败。
+
 ---
 
 ### 3. 配置环境变量（重要！）
@@ -92,10 +122,10 @@
 
    **变量1：MONGODB_URI**
    - Name: `MONGODB_URI`
-   - Value: 粘贴你刚才保存的连接字符串
-   - 例如：
+   - Value: 粘贴你在 **Atlas → Connect → Drivers** 拼好的完整连接串（见上文「零」）
+   - 示例（占位符，勿照抄）：
      ```
-     mongodb+srv://yuchenfu435_db_user:你的密码@xiaoyuanjilu.pk9pyus.mongodb.net/campus_simulator?appName=xiaoyuanjilu
+     mongodb+srv://myuser:编码后的密码@cluster0.abcd123.mongodb.net/campus_simulator?retryWrites=true&w=majority
      ```
    - 点击 "Add"
 
