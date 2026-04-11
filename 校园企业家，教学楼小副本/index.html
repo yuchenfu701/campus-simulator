@@ -2,8 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D教学楼 - 多层第一人称漫游</title>
+    <script src="../js/campus-settings.js"></script>
+    <link rel="stylesheet" href="../css/campus-mobile.css">
     <style>
         * { box-sizing: border-box; }
         body {
@@ -5590,6 +5592,14 @@
             if (keyboard['s']) moveDirection.z += 1;
             if (keyboard['a']) moveDirection.x -= 1;
             if (keyboard['d']) moveDirection.x += 1;
+            // 手机模式虚拟摇杆（campus-3d-mobile.js 写入 window._campusJoy）
+            var cj = window._campusJoy;
+            if (cj && (cj.x !== 0 || cj.y !== 0)) {
+                if (cj.y < -0.18) moveDirection.z -= 1;
+                if (cj.y > 0.18) moveDirection.z += 1;
+                if (cj.x < -0.18) moveDirection.x -= 1;
+                if (cj.x > 0.18) moveDirection.x += 1;
+            }
             }
             if (keyboard['x']) {
                 // 切换视角模式
@@ -8098,5 +8108,6 @@
             console.log("二段跳模式: " + (doubleJumpEnabled ? "开启" : "关闭"));
         }
     </script>
+    <script src="../js/campus-3d-mobile.js"></script>
 </body>
 </html> 

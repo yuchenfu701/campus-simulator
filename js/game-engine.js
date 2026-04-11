@@ -392,12 +392,25 @@ class GameEngine {
         this.input.mouse.x = e.clientX - rect.left;
         this.input.mouse.y = e.clientY - rect.top;
         this.input.mouse.pressed = true;
+        this._mouseDownAt = { t: Date.now(), cx: e.clientX, cy: e.clientY };
         
         this.broadcastEvent('mousedown', this.input.mouse);
     }
     
     handleMouseUp(e) {
         this.input.mouse.pressed = false;
+        if (typeof window.CampusSettings !== 'undefined' && window.CampusSettings.isMobileMode() && this._mouseDownAt) {
+            const dt = Date.now() - this._mouseDownAt.t;
+            const dx = e.clientX - this._mouseDownAt.cx;
+            const dy = e.clientY - this._mouseDownAt.cy;
+            if (dt < 600 && Math.hypot(dx, dy) < 18 && this.gameState === 'playing' && this.inputEnabled) {
+                const player = this.getSystem('player');
+                if (player && typeof player.handleInteraction === 'function') {
+                    player.handleInteraction();
+                }
+            }
+        }
+        this._mouseDownAt = null;
         this.broadcastEvent('mouseup', this.input.mouse);
     }
     
@@ -417,13 +430,26 @@ class GameEngine {
         this.input.touch.active = true;
         this.input.touch.startX = touch.clientX - rect.left;
         this.input.touch.startY = touch.clientY - rect.top;
+        this.input.touch.startTime = Date.now();
+        this.input.touch.isSwipe = false;
         
         this.broadcastEvent('touchstart', this.input.touch);
     }
     
     handleTouchEnd(e) {
         e.preventDefault();
+        const mobile = typeof window.CampusSettings !== 'undefined' && window.CampusSettings.isMobileMode();
+        if (mobile && this.input.touch.active) {
+            const dt = Date.now() - (this.input.touch.startTime || 0);
+            if (!this.input.touch.isSwipe && dt < 750 && this.gameState === 'playing' && this.inputEnabled) {
+                const player = this.getSystem('player');
+                if (player && typeof player.handleInteraction === 'function') {
+                    player.handleInteraction();
+                }
+            }
+        }
         this.input.touch.active = false;
+        this.input.keys = {};
         this.broadcastEvent('touchend', this.input.touch);
     }
     
@@ -438,6 +464,15 @@ class GameEngine {
         
         const deltaX = currentX - this.input.touch.startX;
         const deltaY = currentY - this.input.touch.startY;
+        const dist = Math.hypot(deltaX, deltaY);
+        
+        const mobile = typeof window.CampusSettings !== 'undefined' && window.CampusSettings.isMobileMode();
+        if (mobile && dist > 20) {
+            this.input.touch.isSwipe = true;
+        }
+        if (mobile && !this.input.touch.isSwipe) {
+            return;
+        }
         
         // 模拟方向键
         this.input.keys = {};

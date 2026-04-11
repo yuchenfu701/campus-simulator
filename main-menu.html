@@ -2,8 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>主菜单 - 爱哲安民未来学校校园模拟器</title>
+    <script src="js/campus-settings.js"></script>
+    <link rel="stylesheet" href="css/campus-mobile.css">
     <style>
         * {
             margin: 0;
@@ -114,6 +116,23 @@
             display: flex;
             gap: 20px;
             align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .settings-top-btn {
+            background: rgba(139, 92, 246, 0.35);
+            border: 1px solid rgba(196, 181, 253, 0.45);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .settings-top-btn:active {
+            opacity: 0.88;
         }
         
         .info-item {
@@ -826,6 +845,7 @@
             </div>
             
             <div class="top-info">
+                <button type="button" class="settings-top-btn" onclick="location.href='settings.html'" title="设置">⚙️ 设置</button>
                 <div class="info-item">
                     <span class="info-icon">💎</span>
                     <span id="userPoints">100</span>

@@ -19,6 +19,8 @@
     </script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/campus-mobile.css">
+    <script src="js/campus-settings.js"></script>
 </head>
 <body>
     <!-- 游戏主容器 -->
@@ -82,6 +84,7 @@
                 <div id="interaction-hint" class="hidden">
                     <span id="hint-text">按 E 键交互</span>
                 </div>
+                <div id="mobile-2d-interact-hint" aria-hidden="true">👆 滑动移动 · 轻点画布交互</div>
             </div>
 
             <!-- 侧边信息面板 -->
@@ -205,7 +208,7 @@
                 <button class="modal-close" onclick="window.closeModal('quick-menu-modal')">✖</button>
             </div>
             <div class="modal-body">
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 10px;">
+                <div class="quick-menu-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 10px;">
                     <button class="quick-menu-btn" onclick="openInGame('points-mall.html', '💎 积分商城')">
                         <div style="font-size: 36px; margin-bottom: 10px;">💎</div>
                         <div>积分商城</div>
@@ -238,6 +241,10 @@
                         <div style="font-size: 36px; margin-bottom: 10px;">💰</div>
                         <div>充值中心</div>
                     </button>
+                    <button class="quick-menu-btn" onclick="openInGame('settings.html', '⚙️ 设置')">
+                        <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
+                        <div>设置</div>
+                    </button>
                     <button class="quick-menu-btn" onclick="backToMenu()">
                         <div style="font-size: 36px; margin-bottom: 10px;">🏠</div>
                         <div>返回主菜单</div>
@@ -260,6 +267,14 @@
         <iframe id="fullscreen-iframe" src="" frameborder="0"></iframe>
     </div>
     
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var h = document.getElementById('hint-text');
+            if (h && window.CampusSettings) {
+                h.textContent = CampusSettings.isMobileMode() ? '轻点画布交互' : '按 E 键交互';
+            }
+        });
+    </script>
     <!-- 游戏脚本 -->
     <script src="js/game-systems.js"></script>
     <script src="js/characters.js"></script>

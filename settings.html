@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>设置 - 校园模拟器</title>
+    <script src="js/campus-settings.js"></script>
+    <link rel="stylesheet" href="css/campus-mobile.css">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(160deg, #0f172a 0%, #312e81 45%, #1e1b4b 100%);
+            color: #e2e8f0;
+            padding: 24px 18px 48px;
+        }
+        .page-title {
+            font-size: 26px;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .page-sub {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .card {
+            max-width: 520px;
+            margin: 0 auto 20px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(148,163,184,0.2);
+            border-radius: 20px;
+            padding: 22px 20px;
+            backdrop-filter: blur(12px);
+        }
+        .card h2 {
+            font-size: 17px;
+            margin: 0 0 16px;
+            color: #c4b5fd;
+        }
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(148,163,184,0.12);
+        }
+        .row:last-child { border-bottom: none; }
+        .row-label { flex: 1; }
+        .row-label strong { display: block; font-size: 15px; margin-bottom: 4px; }
+        .row-label small { color: #94a3b8; font-size: 12px; line-height: 1.5; }
+        .switch {
+            width: 52px;
+            height: 30px;
+            border-radius: 15px;
+            background: #475569;
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.25s;
+        }
+        .switch.on { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+        .switch::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.25s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        }
+        .switch.on::after { transform: translateX(22px); }
+        .btn-back {
+            display: block;
+            max-width: 520px;
+            margin: 28px auto 0;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            color: #e2e8f0;
+            border: 1px solid rgba(148,163,184,0.25);
+        }
+        .btn-back:active { opacity: 0.85; }
+        .tips {
+            max-width: 520px;
+            margin: 16px auto 0;
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.7;
+            padding: 0 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-title">⚙️ 设置</div>
+    <div class="page-sub">手机模式会优化排版与触控操作</div>
+
+    <div class="card">
+        <h2>显示与操作</h2>
+        <div class="row">
+            <div class="row-label">
+                <strong>📱 手机模式</strong>
+                <small>开启后主菜单、2D/3D 校园使用适合触控的布局；2D 点画布交互；3D 显示移动轮盘与交互键。</small>
+            </div>
+            <div class="switch" id="sw-mobile" role="switch" aria-checked="false" onclick="toggleMobile()"></div>
+        </div>
+        <div class="row">
+            <div class="row-label">
+                <strong>减少动态效果</strong>
+                <small>减弱部分动画（若页面支持）。</small>
+            </div>
+            <div class="switch" id="sw-motion" role="switch" onclick="toggleMotion()"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>说明</h2>
+        <div class="row" style="border:none;padding-top:0;">
+            <div class="row-label">
+                <small>设置保存在本机浏览器。更换设备或清除数据后需重新开启手机模式。电脑也可手动开启以预览手机布局。</small>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-back" onclick="goBack()">← 返回</button>
+    <p class="tips">2D：滑动画布移动角色；轻点画布为「交互」。3D：左侧轮盘移动，右侧按钮交互 / 跳跃。</p>
+
+    <script>
+        function sync() {
+            var m = CampusSettings.isMobileMode();
+            document.getElementById('sw-mobile').classList.toggle('on', m);
+            document.getElementById('sw-mobile').setAttribute('aria-checked', m ? 'true' : 'false');
+            var rm = !!CampusSettings.load().reduceMotion;
+            document.getElementById('sw-motion').classList.toggle('on', rm);
+        }
+        function toggleMobile() {
+            CampusSettings.setMobileMode(!CampusSettings.isMobileMode());
+            sync();
+        }
+        function toggleMotion() {
+            CampusSettings.setReduceMotion(!CampusSettings.load().reduceMotion);
+            sync();
+        }
+        function goBack() {
+            if (window.parent && window.parent !== window) {
+                try {
+                    if (typeof window.parent.closeModal === 'function') {
+                        window.parent.closeModal('quick-menu-modal');
+                    }
+                    var cb = window.parent.document.getElementById('close-web-btn');
+                    if (cb) {
+                        cb.click();
+                        return;
+                    }
+                } catch (e) {}
+            }
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'main-menu.html';
+            }
+        }
+        sync();
+    </script>
+</body>
+</html>
