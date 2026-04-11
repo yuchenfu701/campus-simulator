@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>爱哲安民未来学校模拟器 - 2D俯视角学校生活</title>
-    <meta http-equiv="refresh" content="0; url=login.html">
     <script>
-        // 立即跳转到登录页面
-        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-            window.location.href = 'login.html';
-        }
+        // 仅未登录时进入登录页（主菜单「开始游戏」已登录用户可正常进 2D 地图）
+        (function () {
+            try {
+                var u = localStorage.getItem('campus_user');
+                if (!u || u === '{}') {
+                    window.location.replace('login.html');
+                }
+            } catch (e) {
+                window.location.replace('login.html');
+            }
+        })();
     </script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/animations.css">
