@@ -40,13 +40,13 @@
 </head>
 <body>
     <h1>扫码进入校园模拟器</h1>
-    <p>用手机相机或微信扫一扫，即可打开线上站点。</p>
+    <p>用手机相机或微信扫一扫，将打开<strong>登录页</strong>（不会直接进入 2D 地图）。</p>
     <div id="qrcode"></div>
     <p class="url" id="urlLine"></p>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
     <script>
         (function () {
-            var SITE_URL = 'https://yuchenfu701.github.io/campus-simulator/';
+            var SITE_URL = 'https://yuchenfu701.github.io/campus-simulator/login.html';
             document.getElementById('urlLine').innerHTML =
                 '<a href="' + SITE_URL + '">' + SITE_URL + '</a>';
             if (typeof QRCode !== 'undefined') {
