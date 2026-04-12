@@ -72,39 +72,53 @@
             stick.style.transform = 'translate(0,0)';
         }
 
-        var joyActive = false;
+        function touchesFind(touchList, id) {
+            for (var i = 0; i < touchList.length; i++) {
+                if (touchList[i].identifier === id) return touchList[i];
+            }
+            return null;
+        }
+
+        /** 与画布「转视角」并存：只跟踪压在摇杆上的那一根的 identifier */
+        var joyTouchId = null;
 
         base.addEventListener('touchstart', function (ev) {
-            joyActive = true;
-            var t = ev.touches[0];
+            var t = ev.changedTouches[0];
+            if (!t) return;
+            joyTouchId = t.identifier;
             joyFromClient(t.clientX, t.clientY);
         }, { passive: false });
 
         base.addEventListener('touchmove', function (ev) {
-            if (!joyActive) return;
+            if (joyTouchId === null) return;
+            var t = touchesFind(ev.touches, joyTouchId);
+            if (!t) return;
             ev.preventDefault();
-            var t = ev.touches[0];
             joyFromClient(t.clientX, t.clientY);
         }, { passive: false });
 
-        base.addEventListener('touchend', function () {
-            joyActive = false;
-            joyReset();
-        });
-        base.addEventListener('touchcancel', function () {
-            joyActive = false;
-            joyReset();
-        });
+        function joyTouchEnd(ev) {
+            if (joyTouchId === null) return;
+            for (var i = 0; i < ev.changedTouches.length; i++) {
+                if (ev.changedTouches[i].identifier === joyTouchId) {
+                    joyTouchId = null;
+                    joyReset();
+                    break;
+                }
+            }
+        }
+        base.addEventListener('touchend', joyTouchEnd);
+        base.addEventListener('touchcancel', joyTouchEnd);
 
         base.addEventListener('mousedown', function (ev) {
-            joyActive = true;
+            var joyMouseDown = true;
             joyFromClient(ev.clientX, ev.clientY);
             function mm(e) {
-                if (!joyActive) return;
+                if (!joyMouseDown) return;
                 joyFromClient(e.clientX, e.clientY);
             }
             function mu() {
-                joyActive = false;
+                joyMouseDown = false;
                 window.removeEventListener('mousemove', mm);
                 window.removeEventListener('mouseup', mu);
                 joyReset();
@@ -125,12 +139,24 @@
             } catch (e) {}
         }
 
-        document.getElementById('campus-mbtn-e').addEventListener('click', function () {
-            fireKey('e');
-        });
-        document.getElementById('campus-mbtn-jump').addEventListener('click', function () {
-            fireKey(' ');
-        });
+        function bindMobileAction(btn, key) {
+            var last = 0;
+            function go() {
+                var n = Date.now();
+                if (n - last < 160) return;
+                last = n;
+                fireKey(key);
+            }
+            btn.addEventListener('touchend', function (ev) {
+                ev.preventDefault();
+                go();
+            }, { passive: false });
+            btn.addEventListener('click', function () {
+                go();
+            });
+        }
+        bindMobileAction(document.getElementById('campus-mbtn-e'), 'e');
+        bindMobileAction(document.getElementById('campus-mbtn-jump'), ' ');
     }
 
     if (document.readyState === 'loading') {

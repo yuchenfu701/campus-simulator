@@ -13,6 +13,22 @@ html.campus-mobile-mode.campus-reduce-motion *::after {
 }
 
 /* —— 主菜单 main-menu.html —— */
+/* body 默认 height:100vh + overflow:hidden 会裁掉底部；手机模式整页可滚动（html.main-menu-html） */
+html.campus-mobile-mode.main-menu-html {
+    height: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+html.campus-mobile-mode.main-menu-html body {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
 html.campus-mobile-mode body .main-container {
     display: flex !important;
     flex-direction: column !important;
@@ -20,11 +36,13 @@ html.campus-mobile-mode body .main-container {
     grid-template-rows: unset !important;
     height: auto !important;
     min-height: 100vh !important;
+    min-height: 100dvh !important;
     max-height: none !important;
-    overflow-y: auto !important;
     overflow-x: hidden !important;
+    overflow-y: visible !important;
     padding: 12px !important;
     gap: 12px !important;
+    padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;
 }
 
 html.campus-mobile-mode body .top-bar {

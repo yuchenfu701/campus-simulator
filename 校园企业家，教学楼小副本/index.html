@@ -1321,10 +1321,17 @@
             document.addEventListener('webkitpointerlockchange', onPointerLockChange);
             document.addEventListener('mozpointerlockchange', onPointerLockChange);
 
-            // 手机模式：在画布上滑动旋转视角（与虚拟摇杆互不干扰）
+            // 手机模式：多指并行 — 用 touch.identifier 区分「转视角」与其它触点（摇杆/按钮）
             let touchLookLastX = 0;
             let touchLookLastY = 0;
             let touchLookActive = false;
+            let touchLookId = null;
+            function touchListFind(touchList, id) {
+                for (let i = 0; i < touchList.length; i++) {
+                    if (touchList[i].identifier === id) return touchList[i];
+                }
+                return null;
+            }
             function touchLookBlocked(clientX, clientY) {
                 const el = document.elementFromPoint(clientX, clientY);
                 if (!el) return false;
@@ -1337,22 +1344,22 @@
             }
             renderer.domElement.addEventListener('touchstart', function (ev) {
                 if (typeof CampusSettings === 'undefined' || !CampusSettings.isMobileMode()) return;
-                if (ev.touches.length !== 1) return;
-                const t = ev.touches[0];
-                if (touchLookBlocked(t.clientX, t.clientY)) return;
-                touchLookActive = true;
-                touchLookLastX = t.clientX;
-                touchLookLastY = t.clientY;
+                if (touchLookActive && touchListFind(ev.touches, touchLookId)) return;
+                for (let i = 0; i < ev.changedTouches.length; i++) {
+                    const t = ev.changedTouches[i];
+                    if (touchLookBlocked(t.clientX, t.clientY)) continue;
+                    touchLookId = t.identifier;
+                    touchLookActive = true;
+                    touchLookLastX = t.clientX;
+                    touchLookLastY = t.clientY;
+                    break;
+                }
             }, { passive: true });
             renderer.domElement.addEventListener('touchmove', function (ev) {
-                if (!touchLookActive || !soldier) return;
+                if (!touchLookActive || touchLookId === null || !soldier) return;
                 if (typeof CampusSettings === 'undefined' || !CampusSettings.isMobileMode()) return;
-                if (ev.touches.length !== 1) return;
-                const t = ev.touches[0];
-                if (touchLookBlocked(t.clientX, t.clientY)) {
-                    touchLookActive = false;
-                    return;
-                }
+                const t = touchListFind(ev.touches, touchLookId);
+                if (!t) return;
                 ev.preventDefault();
                 const dx = t.clientX - touchLookLastX;
                 const dy = t.clientY - touchLookLastY;
@@ -1366,11 +1373,18 @@
                 updateCameraRotation();
                 soldier.rotation.y = cameraHorizontalAngle;
             }, { passive: false });
-            function endTouchLook() {
-                touchLookActive = false;
+            function endTouchLook(ev) {
+                if (!touchLookActive || touchLookId === null) return;
+                for (let i = 0; i < ev.changedTouches.length; i++) {
+                    if (ev.changedTouches[i].identifier === touchLookId) {
+                        touchLookActive = false;
+                        touchLookId = null;
+                        break;
+                    }
+                }
             }
-            renderer.domElement.addEventListener('touchend', endTouchLook);
-            renderer.domElement.addEventListener('touchcancel', endTouchLook);
+            renderer.domElement.addEventListener('touchend', endTouchLook, { passive: true });
+            renderer.domElement.addEventListener('touchcancel', endTouchLook, { passive: true });
 
             (function initMobileHudToggle() {
                 const shell = document.getElementById('campus-mobile-hud');
