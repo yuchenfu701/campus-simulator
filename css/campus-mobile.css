@@ -200,6 +200,105 @@ html.campus-mobile-mode #mobile-2d-interact-hint {
     display: flex !important;
 }
 
+/* —— 3D 校园：桌面保持原布局；手机用 display:contents 让子元素仍相对视口定位 —— */
+html:not(.campus-mobile-mode) #campus-mobile-hud {
+    display: contents;
+}
+html:not(.campus-mobile-mode) .campus-mobile-hud-drawer {
+    display: contents;
+}
+html:not(.campus-mobile-mode) .campus-mobile-hud-toggle {
+    display: none !important;
+}
+
+.campus-mobile-touch-hint {
+    display: none;
+}
+html.campus-mobile-mode .campus-mobile-touch-hint {
+    display: block;
+}
+html.campus-mobile-mode .campus-desktop-only {
+    display: none !important;
+}
+
+/* 手机：左侧箭头展开抽屉，内含状态 + 操作说明 */
+html.campus-mobile-mode #campus-mobile-hud {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 602;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    pointer-events: none;
+}
+html.campus-mobile-mode .campus-mobile-hud-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 42px;
+    align-self: center;
+    margin-left: 2px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 0 14px 14px 0;
+    border: 1px solid rgba(80, 160, 255, 0.4);
+    background: linear-gradient(135deg, rgba(10, 20, 40, 0.9), rgba(20, 45, 85, 0.85));
+    color: #9ee0ff;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+    font-family: inherit;
+    z-index: 604;
+}
+html.campus-mobile-mode .campus-mobile-hud-drawer {
+    position: absolute;
+    left: 44px;
+    top: 0;
+    bottom: 0;
+    width: min(88vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    background: linear-gradient(90deg, rgba(5, 14, 36, 0.96), rgba(12, 28, 52, 0.92));
+    border-right: 1px solid rgba(80, 160, 255, 0.28);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 14px max(16px, env(safe-area-inset-bottom));
+    pointer-events: auto;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.4);
+    -webkit-overflow-scrolling: touch;
+}
+html.campus-mobile-mode #campus-mobile-hud.campus-mobile-hud-open .campus-mobile-hud-drawer {
+    transform: translateX(0);
+}
+html.campus-mobile-mode #campus-mobile-hud #debug-overlay {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    margin-bottom: 14px;
+    min-width: 0;
+    max-width: none;
+    font-size: 11px;
+}
+html.campus-mobile-mode #campus-mobile-hud #instructions {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    max-width: none;
+    font-size: 12px;
+    padding: 12px 14px;
+}
+
+/* 3D 画布：避免浏览器把单指滑动当成页面滚动，便于滑屏转视角 */
+html.campus-mobile-mode body > canvas {
+    touch-action: none;
+}
+
 /* —— 3D 页面由 campus-3d-mobile-controls 注入 —— */
 #campus-3d-mobile-root {
     display: none;
