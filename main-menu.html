@@ -744,6 +744,15 @@
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
             color: #e0d7ff;
+            font-family: inherit;
+            width: 100%;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        button.map-btn {
+            appearance: none;
+            -webkit-appearance: none;
         }
         .map-btn:hover {
             background: rgba(167,139,250,0.18);
@@ -753,8 +762,8 @@
         }
         .map-btn:active { transform: scale(0.97); }
         .map-btn .btn-icon { font-size: 52px; display: block; margin-bottom: 12px; }
-        .map-btn .btn-label { font-size: 17px; font-weight: 700; }
-        .map-btn .btn-sub { font-size: 12px; color: #a5b4fc; margin-top: 5px; }
+        .map-btn .btn-label { display: block; font-size: 17px; font-weight: 700; }
+        .map-btn .btn-sub { display: block; font-size: 12px; color: #a5b4fc; margin-top: 5px; }
         .map-cancel-btn {
             background: none;
             border: none;
@@ -1001,16 +1010,16 @@
             <h2>🎮 选择地图</h2>
             <p>选择你想要进入的校园世界</p>
             <div class="map-btn-group">
-                <div class="map-btn" onclick="enterMap('2d')">
+                <button type="button" class="map-btn" onclick="enterMap('2d')">
                     <span class="btn-icon">🗺️</span>
-                    <div class="btn-label">2D 爱哲地图</div>
-                    <div class="btn-sub">经典校园模拟器</div>
-                </div>
-                <div class="map-btn" onclick="enterMap('3d')">
+                    <span class="btn-label">2D 爱哲地图</span>
+                    <span class="btn-sub">经典校园模拟器</span>
+                </button>
+                <button type="button" class="map-btn" onclick="enterMap('3d')">
                     <span class="btn-icon">🏫</span>
-                    <div class="btn-label">3D 虚拟地图</div>
-                    <div class="btn-sub">沉浸式3D教学楼漫游</div>
-                </div>
+                    <span class="btn-label">3D 虚拟地图</span>
+                    <span class="btn-sub">沉浸式3D教学楼漫游</span>
+                </button>
             </div>
             <button class="map-cancel-btn" onclick="closeMapSelect()">取消</button>
         </div>
