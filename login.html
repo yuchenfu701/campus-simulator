@@ -293,12 +293,34 @@
             transform: scale(1.1);
         }
         
-        /* 响应式 */
+        /* 响应式：小屏可整页向下滚动（避免 body 100vh + overflow:hidden 裁掉登录按钮） */
         @media (max-width: 768px) {
+            html {
+                height: auto;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            body {
+                height: auto;
+                min-height: 100vh;
+                min-height: 100dvh;
+                max-height: none;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .container {
+                height: auto;
+                min-height: 100dvh;
+                align-items: flex-start;
+                padding: max(12px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+                box-sizing: border-box;
+            }
             .login-card {
                 padding: 40px 30px;
+                margin-bottom: 8px;
             }
-            
             .logo-title {
                 font-size: 24px;
             }
