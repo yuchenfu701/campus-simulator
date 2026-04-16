@@ -438,9 +438,8 @@
             const w = _moonPhaseCanvas.width, h = _moonPhaseCanvas.height;
             const cx = w * 0.5, cy = h * 0.5, R = w * 0.42;
             const ang = ((phase % 1) + 1) % 1 * Math.PI * 2;
+            // 不要用整幅深蓝底：CircleGeometry 外缘 UV 会采到画布四角，游戏里会看到一圈「蓝边」
             ctx.clearRect(0, 0, w, h);
-            ctx.fillStyle = '#0a0e18';
-            ctx.fillRect(0, 0, w, h);
             ctx.globalCompositeOperation = 'source-over';
             const grd = ctx.createRadialGradient(cx - R * 0.22, cy - R * 0.18, R * 0.06, cx, cy, R);
             grd.addColorStop(0, '#f2f0ea');
@@ -3386,12 +3385,20 @@
             _moonPhaseCanvas = document.createElement('canvas');
             _moonPhaseCanvas.width = _moonPhaseCanvas.height = 128;
             _moonPhaseTex = new THREE.CanvasTexture(_moonPhaseCanvas);
+            _moonPhaseTex.wrapS = _moonPhaseTex.wrapT = THREE.ClampToEdgeWrapping;
             if (THREE.SRGBColorSpace) _moonPhaseTex.colorSpace = THREE.SRGBColorSpace;
             if (_moonMesh) { scene.remove(_moonMesh); _moonMesh = null; }
             _moonMesh = new THREE.Group();
             const moonDisc = new THREE.Mesh(
                 new THREE.CircleGeometry(13, 56),
-                new THREE.MeshBasicMaterial({ map: _moonPhaseTex, transparent: true, fog: false, side: THREE.DoubleSide })
+                new THREE.MeshBasicMaterial({
+                    map: _moonPhaseTex,
+                    transparent: true,
+                    alphaTest: 0.08,
+                    depthWrite: false,
+                    fog: false,
+                    side: THREE.DoubleSide
+                })
             );
             _moonMesh.add(moonDisc);
             _moonMesh.userData.disc = moonDisc;
