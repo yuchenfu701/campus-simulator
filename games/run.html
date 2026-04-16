@@ -726,7 +726,7 @@
             gameState.isJumping = false;
             gameState.distance = 0;
             gameState.coins = 0;
-            gameState.speed = 1.2; // 初始速度稍微提高
+            gameState.speed = 0.85; // 初始略慢，手机端更易玩
             gameState.combo = 0;
             gameState.maxCombo = 0;
             gameState.obstacles = [];
@@ -808,7 +808,7 @@
                 
                 // 速度递增（加快速度提升）
                 if (gameState.distance % 50 === 0 && gameState.distance > 0) {
-                    gameState.speed += 0.08;
+                    gameState.speed += 0.035;
                 }
                 
                 // 更新状态效果
@@ -820,8 +820,8 @@
                 // 移动障碍物（加快移动速度）
                 gameState.obstacles.forEach((obstacle, index) => {
                     const left = parseFloat(obstacle.style.left) || gameArea.offsetWidth;
-                    const baseSpeed = 10; // 基础速度从5增加到10
-                    const moveSpeed = baseSpeed + gameState.speed * (gameState.statusEffects.speed.active ? 8 : 6);
+                    const baseSpeed = 6;
+                    const moveSpeed = baseSpeed + gameState.speed * (gameState.statusEffects.speed.active ? 5 : 4);
                     obstacle.style.left = (left - moveSpeed) + 'px';
                     
                     // 检查碰撞
@@ -846,8 +846,8 @@
                 // 移动金币（与障碍物同步速度）
                 gameState.coinElements.forEach((coin, index) => {
                     const left = parseFloat(coin.style.left) || gameArea.offsetWidth;
-                    const baseSpeed = 10;
-                    const moveSpeed = baseSpeed + gameState.speed * (gameState.statusEffects.speed.active ? 8 : 6);
+                    const baseSpeed = 6;
+                    const moveSpeed = baseSpeed + gameState.speed * (gameState.statusEffects.speed.active ? 5 : 4);
                     
                     // 磁铁效果
                     if (gameState.statusEffects.magnet.active) {
@@ -888,8 +888,8 @@
                 // 移动道具（与障碍物同步速度）
                 gameState.powerups.forEach((powerup, index) => {
                     const left = parseFloat(powerup.style.left) || gameArea.offsetWidth;
-                    const baseSpeed = 10;
-                    const moveSpeed = baseSpeed + gameState.speed * (gameState.statusEffects.speed.active ? 8 : 6);
+                    const baseSpeed = 6;
+                    const moveSpeed = baseSpeed + gameState.speed * (gameState.statusEffects.speed.active ? 5 : 4);
                     powerup.style.left = (left - moveSpeed) + 'px';
                     
                     // 检查收集
@@ -1188,16 +1188,15 @@
         function awardPoints(points) {
             try {
                 if (typeof PointsSystem !== 'undefined') {
-                    const pointsSystem = new PointsSystem();
-                    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                    if (userData.userId) {
-                        pointsSystem.setCurrentUser(userData.userId);
-                        pointsSystem.addPoints(points, '校园跑酷游戏');
-                        console.log(`✅ 获得 ${points} 积分`);
+                    const ps = new PointsSystem();
+                    if (ps.awardGamePoints(points, '校园跑酷游戏', '小游戏')) {
+                        console.log('✅ 获得 ' + points + ' 积分（已写入校园积分）');
+                    } else {
+                        console.warn('积分未写入：请先登录，或重新登录同步积分数据');
                     }
                 }
             } catch (e) {
-                console.log('积分系统未加载');
+                console.warn('积分系统', e);
             }
         }
         

@@ -214,6 +214,21 @@ button[onclick="goBack()"]:active {
     display: none;
 }
 
+/* 手机：替代空格键的大按钮 */
+.tap-start-btn {
+    margin-top: 22px;
+    padding: 16px 36px;
+    font-size: 18px;
+    font-weight: 700;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    touch-action: manipulation;
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(56, 161, 105, 0.45);
+}
+
 .screen h1 {
     font-size: 64px;
     margin-bottom: 30px;

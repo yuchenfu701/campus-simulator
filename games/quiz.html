@@ -432,16 +432,15 @@
         function awardPoints(points) {
             try {
                 if (typeof PointsSystem !== 'undefined') {
-                    const pointsSystem = new PointsSystem();
-                    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                    if (userData.userId) {
-                        pointsSystem.setCurrentUser(userData.userId);
-                        pointsSystem.addPoints(points, '知识问答游戏');
-                        console.log(`✅ 获得 ${points} 积分`);
+                    const ps = new PointsSystem();
+                    if (ps.awardGamePoints(points, '知识问答游戏', '小游戏')) {
+                        console.log('✅ 获得 ' + points + ' 积分（已写入校园积分）');
+                    } else {
+                        console.warn('积分未写入：请先登录');
                     }
                 }
             } catch (e) {
-                console.log('积分系统未加载');
+                console.warn('积分系统', e);
             }
         }
         

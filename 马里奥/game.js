@@ -482,7 +482,8 @@ class PokemonGame {
         document.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
             
-            if (e.code === 'Enter' && this.gameState === 'dialog') {
+            if (this.gameState === 'dialog' && (e.code === 'Space' || e.code === 'Enter')) {
+                e.preventDefault();
                 this.dialogSystem.nextDialog();
             }
             if (e.code === 'Escape') {
@@ -507,8 +508,17 @@ class PokemonGame {
             this.restartGame();
         });
         
-        document.getElementById('dialogNext').addEventListener('click', () => {
+        const dialogNextBtn = document.getElementById('dialogNext');
+        dialogNextBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
             this.dialogSystem.nextDialog();
+        });
+        const dialogBox = document.getElementById('dialogBox');
+        dialogBox.addEventListener('click', (ev) => {
+            if (ev.target === dialogNextBtn || dialogNextBtn.contains(ev.target)) return;
+            if (this.gameState === 'dialog' && this.dialogSystem.isActive) {
+                this.dialogSystem.nextDialog();
+            }
         });
     }
     

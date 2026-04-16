@@ -31,7 +31,7 @@ class StickMan {
         this.velocityX = 0;
         this.velocityY = 0;
         this.speed = 5;
-        this.jumpPower = -15;
+        this.jumpPower = -12;
         this.gravity = 0.8;
         this.onGround = false;
         this.facing = 1; // 1 = 右, -1 = 左
@@ -540,26 +540,34 @@ function playSound(type) {
     }
 }
 
+function startGameFromMenu() {
+    if (gameState !== 'start') return;
+    gameState = 'playing';
+    currentLevel = 1;
+    loadLevel(currentLevel);
+    document.getElementById('startScreen').classList.add('hidden');
+    updateHighScore();
+}
+
 // 键盘事件监听
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     
     // 开始游戏
     if (e.key === ' ' && gameState === 'start') {
-        gameState = 'playing';
-        currentLevel = 1;
-        loadLevel(currentLevel);
-        document.getElementById('startScreen').classList.add('hidden');
-        updateHighScore();
+        e.preventDefault();
+        startGameFromMenu();
     }
     
     // 重新开始游戏
     if (e.key === ' ' && gameState === 'gameOver') {
+        e.preventDefault();
         resetGame();
     }
     
     // 下一关
     if (e.key === ' ' && gameState === 'levelComplete') {
+        e.preventDefault();
         nextLevel();
     }
     
@@ -568,6 +576,30 @@ document.addEventListener('keydown', (e) => {
         sfxEnabled = !sfxEnabled;
     }
 });
+
+function bindMobileMenuControls() {
+    const tapStart = document.getElementById('btnTapStart');
+    if (tapStart) tapStart.addEventListener('click', () => startGameFromMenu());
+    const tapNext = document.getElementById('btnTapNextLevel');
+    if (tapNext) tapNext.addEventListener('click', () => { if (gameState === 'levelComplete') nextLevel(); });
+    const tapRestart = document.getElementById('btnTapRestart');
+    if (tapRestart) tapRestart.addEventListener('click', () => { if (gameState === 'gameOver') resetGame(); });
+    // 非游玩态：点画布任意处等同空格（手机无键盘）
+    canvas.addEventListener('touchend', (e) => {
+        if (gameState === 'playing') return;
+        e.preventDefault();
+        if (gameState === 'start') startGameFromMenu();
+        else if (gameState === 'gameOver') resetGame();
+        else if (gameState === 'levelComplete') nextLevel();
+    }, { passive: false });
+    canvas.addEventListener('click', () => {
+        if (gameState === 'playing') return;
+        if (gameState === 'start') startGameFromMenu();
+        else if (gameState === 'gameOver') resetGame();
+        else if (gameState === 'levelComplete') nextLevel();
+    });
+}
+bindMobileMenuControls();
 
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;

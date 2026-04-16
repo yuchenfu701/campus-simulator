@@ -381,6 +381,27 @@ class PointsSystem {
         console.log(`✅ ${student.name} 获得 ${amount} 积分 (原因: ${reason})`);
         return true;
     }
+
+    /**
+     * 根据已登录用户（localStorage campus_user）发放小游戏积分。
+     * addPoints 签名为 (studentId, amount, reason)，小游戏内曾误传为 (amount, reason) 导致从未入账。
+     */
+    awardGamePoints(amount, reason, teacher = '小游戏') {
+        let userId = null;
+        try {
+            const u = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            userId = u.userId;
+        } catch (e) { /* ignore */ }
+        if (!userId) {
+            console.warn('awardGamePoints: 未登录，campus_user 中无 userId');
+            return false;
+        }
+        if (!this.pointsData.students[userId]) {
+            console.warn('awardGamePoints: 积分库中无该用户，请重新登录以同步:', userId);
+            return false;
+        }
+        return this.addPoints(userId, amount, reason, teacher);
+    }
     
     /**
      * 扣除积分
