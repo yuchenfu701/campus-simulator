@@ -266,7 +266,7 @@
         const CELL_SIZE = 4;
         const WALL_HEIGHT = 5;
         const SOLDIER_SPEED = 8;
-        const SOLDIER_RADIUS = 0.5;
+        const SOLDIER_RADIUS = 0.34;
         const MIN_PATH_LENGTH = 5;  // 最小路径长度：5步（超小迷宫，快速通关）
         const FIRST_PERSON_HEIGHT = 1.55;  // 第一人称相机高度（降低到更合理的位置）
         const THIRD_PERSON_DISTANCE = 4; // 减少一倍，更合适的距离
@@ -2723,7 +2723,7 @@
                 box(eX+eW/2+0.07, eH/2,Zframe, 0.14,eH,0.12,0x2a2a2a);
                 // 互动式大门（E键开关）
                 {const dgm2=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false});
-                const DW2=1.65,DH2=eH;
+                const DW2=1.78,DH2=eH;
                 const pL2=new THREE.Group(); pL2.position.set(eX-1.75,DH2/2,Zout-0.02); scene.add(pL2);
                 const mL2=new THREE.Mesh(new THREE.BoxGeometry(DW2,DH2,0.07),dgm2);
                 mL2.position.set(DW2/2,0,0); pL2.add(mL2);
@@ -2838,7 +2838,7 @@
                 box(eX3-eW3/2-0.07,eH3/2,Zframe3, 0.14,eH3,0.12,0x2a2a2a);
                 box(eX3+eW3/2+0.07,eH3/2,Zframe3, 0.14,eH3,0.12,0x2a2a2a);
                 {const dgm3=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false});
-                const DW3=1.65,DH3=eH3;
+                const DW3=1.78,DH3=eH3;
                 const pL3=new THREE.Group(); pL3.position.set(eX3-1.75,DH3/2,Zout3-0.02); scene.add(pL3);
                 const mL3=new THREE.Mesh(new THREE.BoxGeometry(DW3,DH3,0.07),dgm3);
                 mL3.position.set(DW3/2,0,0); pL3.add(mL3);
@@ -2944,7 +2944,7 @@
                 box(eX4-eW4/2-0.07,eH4/2,Zframe4, 0.14,eH4,0.12,0x2a2a2a);
                 box(eX4+eW4/2+0.07,eH4/2,Zframe4, 0.14,eH4,0.12,0x2a2a2a);
                 {const dgm4=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false});
-                const DW4=1.65,DH4=eH4;
+                const DW4=1.78,DH4=eH4;
                 const pL4=new THREE.Group(); pL4.position.set(eX4-1.75,DH4/2,Zout4-0.02); scene.add(pL4);
                 const mL4=new THREE.Mesh(new THREE.BoxGeometry(DW4,DH4,0.07),dgm4);
                 mL4.position.set(DW4/2,0,0); pL4.add(mL4);
@@ -4532,10 +4532,12 @@
                     const tHR=fH-WIN_SILL-WIN_H; if(tHR>0.05) wb(BX2-rW/2,yB+WIN_SILL+WIN_H+tHR/2,BZ2,rW,tHR,WT,wallMat);
                     // 门洞上方横梁
                     const abvH=fH-ENTR_H; if(abvH>0.05) wb(EX,yB+ENTR_H+abvH/2,BZ2,ENTR_W+WT,abvH,WT,wallMat);
-                    // 大门框架（静态玻璃面板已删除，互动门由pivotL/R单独创建）
-                    vb(EX,yB+ENTR_H+0.07,BZ2,ENTR_W+0.14,0.14,WT+0.1,0x2a2a2a,1);  // 上横梁
-                    vb(lEnd-0.07,yB+ENTR_H/2,BZ2,0.14,ENTR_H,WT+0.1,0x2a2a2a,1);   // 左门框
-                    vb(rStart+0.07,yB+ENTR_H/2,BZ2,0.14,ENTR_H,WT+0.1,0x2a2a2a,1); // 右门框
+                    // 大门框架（略向南墙外凸出，避免与实体墙同 Z 导致闪烁）
+                    const _fz = BZ2 + WT * 0.52 + 0.04;
+                    const _fd = 0.11;
+                    vb(EX,yB+ENTR_H+0.07,_fz,ENTR_W+0.14,0.14,_fd,0x2a2a2a,1);  // 上横梁
+                    vb(lEnd-0.07,yB+ENTR_H/2,_fz,0.14,ENTR_H,_fd,0x2a2a2a,1);   // 左门框
+                    vb(rStart+0.07,yB+ENTR_H/2,_fz,0.14,ENTR_H,_fd,0x2a2a2a,1); // 右门框
                     // 中门框已删除（用户要求）
                 } else {
                     // 上层南墙（5扇窗）
@@ -4581,12 +4583,13 @@
 
             // ── 互动式大门（左右两扇，E键开关，绕铰链轴旋转）──
             const doorMatGlass=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false});
-            const DW=1.65, DH=ENTR_H_GLOB;
-            // 左扇：铰链在 x=-1.75（左边缘），门叶向右延伸至 x=-0.1
+            // 单扇宽略大于门洞一半，闭合时在中缝重叠，消除玻璃缝（原 1.65×2 中间空 0.2m）
+            const DW=1.78, DH=ENTR_H_GLOB;
+            // 左扇：铰链在 x=-1.75，门叶向右略过中线
             const pivotL=new THREE.Group(); pivotL.position.set(-1.75, DH/2, BZ2); scene.add(pivotL);
             const meshL=new THREE.Mesh(new THREE.BoxGeometry(DW,DH,0.07),doorMatGlass);
             meshL.position.set(DW/2, 0, 0); pivotL.add(meshL);
-            // 右扇：铰链在 x=1.75（右边缘），门叶向左延伸至 x=0.1
+            // 右扇：铰链在 x=1.75
             const pivotR=new THREE.Group(); pivotR.position.set( 1.75, DH/2, BZ2); scene.add(pivotR);
             const meshR=new THREE.Mesh(new THREE.BoxGeometry(DW,DH,0.07),doorMatGlass);
             meshR.position.set(-DW/2, 0, 0); pivotR.add(meshR);
