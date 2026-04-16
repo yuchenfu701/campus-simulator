@@ -266,7 +266,7 @@
         const CELL_SIZE = 4;
         const WALL_HEIGHT = 5;
         const SOLDIER_SPEED = 8;
-        const SOLDIER_RADIUS = 0.34;
+        const SOLDIER_RADIUS = 0.3;
         const MIN_PATH_LENGTH = 5;  // 最小路径长度：5步（超小迷宫，快速通关）
         const FIRST_PERSON_HEIGHT = 1.55;  // 第一人称相机高度（降低到更合理的位置）
         const THIRD_PERSON_DISTANCE = 4; // 减少一倍，更合适的距离
@@ -311,6 +311,67 @@
         let scene, camera, renderer;
         let soldier, mixer, runAction, idleAction, currentAction, jumpAction, slideAction, crouchAction;
         let walls = [];
+        /** 仅包围盒碰撞（玻璃/薄顶等，无 mesh）；缓存命中时与 wb 一致不写入，依赖已序列化的 walls */
+        function addWallBBoxOnly(x, y, z, w, h, d) {
+            if (window._skipVisualMesh) return;
+            const pad = 0.002;
+            walls.push({
+                bbox: new THREE.Box3(
+                    new THREE.Vector3(x - w * 0.5 - pad, y - h * 0.5 - pad, z - d * 0.5 - pad),
+                    new THREE.Vector3(x + w * 0.5 + pad, y + h * 0.5 + pad, z + d * 0.5 + pad)
+                ),
+                _bboxOnly: true
+            });
+        }
+        /** 主入口玻璃门：关门时挡人；不写入 IndexedDB，每次建图后注册 */
+        function initMainDoorCollision() {
+            walls = walls.filter(function (w) { return !w._mainDoorBarrier; });
+            const MAIN_W = 3.5, H = 2.8, zWall = BLDG_Z2;
+            window._mainDoorBarrierEntry = {
+                _mainDoorBarrier: true,
+                bbox: new THREE.Box3()
+            };
+            window._mainDoorBarrierEntry.bbox.setFromCenterAndSize(
+                new THREE.Vector3(0, H * 0.5, zWall),
+                new THREE.Vector3(MAIN_W + 0.16, H + 0.1, 0.5)
+            );
+            syncMainDoorBarrier();
+        }
+        function syncMainDoorBarrier() {
+            const B = window._mainDoorBarrierEntry;
+            if (!B || !B.bbox) return;
+            const i = walls.indexOf(B);
+            if (window._mainDoorOpen) {
+                if (i >= 0) walls.splice(i, 1);
+            } else {
+                if (i < 0) walls.push(B);
+            }
+        }
+        /** B2/B3/B4 副楼大门：关门挡人；不序列化，createCampus 末尾统一注册 */
+        function syncBldgDoorBarrier(bd) {
+            const B = bd._doorWallBBox;
+            if (!B || !B.bbox) return;
+            const i = walls.indexOf(B);
+            if (bd.open) {
+                if (i >= 0) walls.splice(i, 1);
+            } else {
+                if (i < 0) walls.push(B);
+            }
+        }
+        function initBldgDoorBarriers() {
+            if (!window._bldgDoors || !window._bldgDoors.length) return;
+            walls = walls.filter(function (w) { return !w._bldgDoorBarrier; });
+            const MAIN_W = 3.5, H = 2.8;
+            for (let i = 0; i < window._bldgDoors.length; i++) {
+                const bd = window._bldgDoors[i];
+                bd._doorWallBBox = { _bldgDoorBarrier: true, bbox: new THREE.Box3() };
+                bd._doorWallBBox.bbox.setFromCenterAndSize(
+                    new THREE.Vector3(bd.cx, H * 0.5, bd.cz),
+                    new THREE.Vector3(MAIN_W + 0.18, H + 0.12, 0.4)
+                );
+                if (!bd.open) walls.push(bd._doorWallBBox);
+            }
+        }
         let keyboard = {};
         let moveDirection = new THREE.Vector3();
         let lastTime = 0;
@@ -1518,6 +1579,7 @@
                                     dr.rotation.y = targetAngleR;
                                     if (dl.children[0]) dl.children[0].visible = !isOpen;
                                     if (dr.children[0]) dr.children[0].visible = !isOpen;
+                                    syncMainDoorBarrier();
                                 }
                             };
                             animDoor();
@@ -1569,6 +1631,7 @@
                                         bd.pivR.rotation.y = tR;
                                         if (bd.pivL.children[0]) bd.pivL.children[0].visible = !isOpen;
                                         if (bd.pivR.children[0]) bd.pivR.children[0].visible = !isOpen;
+                                        syncBldgDoorBarrier(bd);
                                     }
                                 })();
                                 showHint(isOpen?'大门已开启':'大门已关闭');
@@ -2709,6 +2772,7 @@
                     if (Math.abs(wX-eX) < eW*0.55+0.85) continue;
                     const g=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.8,0.28),glz2);
                     g.position.set(wX,wY,Zwall);scene.add(g);
+                    addWallBBoxOnly(wX, wY, Zwall, 1.5, 1.8, 0.28);
                     box(wX,wY+0.95,Zframe, 1.72,0.09,0.12,0x2c3040);
                     box(wX,wY-0.95,Zframe, 1.72,0.09,0.12,0x2c3040);
                     box(wX-0.82,wY,Zframe, 0.09,1.9,0.12,0x2c3040);
@@ -2756,6 +2820,7 @@
                     // 走廊天花板
                     const cc=new THREE.Mesh(new THREE.BoxGeometry(slabW2,0.02,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0xf8f8f2}));
                     cc.position.set(BX1+slabW2/2,yB+FH-0.01,corrZ+(BZ2-corrZ)/2);scene.add(cc);
+                    addWallBBoxOnly(BX1 + slabW2 / 2, yB + FH - 0.01, corrZ + (BZ2 - corrZ) / 2, slabW2, 0.02, BZ2 - corrZ);
                     // 走廊地砖
                     const ct=new THREE.Mesh(new THREE.PlaneGeometry(slabW2,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0x90b8cc}));
                     ct.rotation.x=-Math.PI/2;ct.position.set(BX1+slabW2/2,yB+0.008,corrZ+(BZ2-corrZ)/2);scene.add(ct);
@@ -2827,6 +2892,7 @@
                     const wX=BX1+(w+1)*(BW/5),wY=f*4+1.9;
                     const g=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.8,0.28),glz3);
                     g.position.set(wX,wY,Zwall3);scene.add(g);
+                    addWallBBoxOnly(wX, wY, Zwall3, 1.8, 1.8, 0.28);
                     box(wX,wY+0.95,Zframe3, 2.02,0.09,0.12,0x2c3040);
                     box(wX,wY-0.95,Zframe3, 2.02,0.09,0.12,0x2c3040);
                     box(wX-0.97,wY,Zframe3, 0.09,1.9,0.12,0x2c3040);
@@ -2867,6 +2933,7 @@
                     });
                     const cc3=new THREE.Mesh(new THREE.BoxGeometry(slabW3,0.02,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0xf8f8f2}));
                     cc3.position.set(BX1+slabW3/2,yB+FH-0.01,corrZ+(BZ2-corrZ)/2);scene.add(cc3);
+                    addWallBBoxOnly(BX1 + slabW3 / 2, yB + FH - 0.01, corrZ + (BZ2 - corrZ) / 2, slabW3, 0.02, BZ2 - corrZ);
                     const ct3=new THREE.Mesh(new THREE.PlaneGeometry(slabW3,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0x90b8cc}));
                     ct3.rotation.x=-Math.PI/2;ct3.position.set(BX1+slabW3/2,yB+0.008,corrZ+(BZ2-corrZ)/2);scene.add(ct3);
                 }
@@ -2933,6 +3000,7 @@
                     const wX=BX1+(w+1)*(BW/5),wY=f*4+1.9;
                     const g=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.8,0.28),glz4);
                     g.position.set(wX,wY,Zwall4);scene.add(g);
+                    addWallBBoxOnly(wX, wY, Zwall4, 1.8, 1.8, 0.28);
                     box(wX,wY+0.95,Zframe4, 2.02,0.09,0.12,0x2c3040);
                     box(wX,wY-0.95,Zframe4, 2.02,0.09,0.12,0x2c3040);
                     box(wX-0.97,wY,Zframe4, 0.09,1.9,0.12,0x2c3040);
@@ -2974,6 +3042,7 @@
                     });
                     const cc4=new THREE.Mesh(new THREE.BoxGeometry(slabW4,0.02,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0xf8f8f2}));
                     cc4.position.set(STAIRX4+slabW4/2,yB+FH-0.01,corrZ+(BZ2-corrZ)/2);scene.add(cc4);
+                    addWallBBoxOnly(STAIRX4 + slabW4 / 2, yB + FH - 0.01, corrZ + (BZ2 - corrZ) / 2, slabW4, 0.02, BZ2 - corrZ);
                     const ct4=new THREE.Mesh(new THREE.PlaneGeometry(slabW4,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0x90b8cc}));
                     ct4.rotation.x=-Math.PI/2;ct4.position.set(STAIRX4+slabW4/2,yB+0.008,corrZ+(BZ2-corrZ)/2);scene.add(ct4);
                 }
@@ -3023,7 +3092,9 @@
                 // 南面大窗（半透明玻璃）
                 const winG=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.26,side:THREE.DoubleSide});
                 const wL=new THREE.Mesh(new THREE.BoxGeometry(canSeg-2,2.4,0.08),winG); wL.position.set(cX-canDW/2-canSeg/2,2.2,cS+0.18); scene.add(wL);
+                addWallBBoxOnly(cX - canDW / 2 - canSeg / 2, 2.2, cS + 0.18, canSeg - 2, 2.4, 0.08);
                 const wR=new THREE.Mesh(new THREE.BoxGeometry(canSeg-2,2.4,0.08),winG); wR.position.set(cX+canDW/2+canSeg/2,2.2,cS+0.18); scene.add(wR);
+                addWallBBoxOnly(cX + canDW / 2 + canSeg / 2, 2.2, cS + 0.18, canSeg - 2, 2.4, 0.08);
                 box(cX,cH,cZ,cW+0.5,0.35,cD+0.4,0xd8cfa8); // 屋顶
                 box(cX,cH+0.2,cS-1,cW*0.7,0.5,0.1,0xcc3300);
                 box(cX,cH+0.2,cS-0.9,cW*0.6,0.35,0.08,0xffd700);
@@ -3122,9 +3193,11 @@
                 for(let f=0;f<3;f++) for(let w=0;w<5;w++){
                     const wX=oX-oW/2+2+w*8, wY=f*4+2.5;
                     const wg=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.7,0.08),oWin); wg.position.set(wX,wY,oZ+oD/2+0.15); scene.add(wg);
+                    addWallBBoxOnly(wX, wY, oZ + oD / 2 + 0.15, 2.2, 1.7, 0.08);
                     box(wX,wY,oZ+oD/2+0.18,2.38,0.08,0.12,0x333333);
                 }
                 const wg2=new THREE.Mesh(new THREE.BoxGeometry(1.8,2.8,0.08),oWin); wg2.position.set(oX,oH/2+0.2,oZ+oD/2+0.18); scene.add(wg2);
+                addWallBBoxOnly(oX, oH / 2 + 0.2, oZ + oD / 2 + 0.18, 1.8, 2.8, 0.08);
                 box(oX,oH+0.5,oZ,oW+0.4,0.35,oD+0.4,0xd5cec0);
                 box(oX,oH-0.5,oZ+oD/2+0.2,8,0.6,0.14,0x1a4c8a);
                 box(oX,oH-0.5,oZ+oD/2+0.26,7.2,0.42,0.1,0xffffff);
@@ -3371,6 +3444,7 @@
                 }
             });
 
+            initBldgDoorBarriers();
             console.log('🏫 大校园建造完成！4栋教学楼+食堂+办公楼+厕所');
             if (window._skipVisualMesh) ensureCampusAthleticFieldPlanes();
         }
@@ -4193,7 +4267,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v37'; // v37：公厕 Z=-20 与教学楼错层，±88 围墙内，消除卡楼
+        const MAP_VER = 'campus_v38'; // v38：玩家半径0.3、玻璃/顶/屋顶/主副门关门碰撞
 
         function _dbOpen(cb) {
             try {
@@ -4308,7 +4382,7 @@
 
         // 序列化碰撞包围盒（用于缓存加载时重建 walls[]）
         function _serializeWalls() {
-            return walls.filter(m => m.bbox).map(m => {
+            return walls.filter(m => m.bbox && !m._mainDoorBarrier && !m._bldgDoorBarrier).map(m => {
                 const b = m.bbox;
                 return [b.min.x,b.min.y,b.min.z, b.max.x,b.max.y,b.max.z];
             });
@@ -4423,6 +4497,11 @@
                 m.receiveShadow = (alpha === undefined || alpha >= 1);
                 scene.add(m); return m;
             }
+            // 与 vb 同尺寸的无 mesh 碰撞盒（玻璃、走廊顶等）
+            function wbc(x, y, z, w, h, d) {
+                if (window._skipVisualMesh) return;
+                addWallBBoxOnly(x, y, z, w, h, d);
+            }
             // ── 辅助：X向墙（可含门洞） ──
             function wallX(z, x1, x2, yB, h, mat, dX) {
                 if (dX == null) { wb((x1+x2)/2, yB+h/2, z, x2-x1, h, WT, mat); return; }
@@ -4486,6 +4565,7 @@
                         const wX=rm.x1+sp*(w+1);
                         // 玻璃（嵌入墙中，高透明）
                         vb(wX, yB+WIN_SILL+WIN_H/2, BZ1, WIN_W, WIN_H, WT, 0xa8dcff, 0.32);
+                        wbc(wX, yB+WIN_SILL+WIN_H/2, BZ1, WIN_W, WIN_H, WT);
                         // 深色窗框（四边）
                         vb(wX, yB+WIN_SILL+WIN_H/2, BZ1-0.01, WIN_W+0.12, 0.08, 0.1, 0x3a3a3a, 1); // 上框
                         vb(wX, yB+WIN_SILL-0.04,   BZ1-0.01, WIN_W+0.12, 0.08, 0.1, 0x3a3a3a, 1); // 下框
@@ -4514,6 +4594,7 @@
                     [1,2].forEach(w=>{
                         const wX=BX1+lW/3*w;
                         vb(wX,yB+WIN_SILL+WIN_H/2,BZ2,WIN_W,WIN_H,WT,0xa8dcff,0.32);
+                        wbc(wX,yB+WIN_SILL+WIN_H/2,BZ2,WIN_W,WIN_H,WT);
                         vb(wX,yB+WIN_SILL+WIN_H/2,BZ2+0.01,WIN_W+0.12,0.08,0.1,0x3a3a3a,1);
                         vb(wX,yB+WIN_SILL-0.04,BZ2+0.01,WIN_W+0.12,0.08,0.1,0x3a3a3a,1);
                         vb(wX-WIN_W/2-0.04,yB+WIN_SILL+WIN_H/2,BZ2+0.01,0.08,WIN_H,0.1,0x3a3a3a,1);
@@ -4528,6 +4609,7 @@
                     [1,2].forEach(w=>{
                         const wX=rStart+rW/3*w;
                         vb(wX,yB+WIN_SILL+WIN_H/2,BZ2,WIN_W,WIN_H,WT,0xa8dcff,0.32);
+                        wbc(wX,yB+WIN_SILL+WIN_H/2,BZ2,WIN_W,WIN_H,WT);
                         vb(wX,yB+WIN_SILL+WIN_H/2,BZ2+0.01,WIN_W+0.12,0.08,0.1,0x3a3a3a,1);
                         vb(wX,yB+WIN_SILL-0.04,BZ2+0.01,WIN_W+0.12,0.08,0.1,0x3a3a3a,1);
                         vb(wX-WIN_W/2-0.04,yB+WIN_SILL+WIN_H/2,BZ2+0.01,0.08,WIN_H,0.1,0x3a3a3a,1);
@@ -4553,11 +4635,13 @@
                     for (let w=0;w<numCW;w++) {
                         const wX=BX1+cSp*(w+1);
                         vb(wX,yB+WIN_SILL+WIN_H/2,BZ2,WIN_W,WIN_H,WT,0xa8dcff,0.32);
+                        wbc(wX,yB+WIN_SILL+WIN_H/2,BZ2,WIN_W,WIN_H,WT);
                         vb(wX,yB+WIN_SILL+WIN_H/2,BZ2+0.01,WIN_W+0.12,0.08,0.1,0x3a3a3a,1);
                         vb(wX,yB+WIN_SILL-0.04,BZ2+0.01,WIN_W+0.12,0.08,0.1,0x3a3a3a,1);
                         vb(wX-WIN_W/2-0.04,yB+WIN_SILL+WIN_H/2,BZ2+0.01,0.08,WIN_H,0.1,0x3a3a3a,1);
                         vb(wX+WIN_W/2+0.04,yB+WIN_SILL+WIN_H/2,BZ2+0.01,0.08,WIN_H,0.1,0x3a3a3a,1);
                         vb(wX,yB+WIN_SILL+WIN_H+0.1,BZ2+0.22,WIN_W+0.3,0.08,0.5,0x4a7eb5,1);
+                        wbc(wX,yB+WIN_SILL+WIN_H+0.1,BZ2+0.22,WIN_W+0.3,0.08,0.5);
                         const le=(w===0)?BX1:(BX1+cSp*w+WIN_W/2);
                         const gW=wX-WIN_W/2-le; if(gW>0.05) wb(le+gW/2,yB+WIN_SILL+WIN_H/2,BZ2,gW,WIN_H,WT,wallMat);
                         if(w===numCW-1){const rg=BX2-(wX+WIN_W/2); if(rg>0.05) wb(wX+WIN_W/2+rg/2,yB+WIN_SILL+WIN_H/2,BZ2,rg,WIN_H,WT,wallMat);}
@@ -4644,12 +4728,20 @@
             // 屋顶（含女儿墙）
             const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(BX2-BX1+WT*2, 0.35, BD+WT*2), ceilMat);
             roofMesh.position.set((BX1+BX2)/2, TH+0.175, slabCZ);
-            scene.add(roofMesh);
+            if (!window._skipVisualMesh) {
+                scene.add(roofMesh);
+                roofMesh.bbox = new THREE.Box3().setFromObject(roofMesh);
+                walls.push(roofMesh);
+            }
             // 女儿墙（屋顶四周矮墙）
             vb((BX1+BX2)/2, TH+0.7, BZ1-WT/2, BX2-BX1+WT*2, 1.05, WT, wallMat);
+            wbc((BX1+BX2)/2, TH+0.7, BZ1-WT/2, BX2-BX1+WT*2, 1.05, WT);
             vb((BX1+BX2)/2, TH+0.7, BZ2+WT/2, BX2-BX1+WT*2, 1.05, WT, wallMat);
+            wbc((BX1+BX2)/2, TH+0.7, BZ2+WT/2, BX2-BX1+WT*2, 1.05, WT);
             vb(BX1-WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2, wallMat);
+            wbc(BX1-WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2);
             vb(BX2+WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2, wallMat);
+            wbc(BX2+WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2);
 
             // 1F 走廊地面（与楼上同材质纹理，避免整块高亮纯色）
             if (!window._skipVisualMesh) {
@@ -4720,9 +4812,11 @@
 
                 // 走廊天花板（暖灰，与教室顶略有区分）
                 vb(slabCX, yB+FLOOR_H-0.01, CORR_Z+(BZ2-CORR_Z)/2, slabW, 0.02, BZ2-CORR_Z, 0xc4bdb4, 1);
+                wbc(slabCX, yB+FLOOR_H-0.01, CORR_Z+(BZ2-CORR_Z)/2, slabW, 0.02, BZ2-CORR_Z);
                 // 教室天花板
                 for (let r=0; r<3; r++) {
                     vb((ROOM_XS[r]+ROOM_XS[r+1])/2, yB+FLOOR_H-0.01, (BZ1+CORR_Z)/2, ROOM_XS[r+1]-ROOM_XS[r]-WT, 0.02, CORR_Z-BZ1-WT, 0xd5cfc6, 1);
+                    wbc((ROOM_XS[r]+ROOM_XS[r+1])/2, yB+FLOOR_H-0.01, (BZ1+CORR_Z)/2, ROOM_XS[r+1]-ROOM_XS[r]-WT, 0.02, CORR_Z-BZ1-WT);
                 }
             }
 
@@ -4742,6 +4836,7 @@
             // 走廊侧开口上方横梁（楼梯间与走廊相通处）
             for (let f=0; f<NUM_FLOORS; f++) {
                 vb(stairCX, f*FLOOR_H+FLOOR_H-0.2, CORR_Z, stairW, 0.4, WT, corrWall);
+                wbc(stairCX, f*FLOOR_H+FLOOR_H-0.2, CORR_Z, stairW, 0.4, WT);
             }
 
             // 构建每对楼梯（floorBase → floorBase+FLOOR_H）
@@ -4818,6 +4913,7 @@
             // 建筑前广场地砖（南侧入口区域）
             vb((BX1+BX2)/2, 0.004, BZ2+4, 22, 0.01, 8, 0xd5cbb8, 1);
 
+            initMainDoorCollision();
             console.log('✅ 教学楼建造完成！共 '+NUM_FLOORS+' 层，每层 3 间教室，合计 '+(NUM_FLOORS*3)+' 间教室');
             console.log('📐 建筑尺寸：'+(BX2-BX1)+'m × '+(BZ2-BZ1)+'m × '+TH+'m（宽×深×高）');
             console.log('🪜 楼梯说明：走廊东端（X>14楼梯间），向北走到 z=5 边界即遇台阶，沿北行段爬升→中转平台（z=0）→沿南行段继续爬升→到达2楼走廊；如此循环可上3楼。楼梯不在走廊范围内(z=5-9)，须走到 z<5 才能上楼。');
