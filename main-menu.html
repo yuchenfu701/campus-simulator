@@ -2,8 +2,15 @@
 <html lang="zh-CN" class="main-menu-html">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>主菜单 - 爱哲安民未来学校校园模拟器</title>
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="爱哲学校">
+    <link rel="apple-touch-icon" href="images/icon-192.png">
     <script src="js/campus-settings.js"></script>
     <link rel="stylesheet" href="css/campus-mobile.css">
     <style>
@@ -16,8 +23,10 @@
         
         body {
             width: 100vw;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-y: auto;
+            overflow-x: hidden;
             background: #0a0e27;
         }
         

@@ -221,12 +221,6 @@ class Player {
         let newX = this.x;
         let newY = this.y;
         
-        // 调试信息 - 检查按键状态
-        const activeKeys = Object.keys(keys).filter(k => keys[k]);
-        if (activeKeys.length > 0) {
-            console.log('🚶 检测到按键:', activeKeys, '当前位置:', this.x, this.y);
-        }
-        
         // 处理键盘输入
         if (keys['w'] || keys['arrowup']) {
             newY -= this.speed;
@@ -251,31 +245,21 @@ class Player {
         
         // 检查碰撞
         const canMove = this.canMoveTo(newX, newY);
-        console.log('🚶 尝试移动:', {
-            from: { x: this.x, y: this.y },
-            to: { x: newX, y: newY },
-            canMove: canMove,
-            moved: moved
-        });
-        
+
         if (canMove) {
             this.x = newX;
             this.y = newY;
-            
+
             if (moved) {
                 this.movement.isMoving = true;
                 this.movement.lastMoveTime = Date.now();
-                
+
                 // 消耗体力
                 this.adjustAttribute('energy', -0.05);
-                
+
                 // 保存最后移动方向
                 this.animation.lastDirection = this.direction;
-                
-                console.log('✅ 移动成功，新位置:', this.x, this.y);
             }
-        } else {
-            console.log('❌ 移动被阻止');
         }
         
         // 检查是否停止移动
@@ -298,8 +282,7 @@ class Player {
         if (mapSystem && typeof mapSystem.checkCollision === 'function') {
             const collision = mapSystem.checkCollision(x, y, this.width, this.height);
             if (collision) {
-                console.log('⚠️ 检测到碰撞，位置:', x, y);
-                // 暂时允许移动，之后再优化碰撞检测
+                // TODO: 碰撞检测暂时放行，后续优化
                 return true;
             }
         }
@@ -335,13 +318,6 @@ class Player {
     updateInteractions() {
         this.interaction.nearbyNPCs = this.findNearbyNPCs();
         this.interaction.nearbyObjects = this.findNearbyObjects();
-        
-        // 调试输出
-        console.log('🔍 交互检测:', {
-            position: { x: this.x, y: this.y },
-            nearbyNPCs: this.interaction.nearbyNPCs,
-            nearbyObjects: this.interaction.nearbyObjects
-        });
     }
     
     // 查找附近的NPC
@@ -350,17 +326,12 @@ class Player {
         const mapSystem = this.gameEngine.getSystem('map');
         
         if (mapSystem && typeof mapSystem.getNPCsInArea === 'function') {
-            // 获取当前区域
             const currentArea = mapSystem.getCurrentArea(this.x, this.y);
-            console.log('🔍 查找NPC - 当前区域:', currentArea);
-            
             if (currentArea) {
                 return mapSystem.getNPCsInArea(currentArea.id);
             } else {
-                // 扩大检测范围，获取最近的区域
                 const nearbyArea = this.findNearbyArea(mapSystem);
                 if (nearbyArea) {
-                    console.log('🔍 使用附近区域:', nearbyArea.id);
                     return mapSystem.getNPCsInArea(nearbyArea.id);
                 }
             }
@@ -398,17 +369,12 @@ class Player {
         const mapSystem = this.gameEngine.getSystem('map');
         
         if (mapSystem && typeof mapSystem.getInteractablesInArea === 'function') {
-            // 获取当前区域
             const currentArea = mapSystem.getCurrentArea(this.x, this.y);
-            console.log('🔍 查找交互对象 - 当前区域:', currentArea);
-            
             if (currentArea) {
                 return mapSystem.getInteractablesInArea(currentArea.id);
             } else {
-                // 扩大检测范围，获取最近的区域
                 const nearbyArea = this.findNearbyArea(mapSystem);
                 if (nearbyArea) {
-                    console.log('🔍 使用附近区域查找交互对象:', nearbyArea.id);
                     return mapSystem.getInteractablesInArea(nearbyArea.id);
                 }
             }
@@ -1249,5 +1215,5 @@ class Player {
     }
 }
 
-// 创建全局玩家实例
-window.player = new Player(); 
+// Player 由 GameEngine 在 initSystems() 中实例化，此处不重复创建
+window.Player = Player;

@@ -2,8 +2,15 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>登录 - 爱哲安民未来学校校园模拟器</title>
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="爱哲学校">
+    <link rel="apple-touch-icon" href="images/icon-192.png">
     <style>
         * {
             margin: 0;
@@ -595,6 +602,15 @@
                 }
             }
         });
+    </script>
+    <!-- PWA Service Worker 注册 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .catch(() => { /* 离线或文件协议下忽略 */ });
+            });
+        }
     </script>
 </body>
 </html>

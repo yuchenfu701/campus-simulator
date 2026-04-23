@@ -25,9 +25,27 @@ class SchoolMap {
         
         // 地图资源
         this.textures = {};
-        
+
+        // 预生成草地纹理点（避免每帧 Math.random() 导致闪烁）
+        this.grassDots = [];
+
         // 初始化地图
         this.initializeMap();
+        this._initGrassDots();
+    }
+
+    // 预生成全图草地点位
+    _initGrassDots() {
+        for (let x = 0; x < this.width; x += 30) {
+            for (let y = 0; y < this.height; y += 30) {
+                if (Math.random() < 0.4) {
+                    this.grassDots.push({
+                        x: x + Math.random() * 15,
+                        y: y + Math.random() * 15
+                    });
+                }
+            }
+        }
     }
     
     // 初始化方法
@@ -1109,15 +1127,13 @@ class SchoolMap {
         ctx.fillStyle = gradient;
         ctx.fillRect(left, top, right - left, bottom - top);
         
-        // 添加细腻的草地纹理
+        // 绘制预生成的草地纹理点
         ctx.fillStyle = 'rgba(139, 149, 122, 0.15)';
-        for (let x = left; x < right; x += 30) {
-            for (let y = top; y < bottom; y += 30) {
-                if (Math.random() < 0.4) {
-                    ctx.beginPath();
-                    ctx.arc(x + Math.random() * 15, y + Math.random() * 15, 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+        for (const dot of this.grassDots) {
+            if (dot.x >= left && dot.x <= right && dot.y >= top && dot.y <= bottom) {
+                ctx.beginPath();
+                ctx.arc(dot.x, dot.y, 1.5, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
     }
@@ -1601,63 +1617,37 @@ class SchoolMap {
     
     // 获取当前区域
     getCurrentArea(x, y, margin = 80) {
-        // 先尝试精确匹配在区域内部
         for (const area of Object.values(this.areas)) {
             if (x >= area.x && x <= area.x + area.width &&
                 y >= area.y && y <= area.y + area.height) {
-                console.log('✅ 玩家在区域内:', area.name);
                 return area;
             }
         }
-        
-        // 如果不在任何区域内，检查是否在区域附近
+
         if (margin > 0) {
             for (const area of Object.values(this.areas)) {
                 if (x >= area.x - margin && x <= area.x + area.width + margin &&
                     y >= area.y - margin && y <= area.y + area.height + margin) {
-                    console.log('🔍 玩家在区域附近:', area.name, '，距离区域', 
-                        Math.min(
-                            Math.abs(x - area.x), 
-                            Math.abs(x - (area.x + area.width)),
-                            Math.abs(y - area.y),
-                            Math.abs(y - (area.y + area.height))
-                        ), 'px');
                     return area;
                 }
             }
         }
-        
-        console.log('❓ 玩家不在任何区域内或附近');
+
         return null;
     }
-    
+
     // 获取区域内的NPCs
     getNPCsInArea(areaId) {
         const area = this.areas[areaId];
-        if (!area || !area.npcs) {
-            console.log('⚠️ 区域不存在或没有NPC:', areaId);
-            return [];
-        }
-        
-        // 确保返回的是有效的NPC名称
-        const validNpcs = area.npcs.filter(npcName => this.npcs[npcName]);
-        console.log('👥 区域中的NPC:', validNpcs);
-        return validNpcs;
+        if (!area || !area.npcs) return [];
+        return area.npcs.filter(npcName => this.npcs[npcName]);
     }
-    
+
     // 获取区域内的交互对象
     getInteractablesInArea(areaId) {
         const area = this.areas[areaId];
-        if (!area || !area.interactions) {
-            console.log('⚠️ 区域不存在或没有交互对象:', areaId);
-            return [];
-        }
-        
-        // 确保返回的是有效的交互对象
-        const validInteractions = area.interactions.filter(interactionName => 
-            this.interactables[interactionName]);
-        console.log('🎮 区域中的交互对象:', validInteractions);
-        return validInteractions;
+        if (!area || !area.interactions) return [];
+        return area.interactions.filter(interactionName => this.interactables[interactionName]);
     }
     
     // 获取NPC信息

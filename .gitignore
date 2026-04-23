@@ -2,6 +2,9 @@
 node_modules/
 server/node_modules/
 
+# Electron 打包输出
+dist/
+
 # 环境变量文件
 .env
 .env.local

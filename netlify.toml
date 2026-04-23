@@ -10,11 +10,11 @@
   status = 200
   force = true
 
-# 单页应用路由（如果需要）
+# 404 回退到错误页
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
+  to = "/404.html"
+  status = 404
 
 # 安全头
 [[headers]]
@@ -23,6 +23,6 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
 

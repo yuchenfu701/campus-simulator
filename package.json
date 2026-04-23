@@ -1,0 +1,65 @@
+{
+  "name": "aizhe-campus-simulator",
+  "version": "2.0.0",
+  "description": "爱哲安民未来学校校园模拟器",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "icon": "node scripts/generate-icon.js",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.aizhe.campus-simulator",
+    "productName": "爱哲安民未来学校",
+    "copyright": "Copyright © 2025",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!server/**",
+      "!dist/**",
+      "!node_modules/**",
+      "!*.md",
+      "!move_files.py",
+      "!docs/**",
+      "!.git/**",
+      "!.github/**",
+      "!*.toml"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "language": "2052",
+      "shortcutName": "爱哲安民未来学校"
+    }
+  },
+  "devDependencies": {
+    "canvas": "^3.2.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^3.0.1"
+  }
+}

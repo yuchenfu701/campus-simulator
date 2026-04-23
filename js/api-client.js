@@ -56,8 +56,9 @@ class APIClient {
    */
   async request(url, options = {}) {
     try {
-      // 检查是否使用file://协议（会导致CORS问题）
-      if (window.location.protocol === 'file:') {
+      // 检查是否使用file://协议（Electron 桌面版除外）
+      const isElectron = navigator.userAgent.includes('Electron');
+      if (window.location.protocol === 'file:' && !isElectron) {
         const errorMsg = `❌ 检测到使用文件协议打开页面！\n\n` +
           `请使用HTTP服务器打开页面，而不是直接双击HTML文件。\n\n` +
           `解决方法：\n` +

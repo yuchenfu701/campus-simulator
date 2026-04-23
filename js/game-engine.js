@@ -246,7 +246,6 @@ class GameEngine {
     // 更新游戏逻辑
     update(deltaTime) {
         if (this.gameState !== 'playing') {
-            console.log('⚠️ 游戏状态不是playing:', this.gameState);
             return;
         }
         
@@ -351,10 +350,7 @@ class GameEngine {
     // 输入事件处理
     handleKeyDown(e) {
         this.input.keys[e.key.toLowerCase()] = true;
-        
-        // 调试信息
-        console.log('🎮 按键按下:', e.key.toLowerCase(), '游戏状态:', this.gameState, '输入启用:', this.inputEnabled);
-        
+
         // 阻止默认行为
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'e'].includes(e.key)) {
             e.preventDefault();
