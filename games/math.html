@@ -234,12 +234,21 @@
             </div>
         </div>
         
+        <!-- 难度选择 -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px;" id="diffBtns">
+            <button class="btn" id="btnEasy"   onclick="setDiff('easy',   this)" style="padding:6px 14px;font-size:13px;border-radius:20px;border:2px solid #667eea;background:linear-gradient(135deg,#667eea,#764ba2);color:white;cursor:pointer;">简单</button>
+            <button class="btn" id="btnMedium" onclick="setDiff('medium', this)" style="padding:6px 14px;font-size:13px;border-radius:20px;border:2px solid #667eea;background:white;color:#667eea;cursor:pointer;">普通</button>
+            <button class="btn" id="btnHard"   onclick="setDiff('hard',   this)" style="padding:6px 14px;font-size:13px;border-radius:20px;border:2px solid #e53e3e;background:white;color:#e53e3e;cursor:pointer;">困难</button>
+            <button class="btn" id="btnExpert" onclick="setDiff('expert', this)" style="padding:6px 14px;font-size:13px;border-radius:20px;border:2px solid #805ad5;background:white;color:#805ad5;cursor:pointer;">专家</button>
+        </div>
+
         <div class="question-container">
+            <div style="font-size:12px;color:#999;margin-bottom:8px;text-align:center;" id="diffLabel">难度：简单</div>
             <div class="question-text" id="questionText">加载中...</div>
             <input type="number" class="answer-input" id="answerInput" placeholder="输入答案" autofocus>
             <div class="feedback" id="feedback"></div>
         </div>
-        
+
         <div class="controls">
             <button class="btn btn-primary" onclick="submitAnswer()">提交答案</button>
             <button class="btn btn-secondary" onclick="goBack()">返回</button>
@@ -261,6 +270,29 @@
     </div>
     
     <script>
+        // ── 难度配置 ────────────────────────────────────────────────────────
+        const DIFF_CONFIG = {
+            easy:   { label: '简单',  total: 15, range: 20,  ops: ['+', '-'] },
+            medium: { label: '普通',  total: 20, range: 50,  ops: ['+', '-', '×'] },
+            hard:   { label: '困难',  total: 20, range: 100, ops: ['+', '-', '×', '÷'] },
+            expert: { label: '专家',  total: 25, range: 200, ops: ['+', '-', '×', '÷', '%²'] }
+        };
+
+        let currentDiff = 'easy';
+
+        function setDiff(diff, btn) {
+            currentDiff = diff;
+            // 重置按钮样式
+            document.querySelectorAll('#diffBtns .btn').forEach(b => {
+                b.style.background = 'white';
+                b.style.color = b.style.borderColor || '#667eea';
+            });
+            btn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+            btn.style.color = 'white';
+            document.getElementById('diffLabel').textContent = '难度：' + DIFF_CONFIG[diff].label;
+            startNewGame();
+        }
+
         // 游戏状态
         let gameState = {
             currentQuestion: null,
@@ -270,37 +302,53 @@
             timer: null,
             isComplete: false
         };
-        
+
         // 生成题目
         function generateQuestion() {
-            const operations = ['+', '-', '×', '÷'];
-            const operation = operations[Math.floor(Math.random() * operations.length)];
-            
+            const cfg = DIFF_CONFIG[currentDiff];
+            const ops = cfg.ops;
+            const operation = ops[Math.floor(Math.random() * ops.length)];
+            const R = cfg.range;
+
             let num1, num2, answer;
-            
+
+            if (operation === '%²') {
+                // 专家模式：平方 或 百分比
+                const sub = Math.random() < 0.5 ? 'sq' : 'pct';
+                if (sub === 'sq') {
+                    num1 = Math.floor(Math.random() * 15) + 2;
+                    return { question: `${num1}² = ?`, answer: num1 * num1 };
+                } else {
+                    const pct = [10, 20, 25, 50, 75][Math.floor(Math.random() * 5)];
+                    num1 = Math.floor(Math.random() * 10 + 1) * 20;
+                    answer = Math.round(num1 * pct / 100);
+                    return { question: `${num1} 的 ${pct}% = ?`, answer };
+                }
+            }
+
             switch(operation) {
                 case '+':
-                    num1 = Math.floor(Math.random() * 50) + 1;
-                    num2 = Math.floor(Math.random() * 50) + 1;
+                    num1 = Math.floor(Math.random() * R) + 1;
+                    num2 = Math.floor(Math.random() * R) + 1;
                     answer = num1 + num2;
                     break;
                 case '-':
-                    num1 = Math.floor(Math.random() * 50) + 25;
-                    num2 = Math.floor(Math.random() * num1);
+                    num1 = Math.floor(Math.random() * R) + Math.ceil(R / 2);
+                    num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
                     answer = num1 - num2;
                     break;
                 case '×':
-                    num1 = Math.floor(Math.random() * 12) + 1;
-                    num2 = Math.floor(Math.random() * 12) + 1;
+                    num1 = Math.floor(Math.random() * (R <= 50 ? 12 : 20)) + 1;
+                    num2 = Math.floor(Math.random() * (R <= 50 ? 12 : 20)) + 1;
                     answer = num1 * num2;
                     break;
                 case '÷':
-                    num2 = Math.floor(Math.random() * 12) + 1;
-                    answer = Math.floor(Math.random() * 12) + 1;
+                    num2 = Math.floor(Math.random() * (R <= 50 ? 12 : 20)) + 1;
+                    answer = Math.floor(Math.random() * (R <= 50 ? 12 : 20)) + 1;
                     num1 = num2 * answer;
                     break;
             }
-            
+
             return {
                 question: `${num1} ${operation} ${num2} = ?`,
                 answer: answer
@@ -322,7 +370,8 @@
         function loadQuestion() {
             gameState.currentQuestion = generateQuestion();
             document.getElementById('questionText').textContent = gameState.currentQuestion.question;
-            document.getElementById('questionNum').textContent = `${gameState.questionIndex + 1}/20`;
+            const total = DIFF_CONFIG[currentDiff].total;
+            document.getElementById('questionNum').textContent = `${gameState.questionIndex + 1}/${total}`;
             document.getElementById('answerInput').value = '';
             document.getElementById('answerInput').classList.remove('correct', 'wrong');
             document.getElementById('feedback').textContent = '';
@@ -364,7 +413,7 @@
             // 下一题或结束
             setTimeout(() => {
                 gameState.questionIndex++;
-                if (gameState.questionIndex < 20) {
+                if (gameState.questionIndex < DIFF_CONFIG[currentDiff].total) {
                     loadQuestion();
                 } else {
                     endGame();
@@ -398,10 +447,15 @@
             document.getElementById('finalTime').textContent = elapsed;
             document.getElementById('finalScore').textContent = score;
             
-            if (gameState.correctCount === 20) {
+            const total = DIFF_CONFIG[currentDiff].total;
+            // 更新题目总数显示
+            const finalP = document.querySelector('#resultModal .result-info p');
+            if (finalP) finalP.innerHTML = `正确: <span id="finalCorrect">${gameState.correctCount}</span>/${total}`;
+
+            if (gameState.correctCount === total) {
                 document.getElementById('resultIcon').textContent = '🏆';
                 document.getElementById('resultTitle').textContent = '完美！全对！';
-            } else if (gameState.correctCount >= 15) {
+            } else if (gameState.correctCount >= Math.ceil(total * 0.75)) {
                 document.getElementById('resultIcon').textContent = '🎉';
                 document.getElementById('resultTitle').textContent = '很棒！';
             } else {

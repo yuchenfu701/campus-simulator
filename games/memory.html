@@ -62,12 +62,41 @@
             margin-top: 5px;
         }
         
+        /* 难度/主题选择栏 */
+        .game-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .opt-btn {
+            padding: 6px 14px;
+            border: 2px solid #667eea;
+            border-radius: 20px;
+            background: white;
+            color: #667eea;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .opt-btn.active, .opt-btn:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+        }
+
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
+            gap: 10px;
             margin-bottom: 20px;
         }
+
+        /* 列数由 JS 动态设置 via --cols CSS 变量 */
+        .cards-grid { grid-template-columns: repeat(var(--cols, 4), 1fr); }
         
         .card {
             aspect-ratio: 1;
@@ -230,8 +259,24 @@
             </div>
         </div>
         
+        <!-- 主题选择 -->
+        <div class="game-options" id="themeOptions">
+            <span style="font-size:13px;color:#888;align-self:center;">主题：</span>
+            <button class="opt-btn active" onclick="setTheme('school', this)">🎓 校园</button>
+            <button class="opt-btn" onclick="setTheme('animals', this)">🐱 动物</button>
+            <button class="opt-btn" onclick="setTheme('food', this)">🍎 美食</button>
+            <button class="opt-btn" onclick="setTheme('sports', this)">⚽ 运动</button>
+        </div>
+        <!-- 难度选择 -->
+        <div class="game-options" id="diffOptions">
+            <span style="font-size:13px;color:#888;align-self:center;">难度：</span>
+            <button class="opt-btn active" onclick="setDifficulty('easy', this)">简单 (4×3)</button>
+            <button class="opt-btn" onclick="setDifficulty('normal', this)">普通 (4×4)</button>
+            <button class="opt-btn" onclick="setDifficulty('hard', this)">困难 (5×4)</button>
+        </div>
+
         <div class="cards-grid" id="cardsGrid"></div>
-        
+
         <div class="controls">
             <button class="btn btn-primary" onclick="startNewGame()">新游戏</button>
             <button class="btn btn-secondary" onclick="goBack()">返回</button>
@@ -252,6 +297,24 @@
     </div>
     
     <script>
+        // ── 主题图标库 ──────────────────────────────────────────────────────
+        const THEMES = {
+            school:  ['🎓', '📚', '✏️', '📝', '🎨', '🏃', '🎵', '🔬', '🖥️', '🏆'],
+            animals: ['🐱', '🐶', '🐼', '🦊', '🐸', '🐧', '🦁', '🐯', '🦋', '🐙'],
+            food:    ['🍎', '🍕', '🍦', '🍜', '🍩', '🥦', '🍣', '🌮', '🧁', '🥪'],
+            sports:  ['⚽', '🏀', '🎾', '⚾', '🏊', '🚴', '🏋️', '🤸', '🏓', '🥊']
+        };
+
+        // ── 难度配置 ────────────────────────────────────────────────────────
+        const DIFFICULTIES = {
+            easy:   { pairs: 6,  cols: 4 },   // 4×3 = 12张
+            normal: { pairs: 8,  cols: 4 },   // 4×4 = 16张
+            hard:   { pairs: 10, cols: 5 }    // 5×4 = 20张
+        };
+
+        let currentTheme = 'school';
+        let currentDifficulty = 'easy';
+
         // 游戏状态
         let gameState = {
             cards: [],
@@ -263,32 +326,52 @@
             isComplete: false,
             canFlip: true
         };
-        
-        // 图标数组（8对，共16张）
-        const icons = ['🎓', '📚', '✏️', '📝', '🎨', '🏃', '🎵', '🔬'];
-        
+
+        // 切换主题
+        function setTheme(theme, btn) {
+            currentTheme = theme;
+            document.querySelectorAll('#themeOptions .opt-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            startNewGame();
+        }
+
+        // 切换难度
+        function setDifficulty(diff, btn) {
+            currentDifficulty = diff;
+            document.querySelectorAll('#diffOptions .opt-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            startNewGame();
+        }
+
         // 初始化游戏
         function initGame() {
-            // 创建卡片数组（每对图标出现两次）
-            const cardPairs = [...icons, ...icons];
-            
-            // 打乱数组
+            const { pairs, cols } = DIFFICULTIES[currentDifficulty];
+            const pool = [...THEMES[currentTheme]];
+            shuffleArray(pool);
+            const selected = pool.slice(0, pairs);
+            const cardPairs = [...selected, ...selected];
             shuffleArray(cardPairs);
-            
+
+            // 更新 grid 列数
+            document.getElementById('cardsGrid').style.setProperty('--cols', cols);
+            // 更新匹配计数显示
+            document.getElementById('matches').textContent = `0/${pairs}`;
+
             gameState.cards = cardPairs.map((icon, index) => ({
                 id: index,
                 icon: icon,
                 flipped: false,
-                matched: false
+                matched: false,
+                totalPairs: pairs
             }));
-            
+
             gameState.flippedCards = [];
             gameState.matches = 0;
             gameState.flips = 0;
             gameState.startTime = Date.now();
             gameState.isComplete = false;
             gameState.canFlip = true;
-            
+
             renderCards();
             startTimer();
         }
@@ -372,8 +455,9 @@
                 card2.matched = true;
                 gameState.matches++;
                 
-                // 检查是否完成
-                if (gameState.matches === 8) {
+                // 检查是否完成（对数由难度决定）
+                const totalPairs = DIFFICULTIES[currentDifficulty].pairs;
+                if (gameState.matches === totalPairs) {
                     gameState.isComplete = true;
                     clearInterval(gameState.timer);
                     
@@ -399,7 +483,8 @@
         // 更新统计信息
         function updateStats() {
             document.getElementById('flips').textContent = gameState.flips;
-            document.getElementById('matches').textContent = `${gameState.matches}/8`;
+            const totalPairs = DIFFICULTIES[currentDifficulty].pairs;
+            document.getElementById('matches').textContent = `${gameState.matches}/${totalPairs}`;
         }
         
         // 开始计时器

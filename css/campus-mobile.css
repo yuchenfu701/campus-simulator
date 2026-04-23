@@ -221,18 +221,55 @@ html.campus-mobile-mode #game-main {
 
 html.campus-mobile-mode #game-canvas-container {
     flex: 1 !important;
-    min-height: 45vh !important;
+    min-height: 0 !important;   /* 移除 45vh 硬限制，让 flex:1 自动撑满剩余空间 */
     order: 1;
+    overflow: hidden !important;
 }
 
+/* 信息面板：手机上压缩为底部紧凑条（约 64px），可横向滑动查看 */
 html.campus-mobile-mode #info-panel {
     width: 100% !important;
-    max-height: 28vh !important;
-    overflow-y: auto !important;
+    max-height: 64px !important;   /* 原 28vh ≈ 240px → 改为 64px */
+    min-height: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     order: 2;
     flex-shrink: 0;
-    font-size: 13px;
-    padding: 10px !important;
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 0 16px !important;
+    align-items: flex-start !important;
+    background: rgba(255,255,255,0.96) !important;
+    border-top: 1px solid rgba(102,126,234,0.15) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06) !important;
+}
+
+html.campus-mobile-mode #info-panel h3 {
+    font-size: 10px !important;
+    margin: 0 0 2px 0 !important;
+    white-space: nowrap;
+}
+
+html.campus-mobile-mode #info-panel p,
+html.campus-mobile-mode #info-panel .npc-item,
+html.campus-mobile-mode #info-panel .task-item {
+    font-size: 10px !important;
+    margin: 0 !important;
+    padding: 1px 0 !important;
+    white-space: nowrap;
+}
+
+html.campus-mobile-mode #info-panel > div {
+    flex-shrink: 0;
+}
+
+/* 手机上隐藏底部键盘快捷键提示栏（手机没有实体键盘） */
+html.campus-mobile-mode #game-controls {
+    display: none !important;
 }
 
 html.campus-mobile-mode #mini-map-toggle {

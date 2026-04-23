@@ -89,6 +89,17 @@
             font-size: 14px;
             margin-bottom: 15px;
         }
+
+        /* 分类颜色 */
+        .cat-语文  { background: linear-gradient(135deg, #e53e3e, #c53030) !important; }
+        .cat-数学  { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; }
+        .cat-英语  { background: linear-gradient(135deg, #38a169, #276749) !important; }
+        .cat-科学  { background: linear-gradient(135deg, #00b5d8, #0987a0) !important; }
+        .cat-历史  { background: linear-gradient(135deg, #dd6b20, #c05621) !important; }
+        .cat-地理  { background: linear-gradient(135deg, #319795, #2c7a7b) !important; }
+        .cat-趣味  { background: linear-gradient(135deg, #d69e2e, #b7791f) !important; }
+        .cat-脑筋急转弯 { background: linear-gradient(135deg, #805ad5, #6b46c1) !important; }
+        .cat-校园生活   { background: linear-gradient(135deg, #667eea, #764ba2) !important; }
         
         .options {
             display: grid;
@@ -302,7 +313,81 @@
             // 地理
             { category: '地理', question: '中国的首都是？', options: ['上海', '北京', '广州', '深圳'], correct: 1 },
             { category: '地理', question: '世界上最大的海洋是？', options: ['大西洋', '印度洋', '太平洋', '北冰洋'], correct: 2 },
-            { category: '地理', question: '珠穆朗玛峰位于？', options: ['中国和尼泊尔', '中国和印度', '中国和巴基斯坦', '中国和缅甸'], correct: 0 }
+            { category: '地理', question: '珠穆朗玛峰位于？', options: ['中国和尼泊尔', '中国和印度', '中国和巴基斯坦', '中国和缅甸'], correct: 0 },
+
+            // ── 语文（扩充）────────────────────────────────────────────────
+            { category: '语文', question: '"春眠不觉晓"的下一句是？', options: ['处处闻啼鸟', '夜来风雨声', '花落知多少', '明月别枝惊鹊'], correct: 0 },
+            { category: '语文', question: '《西游记》中唐僧的真实身份是？', options: ['金蝉子转世', '如来弟子', '东土大唐高僧', '观音菩萨的弟子'], correct: 0 },
+            { category: '语文', question: '"落霞与孤鹜齐飞"的下一句是？', options: ['秋水共长天一色', '霜天晓角', '碧云天，黄叶地', '残阳铺水中'], correct: 0 },
+            { category: '语文', question: '李白被称为？', options: ['诗圣', '诗仙', '诗鬼', '诗魔'], correct: 1 },
+            { category: '语文', question: '"温故而知新"出自哪部著作？', options: ['《孟子》', '《论语》', '《大学》', '《中庸》'], correct: 1 },
+            { category: '语文', question: '《水浒传》中"及时雨"是谁的绰号？', options: ['林冲', '武松', '宋江', '李逵'], correct: 2 },
+            { category: '语文', question: '杜甫被称为？', options: ['诗仙', '诗圣', '诗鬼', '诗神'], correct: 1 },
+            { category: '语文', question: '"横眉冷对千夫指，俯首甘为孺子牛"是谁写的？', options: ['鲁迅', '郭沫若', '茅盾', '冰心'], correct: 0 },
+
+            // ── 数学（扩充）────────────────────────────────────────────────
+            { category: '数学', question: '1到100的整数之和是？', options: ['4950', '5000', '5050', '5100'], correct: 2 },
+            { category: '数学', question: '勾股定理适用于哪种三角形？', options: ['等边三角形', '直角三角形', '等腰三角形', '所有三角形'], correct: 1 },
+            { category: '数学', question: '圆周率 π 约等于？', options: ['3.14', '3.1415', '3.1416', '3.1415926'], correct: 2 },
+            { category: '数学', question: '质数是指？', options: ['只能被1和自身整除的数', '偶数', '能被2整除的数', '大于10的数'], correct: 0 },
+            { category: '数学', question: '一元二次方程 x²-5x+6=0 的解是？', options: ['x=2或x=3', 'x=1或x=6', 'x=-2或x=-3', 'x=2或x=-3'], correct: 0 },
+            { category: '数学', question: '正方形的面积公式是？', options: ['4a', '2(a+b)', 'a²', 'πr²'], correct: 2 },
+
+            // ── 英语（扩充）────────────────────────────────────────────────
+            { category: '英语', question: '"School" 的中文意思是？', options: ['学校', '图书馆', '医院', '公园'], correct: 0 },
+            { category: '英语', question: '"I love you" 翻译成中文是？', options: ['我喜欢你', '我爱你', '我需要你', '我想你'], correct: 1 },
+            { category: '英语', question: '"Delicious" 的中文意思是？', options: ['漂亮的', '美味的', '有趣的', '困难的'], correct: 1 },
+            { category: '英语', question: '"书"的英文单词是？', options: ['Desk', 'Pen', 'Book', 'Chair'], correct: 2 },
+            { category: '英语', question: 'How do you say "再见" in English?', options: ['Hello', 'Sorry', 'Goodbye', 'Please'], correct: 2 },
+            { category: '英语', question: '"Beautiful" 的反义词是？', options: ['Ugly', 'Small', 'Tall', 'Fast'], correct: 0 },
+
+            // ── 科学（扩充）────────────────────────────────────────────────
+            { category: '科学', question: '人体最大的器官是？', options: ['心脏', '大脑', '皮肤', '肺'], correct: 2 },
+            { category: '科学', question: '声音在空气中的传播速度约为？', options: ['340 m/s', '300000 km/s', '1500 m/s', '1200 m/s'], correct: 0 },
+            { category: '科学', question: '植物进行光合作用需要什么？', options: ['氧气和水', '二氧化碳、水和光能', '氮气和光能', '氧气和光能'], correct: 1 },
+            { category: '科学', question: '人体血液中负责携带氧气的是？', options: ['白细胞', '血小板', '红细胞', '血浆'], correct: 2 },
+            { category: '科学', question: '地球距离太阳最近时，是北半球的什么季节？', options: ['夏季', '秋季', '冬季', '春季'], correct: 2 },
+            { category: '科学', question: 'DNA的中文全称是？', options: ['脱氧核糖核酸', '核糖核酸', '氨基酸', '蛋白质'], correct: 0 },
+            { category: '科学', question: '牛顿第一定律又叫做？', options: ['万有引力定律', '惯性定律', '作用反作用定律', '加速度定律'], correct: 1 },
+
+            // ── 历史（扩充）────────────────────────────────────────────────
+            { category: '历史', question: '秦始皇统一中国是在哪一年？', options: ['前221年', '前206年', '前202年', '前256年'], correct: 0 },
+            { category: '历史', question: '丝绸之路的起点是？', options: ['洛阳', '长安（西安）', '北京', '南京'], correct: 1 },
+            { category: '历史', question: '第一次世界大战结束于哪一年？', options: ['1914年', '1918年', '1939年', '1945年'], correct: 1 },
+            { category: '历史', question: '中国长城修建主要为了防御哪个方向的入侵？', options: ['东方', '南方', '西方', '北方'], correct: 3 },
+            { category: '历史', question: '郑和下西洋最远到达了哪里？', options: ['印度', '东南亚', '非洲东海岸', '欧洲'], correct: 2 },
+            { category: '历史', question: '"五四运动"发生于哪一年？', options: ['1911年', '1919年', '1921年', '1927年'], correct: 1 },
+
+            // ── 地理（扩充）────────────────────────────────────────────────
+            { category: '地理', question: '世界上最长的河流是？', options: ['亚马逊河', '尼罗河', '长江', '密西西比河'], correct: 1 },
+            { category: '地理', question: '中国面积最大的省区是？', options: ['西藏', '内蒙古', '新疆', '青海'], correct: 2 },
+            { category: '地理', question: '黄河发源于哪个省？', options: ['陕西', '甘肃', '青海', '四川'], correct: 2 },
+            { category: '地理', question: '下列哪个城市不是直辖市？', options: ['北京', '上海', '广州', '重庆'], correct: 2 },
+            { category: '地理', question: '赤道经过哪个大洲最多？', options: ['亚洲', '非洲', '南美洲', '大洋洲'], correct: 1 },
+
+            // ── 趣味科普 ────────────────────────────────────────────────────
+            { category: '趣味', question: '蜜蜂跳"8字舞"是为了什么？', options: ['庆祝找到蜂巢', '告诉同伴食物方向和距离', '吸引配偶', '驱赶天敌'], correct: 1 },
+            { category: '趣味', question: '鸵鸟蛋是世界上最大的什么？', options: ['动物', '蛋', '鸟', '细胞'], correct: 1 },
+            { category: '趣味', question: '人每天眨眼约多少次？', options: ['1000次', '5000次', '15000次', '30000次'], correct: 2 },
+            { category: '趣味', question: '哪种动物的眼睛可以分别朝不同方向看？', options: ['狗', '老虎', '变色龙', '猫头鹰'], correct: 2 },
+            { category: '趣味', question: '彩虹通常有几种颜色？', options: ['5种', '6种', '7种', '8种'], correct: 2 },
+            { category: '趣味', question: '人体骨骼共有多少块？', options: ['106块', '206块', '306块', '256块'], correct: 1 },
+            { category: '趣味', question: '光合作用释放的气体是？', options: ['二氧化碳', '氮气', '氧气', '氢气'], correct: 2 },
+            { category: '趣味', question: '世界上最大的动物是？', options: ['大象', '蓝鲸', '鲨鱼', '霸王龙'], correct: 1 },
+
+            // ── 脑筋急转弯 ─────────────────────────────────────────────────
+            { category: '脑筋急转弯', question: '什么东西越洗越脏？', options: ['衣服', '水', '镜子', '手'], correct: 1 },
+            { category: '脑筋急转弯', question: '"黄鼠狼给鸡拜年"下一句是？', options: ['没安好心', '当然欢迎', '不怀好意', '以上都对'], correct: 0 },
+            { category: '脑筋急转弯', question: '兔子跑步最快能有多快？不是问速度，而是为什么它总跑赢乌龟？', options: ['腿长', '坚持不懈', '因为故事里乌龟赢了', '永不偷懒'], correct: 2 },
+            { category: '脑筋急转弯', question: '什么样的路不能走？', options: ['泥路', '山路', '死路', '弯路'], correct: 2 },
+            { category: '脑筋急转弯', question: '一个人站在镜子前，他在镜中的像是几个人？', options: ['0', '1', '2', '无数'], correct: 1 },
+
+            // ── 校园生活 ────────────────────────────────────────────────────
+            { category: '校园生活', question: '下列哪个行为是不文明行为？', options: ['弯腰捡垃圾', '上课认真听讲', '课间大声喧哗', '主动帮助同学'], correct: 2 },
+            { category: '校园生活', question: '学校里"班长"的英文是？', options: ['Monitor', 'Teacher', 'Principal', 'Student'], correct: 0 },
+            { category: '校园生活', question: '校园里看到同学欺凌他人，应该怎么做？', options: ['视而不见', '加入欺凌', '向老师报告', '拍视频发网上'], correct: 2 },
+            { category: '校园生活', question: '考试时发现旁边同学在抄你的答案，正确做法是？', options: ['让他抄', '盖上答案并提醒他', '举报他', '假装没看见'], correct: 1 },
+            { category: '校园生活', question: '图书馆里应该保持什么状态？', options: ['大声讨论', '安静阅读', '边看书边吃零食', '随意走动'], correct: 1 }
         ];
         
         // 游戏状态
@@ -331,7 +416,10 @@
         function loadQuestion() {
             const question = gameState.currentQuestions[gameState.currentIndex];
             
-            document.getElementById('category').textContent = question.category;
+            const catEl = document.getElementById('category');
+            catEl.textContent = question.category;
+            // 去掉旧分类 class，加上新的
+            catEl.className = 'question-category cat-' + question.category;
             document.getElementById('questionText').textContent = question.question;
             document.getElementById('questionNum').textContent = `${gameState.currentIndex + 1}/10`;
             document.getElementById('submitBtn').disabled = true;

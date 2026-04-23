@@ -1156,18 +1156,8 @@
                 const elapsed = Date.now() - jumpStartTime;
                 const progress = Math.min(elapsed / JUMP_DURATION, 1);
                 
-                // 使用更自然的抛物线轨迹（二次函数）
-                // 上升阶段：快速上升，下降阶段：自然下落
-                let currentHeight;
-                if (progress <= 0.5) {
-                    // 上升阶段：使用二次缓动，快速上升
-                    const upProgress = progress * 2; // 0 到 1
-                    currentHeight = JUMP_HEIGHT * upProgress * upProgress;
-                } else {
-                    // 下降阶段：使用二次缓动，自然下落
-                    const downProgress = (progress - 0.5) * 2; // 0 到 1
-                    currentHeight = JUMP_HEIGHT * (1 - downProgress * downProgress);
-                }
+                // 正弦弧线：起跳瞬间立刻离地，顶部自然减速，无前摇
+                const currentHeight = JUMP_HEIGHT * Math.sin(progress * Math.PI);
                 
                 // 应用位置
                 player.style.bottom = (startBottom + currentHeight) + 'px';

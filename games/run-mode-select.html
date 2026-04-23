@@ -420,7 +420,7 @@
         
         <div class="modes-grid">
             <!-- 模式1：经典跑酷 -->
-            <div class="mode-card" onclick="selectMode('classic', this)">
+            <div class="mode-card" onclick="selectMode('classic', this, event)">
                 <div class="mode-icon">🏃</div>
                 <div class="mode-title">经典跑酷</div>
                 <div class="mode-desc">
@@ -439,7 +439,7 @@
             </div>
             
             <!-- 模式2：火柴人大冒险 -->
-            <div class="mode-card" onclick="selectMode('stickman', this)">
+            <div class="mode-card" onclick="selectMode('stickman', this, event)">
                 <div class="mode-icon">🏃</div>
                 <div class="mode-title">火柴人大冒险</div>
                 <div class="mode-desc">
@@ -458,7 +458,7 @@
             </div>
             
             <!-- 模式3：宝可梦冒险 -->
-            <div class="mode-card" onclick="selectMode('pokemon', this)">
+            <div class="mode-card" onclick="selectMode('pokemon', this, event)">
                 <div class="mode-icon">⚡</div>
                 <div class="mode-title">宝可梦冒险</div>
                 <div class="mode-desc">
@@ -545,9 +545,9 @@
         };
         
         // 选择模式
-        function selectMode(mode, element) {
-            // 添加点击动画
-            createRipple(event, element);
+        function selectMode(mode, element, evt) {
+            // 添加点击动画（event 安全传入，避免全局 event 在 iOS 上为 undefined）
+            if (evt) createRipple(evt, element);
             
             // 添加选中动画
             element.style.transform = 'scale(0.95)';
