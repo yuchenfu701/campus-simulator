@@ -31,7 +31,7 @@ class StickMan {
         this.velocityX = 0;
         this.velocityY = 0;
         this.speed = 5;
-        this.jumpPower = -12;
+        this.jumpPower = -17;  // 增大跳跃高度（原-12跳不上高平台）
         this.gravity = 0.8;
         this.onGround = false;
         this.facing = 1; // 1 = 右, -1 = 左

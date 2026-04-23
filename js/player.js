@@ -276,17 +276,16 @@ class Player {
         if (x < 0 || y < 0 || x > this.gameEngine.world.width || y > this.gameEngine.world.height) {
             return false;
         }
-        
-        // 暂时放宽碰撞检测，允许在建筑物边缘移动
+
+        // 启用碰撞检测：建筑物墙壁不可穿越，但入口处可以通行
         const mapSystem = this.gameEngine.getSystem('map');
         if (mapSystem && typeof mapSystem.checkCollision === 'function') {
             const collision = mapSystem.checkCollision(x, y, this.width, this.height);
             if (collision) {
-                // TODO: 碰撞检测暂时放行，后续优化
-                return true;
+                return false; // 碰撞，不允许移动
             }
         }
-        
+
         return true;
     }
     
@@ -520,14 +519,26 @@ class Player {
     
     // 渲染交互提示
     renderInteractionHints(ctx) {
-        if (this.interaction.nearbyNPCs.length > 0 || this.interaction.nearbyObjects.length > 0) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-            ctx.fillRect(this.x - 30, this.y + this.height + 5, 60, 20);
-            
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
+        // 检查是否靠近建筑入口（用于显示进入提示）
+        const currentArea = this.getCurrentArea();
+        const nearBuilding = currentArea && (currentArea.specialPage || currentArea.id);
+
+        if (this.interaction.nearbyNPCs.length > 0 || this.interaction.nearbyObjects.length > 0 || nearBuilding) {
+            const label = nearBuilding
+                ? `按 E 进入 ${currentArea.name || '建筑'}`
+                : '按 E 交互';
+            const boxW = Math.max(60, ctx.measureText(label).width + 16);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+            ctx.beginPath();
+            ctx.roundRect
+                ? ctx.roundRect(this.x - boxW / 2, this.y + this.height + 5, boxW, 22, 6)
+                : ctx.rect(this.x - boxW / 2, this.y + this.height + 5, boxW, 22);
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px PingFang SC, Microsoft YaHei, Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('按 E 交互', this.x, this.y + this.height + 17);
+            ctx.fillText(label, this.x, this.y + this.height + 19);
         }
     }
     

@@ -17,10 +17,10 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;   /* 修复：改为 flex-start，内容超高时可正常滚动 */
             padding: 20px;
         }
-        
+
         .game-container {
             background: white;
             border-radius: 24px;

@@ -627,14 +627,14 @@ class PokemonGame {
     createEnemies() {
         this.enemies = [
             // 普通敌人
-            new PixelEnemy(800, 500, 'grunt', '#8b0000', 30, 1),
-            new PixelEnemy(1200, 450, 'grunt', '#8b0000', 30, 1),
-            new PixelEnemy(1600, 420, 'soldier', '#dc143c', 50, 2),
-            new PixelEnemy(2000, 220, 'soldier', '#dc143c', 50, 2),
-            
+            new PixelEnemy(800, 500, 'grunt', '#8b0000', 15, 1),
+            new PixelEnemy(1200, 450, 'grunt', '#8b0000', 15, 1),
+            new PixelEnemy(1600, 420, 'soldier', '#dc143c', 25, 2),
+            new PixelEnemy(2000, 220, 'soldier', '#dc143c', 25, 2),
+
             // 精英敌人
-            new PixelEnemy(1400, 320, 'elite', '#4b0082', 80, 3),
-            new PixelEnemy(2100, 120, 'boss', '#191970', 150, 4),
+            new PixelEnemy(1400, 320, 'elite', '#4b0082', 35, 3),
+            new PixelEnemy(2100, 120, 'boss', '#191970', 50, 8),  // Boss HP 150→50
         ];
     }
     
@@ -775,25 +775,23 @@ class PokemonGame {
             }
         });
         
-        // 动态生成敌人
-        this.enemySpawnTimer++;
-        if (this.enemySpawnTimer > 600) { // 10秒生成一个敌人
-            this.spawnRandomEnemy();
-            this.enemySpawnTimer = 0;
+        // 动态生成敌人（宝可梦还未全部收集时才生成，避免通关条件永远无法满足）
+        if (this.pokemons.length > 0) {
+            this.enemySpawnTimer++;
+            if (this.enemySpawnTimer > 600) {
+                this.spawnRandomEnemy();
+                this.enemySpawnTimer = 0;
+            }
         }
         
         // 更新摄像机
         this.updateCamera();
         
-        // 检查胜利条件
-        if (this.pokemons.length === 0 && this.enemies.length === 0) {
-            this.showDialog([
-                "🎉 恭喜！你收集了所有精美的宝可梦！",
-                "每一个都是像素艺术的杰作！",
-                "皮卡丘、小火龙、杰尼龟...它们都被你征服了！",
-                "你不仅击败了所有敌人，还成为了真正的宝可梦大师！",
-                "这个像素世界因你的勇敢而重获新生！✨🏆"
-            ]);
+        // 检查胜利条件（宝可梦全收集 + 敌人清空后不再生成时触发）
+        if (this.pokemons.length === 0 && this.enemies.length === 0 && !this.hasWon) {
+            this.hasWon = true;
+            this.gameState = 'won';
+            this.victory();
         }
     }
     
@@ -805,9 +803,9 @@ class PokemonGame {
         
         let health, points;
         switch(type) {
-            case 'grunt': health = 30; points = 1; break;
-            case 'soldier': health = 50; points = 2; break;
-            case 'elite': health = 80; points = 3; break;
+            case 'grunt': health = 15; points = 1; break;
+            case 'soldier': health = 25; points = 2; break;
+            case 'elite': health = 35; points = 3; break;
         }
         
         this.enemies.push(new PixelEnemy(x, y, type, '#8b0000', health, points));
@@ -841,12 +839,30 @@ class PokemonGame {
     }
     
     gameOver() {
+        this.gameState = 'gameover';
         this.showDialog([
             "游戏结束！",
             "你的冒险就此结束...",
             "但是不要放弃！",
             "重新开始，成为真正的宝可梦大师！"
         ]);
+    }
+
+    victory() {
+        // 显示通关界面
+        const victoryEl = document.getElementById('victoryScreen');
+        if (victoryEl) {
+            document.getElementById('victoryScore').textContent = this.score;
+            document.getElementById('victoryPokemon').textContent = this.pokemonCount;
+            victoryEl.classList.remove('hidden');
+        } else {
+            // 降级处理：用对话框
+            this.showDialog([
+                "🏆 YOU WIN！宝可梦大师！",
+                `得分：${this.score}  收集：${this.pokemonCount}只`,
+                "感谢游玩！点击重新开始挑战更高分！"
+            ]);
+        }
     }
     
     createParticles(x, y, color) {
@@ -1611,7 +1627,10 @@ class DialogSystem {
     closeDialog() {
         this.isActive = false;
         document.getElementById('dialogBox').classList.add('hidden');
-        game.gameState = 'playing';
+        // 胜利/失败后不恢复 playing 状态
+        if (game.gameState !== 'won' && game.gameState !== 'gameover') {
+            game.gameState = 'playing';
+        }
     }
 }
 

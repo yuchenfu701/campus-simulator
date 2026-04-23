@@ -17,10 +17,10 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;   /* 修复：改为 flex-start，内容超高时可正常滚动 */
             padding: 20px;
         }
-        
+
         .game-container {
             background: white;
             border-radius: 24px;
@@ -361,7 +361,8 @@
             gameState.correctCount = 0;
             gameState.startTime = Date.now();
             gameState.isComplete = false;
-            
+            gameState.isAnswered = false;
+
             loadQuestion();
             startTimer();
         }
@@ -369,6 +370,7 @@
         // 加载题目
         function loadQuestion() {
             gameState.currentQuestion = generateQuestion();
+            gameState.isAnswered = false;   // 每题重置
             document.getElementById('questionText').textContent = gameState.currentQuestion.question;
             const total = DIFF_CONFIG[currentDiff].total;
             document.getElementById('questionNum').textContent = `${gameState.questionIndex + 1}/${total}`;
@@ -380,7 +382,8 @@
         
         // 提交答案
         function submitAnswer() {
-            if (gameState.isComplete) return;
+            if (gameState.isComplete || gameState.isAnswered) return;
+            gameState.isAnswered = true;  // 立刻锁定，防止重复提交
             
             const input = document.getElementById('answerInput');
             const userAnswer = parseInt(input.value);

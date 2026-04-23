@@ -470,19 +470,31 @@ class SchoolMap {
         
         this.collisionMap = Array(gridHeight).fill().map(() => Array(gridWidth).fill(0));
         
-        // 设置建筑物为碰撞区域
+        // 设置建筑物为碰撞区域（墙壁），并在底部中央留出入口
         Object.values(this.areas).forEach(area => {
             const startX = Math.floor(area.x / 32);
             const startY = Math.floor(area.y / 32);
             const endX = Math.min(gridWidth - 1, Math.floor((area.x + area.width) / 32));
             const endY = Math.min(gridHeight - 1, Math.floor((area.y + area.height) / 32));
-            
-            // 建筑物边缘为碰撞
+
+            // 建筑物边缘为碰撞（墙壁）
             for (let y = startY; y <= endY; y++) {
                 for (let x = startX; x <= endX; x++) {
                     if (x === startX || x === endX || y === startY || y === endY) {
                         this.collisionMap[y][x] = 1; // 墙壁
                     }
+                }
+            }
+
+            // 在建筑底部中央留出入口开口（与渲染时的入口对齐）
+            // 入口宽度约 48px（1.5个格子），居中
+            const entrancePxWidth = 48;
+            const entranceCenterPx = area.x + area.width / 2;
+            const entranceLeft  = Math.floor((entranceCenterPx - entrancePxWidth / 2) / 32);
+            const entranceRight = Math.floor((entranceCenterPx + entrancePxWidth / 2) / 32);
+            for (let gx = entranceLeft; gx <= entranceRight; gx++) {
+                if (gx >= 0 && gx < gridWidth && this.collisionMap[endY]) {
+                    this.collisionMap[endY][gx] = 0; // 清除入口碰撞，允许通行
                 }
             }
         });
