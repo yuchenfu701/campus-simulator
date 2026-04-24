@@ -1,0 +1,27 @@
+# Render.com 免费部署配置（无需信用卡）
+# 使用说明：
+#   1. 注册 https://render.com （用 GitHub 账号登录，免费）
+#   2. New → Web Service → 选择你的 GitHub 仓库
+#   3. Render 会自动读取此文件并配置好一切
+#   4. 在 Environment 页面手动填写 MONGODB_URI（见下方说明）
+
+services:
+  - type: web
+    name: campus-simulator-api
+    env: node
+    region: singapore        # 新加坡节点，中国访问较快
+    plan: free               # 免费套餐，无需信用卡
+    rootDir: server          # 后端代码在 server/ 目录
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # PORT 由 Render 自动提供，无需填写
+      # ↓ 以下两个需要在 Render 控制台手动填写 ↓
+      - key: MONGODB_URI
+        sync: false   # 请在 Render 控制台 Environment 页面填写 MongoDB Atlas 连接串
+                      # 格式：mongodb+srv://<user>:<password>@cluster0.xxx.mongodb.net/campus_simulator
+      - key: CORS_ORIGIN
+        value: https://yuchenfu701.github.io  # 你的 GitHub Pages 域名

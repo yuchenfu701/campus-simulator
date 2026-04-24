@@ -52,6 +52,15 @@ class APIClient {
   }
 
   /**
+   * 获取 Socket.io 连接地址（去掉 /api 后缀）
+   */
+  getSocketURL() {
+    const api = this.baseURL;
+    if (api === '/api') return window.location.origin;
+    return api.endsWith('/api') ? api.slice(0, -4) : api;
+  }
+
+  /**
    * 通用请求方法
    */
   async request(url, options = {}) {

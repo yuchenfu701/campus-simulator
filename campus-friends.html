@@ -221,7 +221,21 @@
             box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4),
                         0 0 0 2px rgba(139, 92, 246, 0.2);
             border: 2px solid rgba(255, 255, 255, 0.3);
+            position: relative;
         }
+
+        /* 在线状态小绿点 */
+        .online-dot {
+            position: absolute;
+            bottom: 2px; right: 2px;
+            width: 13px; height: 13px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid #1e293b;
+            box-shadow: 0 0 6px #22c55e;
+            display: none;   /* 默认隐藏，JS 查到在线后显示 */
+        }
+        .online-dot.visible { display: block; }
         
         .user-details h3 {
             color: white;
@@ -548,6 +562,7 @@
         </div>
     </div>
     
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
     <script src="js/api-client.js"></script>
     <script>
         // 获取当前用户信息
@@ -638,26 +653,65 @@
         function renderFriends(friends) {
             const container = document.getElementById('friendsList');
             container.innerHTML = '';
-            
+
+            if (!friends.length) {
+                container.innerHTML = '<div class="empty-state">还没有好友，去"添加好友"搜索一下吧！</div>';
+                return;
+            }
+
             friends.forEach(friend => {
+                const avt = friend.avatar || '👤';
                 const card = document.createElement('div');
                 card.className = 'user-card';
+                card.dataset.friendId = friend.userId;
                 card.innerHTML = `
                     <div class="user-info">
-                        <div class="user-avatar">${friend.avatar || '👤'}</div>
+                        <div class="user-avatar" style="position:relative">
+                            ${avt}
+                            <div class="online-dot" id="dot_${friend.userId}"></div>
+                        </div>
                         <div class="user-details">
                             <h3>${friend.name}</h3>
-                            <p>手机号: ${friend.phone || '未设置'}</p>
                             <p>积分: ${friend.points || 0}</p>
+                            <p id="status_${friend.userId}" style="font-size:12px;color:rgba(255,255,255,.4)">状态获取中...</p>
                         </div>
                     </div>
                     <div class="user-actions">
-                        <button class="btn btn-primary" onclick="openChat('${friend.userId}', '${friend.name}')">💬 私聊</button>
-                        <button class="btn btn-secondary" onclick="viewProfile('${friend.userId}')">查看资料</button>
+                        <button class="btn btn-primary"
+                            onclick="openChat('${friend.userId}','${friend.name}','${avt}')">💬 私聊</button>
+                        <button class="btn btn-secondary"
+                            onclick="viewProfile('${friend.userId}')">查看资料</button>
                     </div>
                 `;
                 container.appendChild(card);
             });
+
+            // 查询所有好友的在线状态
+            const ids = friends.map(f => f.userId);
+            fetchOnlineStatus(ids);
+        }
+
+        // 查询在线状态（REST 回退，Socket.io 实时更新另算）
+        async function fetchOnlineStatus(userIds) {
+            if (!userIds.length) return;
+            try {
+                const res = await fetch(`${apiClient.baseURL.replace('/api','')}/api/online?ids=${userIds.join(',')}`);
+                const json = await res.json();
+                if (json.success) {
+                    Object.entries(json.data).forEach(([uid, online]) => {
+                        updateFriendDot(uid, online);
+                    });
+                }
+            } catch (e) {
+                // 静默失败
+            }
+        }
+
+        function updateFriendDot(userId, online) {
+            const dot = document.getElementById(`dot_${userId}`);
+            const txt = document.getElementById(`status_${userId}`);
+            if (dot) dot.classList.toggle('visible', online);
+            if (txt) txt.textContent = online ? '🟢 在线' : '⚫ 离线';
         }
         
         // 搜索用户
@@ -960,16 +1014,33 @@
         });
         
         // 打开私聊窗口
-        function openChat(friendId, friendName) {
-            // 如果是在iframe中，打开新窗口
+        function openChat(friendId, friendName, friendAvatar) {
+            const chatUrl = `campus-chat.html?friendId=${encodeURIComponent(friendId)}&friendName=${encodeURIComponent(friendName)}&friendAvatar=${encodeURIComponent(friendAvatar || '👤')}`;
             if (window.parent && window.parent !== window) {
-                const chatUrl = `campus-chat.html?friendId=${encodeURIComponent(friendId)}&friendName=${encodeURIComponent(friendName)}`;
-                window.open(chatUrl, '_blank', 'width=800,height=600');
+                window.open(chatUrl, '_blank', 'width=820,height=640');
             } else {
-                // 直接跳转
-                window.location.href = `campus-chat.html?friendId=${encodeURIComponent(friendId)}&friendName=${encodeURIComponent(friendName)}`;
+                window.location.href = chatUrl;
             }
         }
+
+        // ── Socket.io：实时接收好友上下线事件 ──────────────
+        (function initFriendsSocket() {
+            if (typeof io === 'undefined') return;
+            try {
+                const serverURL = apiClient.getSocketURL
+                    ? apiClient.getSocketURL()
+                    : apiClient.baseURL.replace('/api','');
+                const sock = io(serverURL, {
+                    transports: ['websocket','polling'],
+                    reconnectionAttempts: 3
+                });
+                sock.on('connect', () => {
+                    sock.emit('user:join', currentUserId);
+                });
+                sock.on('user:online',  ({ userId }) => updateFriendDot(userId, true));
+                sock.on('user:offline', ({ userId }) => updateFriendDot(userId, false));
+            } catch (e) { /* 静默 */ }
+        })();
         
         function goBack() {
             if (window.parent && window.parent.document.getElementById('close-web-btn')) {
