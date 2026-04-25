@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>下载 - 爱哲安民未来学校校园模拟器</title>
+    <script src="js/campus-settings.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;}
+        :root{
+            --bg:#060a14;
+            --gold:#f5a623;
+            --gold2:#ffd700;
+            --blue:#3b82f6;
+            --cyan:#22d3ee;
+            --purple:#8b5cf6;
+            --green:#22c55e;
+            --orange:#f97316;
+        }
+        html,body{min-height:100vh;background:var(--bg);color:#e2e8f0;overflow-x:hidden;}
+
+        /* ── BG PARTICLES ── */
+        #particles{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+        .p{position:absolute;border-radius:50%;animation:float linear infinite;}
+        @keyframes float{0%{transform:translateY(0) rotate(0deg);opacity:0;}10%{opacity:1;}90%{opacity:1;}100%{transform:translateY(-100vh) rotate(720deg);opacity:0;}}
+
+        /* ── LAYOUT ── */
+        .wrapper{position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:48px 24px 80px;}
+
+        /* ── HEADER ── */
+        .logo-line{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+        .logo-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#8b5cf6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 30px rgba(139,92,246,.5);}
+        .logo-text{font-size:22px;font-weight:800;letter-spacing:1px;}
+        .logo-sub{font-size:13px;color:#64748b;}
+        .hero-title{font-size:clamp(28px,5vw,48px);font-weight:900;text-align:center;margin-bottom:10px;background:linear-gradient(135deg,#fff 0%,var(--gold) 50%,var(--gold2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+        .hero-sub{text-align:center;color:#94a3b8;font-size:15px;margin-bottom:60px;max-width:520px;line-height:1.7;}
+
+        /* ── PLATFORM GRID ── */
+        .platforms{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;width:100%;max-width:760px;margin-bottom:48px;}
+        @media(max-width:500px){.platforms{grid-template-columns:1fr;}}
+
+        .platform-card{
+            position:relative;overflow:hidden;
+            background:rgba(255,255,255,.04);
+            border:1px solid rgba(255,255,255,.1);
+            border-radius:24px;
+            padding:32px 28px;
+            cursor:pointer;
+            transition:transform .25s,border-color .25s,box-shadow .25s;
+            display:flex;flex-direction:column;align-items:flex-start;gap:12px;
+        }
+        .platform-card::before{
+            content:'';position:absolute;inset:0;border-radius:24px;
+            background:radial-gradient(circle at 70% 20%, rgba(255,255,255,.08) 0%, transparent 60%);
+            pointer-events:none;
+        }
+        .platform-card:hover{transform:translateY(-6px);box-shadow:0 20px 60px rgba(0,0,0,.5);}
+        .platform-card.selected{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 20px 60px rgba(0,0,0,.5);}
+
+        /* card accent colors */
+        .card-win:hover,.card-win.selected{border-color:#3b82f6;box-shadow:0 0 0 1px #3b82f6,0 20px 60px rgba(59,130,246,.2);}
+        .card-mac:hover,.card-mac.selected{border-color:#a3a3a3;box-shadow:0 0 0 1px #a3a3a3,0 20px 60px rgba(163,163,163,.15);}
+        .card-ios:hover,.card-ios.selected{border-color:#22d3ee;box-shadow:0 0 0 1px #22d3ee,0 20px 60px rgba(34,211,238,.2);}
+        .card-hua:hover,.card-hua.selected{border-color:#f97316;box-shadow:0 0 0 1px #f97316,0 20px 60px rgba(249,115,22,.2);}
+
+        .platform-icon{font-size:44px;line-height:1;margin-bottom:4px;}
+        .platform-name{font-size:20px;font-weight:800;letter-spacing:.5px;}
+        .platform-sys{font-size:12px;color:#64748b;line-height:1.6;}
+        .platform-badge{
+            display:inline-flex;align-items:center;gap:5px;
+            font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+            padding:3px 10px;border-radius:20px;margin-top:4px;
+        }
+        .badge-desktop{background:rgba(59,130,246,.15);color:#60a5fa;}
+        .badge-mobile{background:rgba(34,211,238,.15);color:#22d3ee;}
+        .badge-soon{background:rgba(100,116,139,.15);color:#94a3b8;}
+
+        .platform-dl-btn{
+            margin-top:auto;width:100%;
+            padding:12px 0;
+            border:none;border-radius:12px;
+            font-size:14px;font-weight:700;cursor:pointer;
+            transition:opacity .2s,transform .1s;
+            display:flex;align-items:center;justify-content:center;gap:8px;
+        }
+        .platform-dl-btn:active{transform:scale(.97);}
+        .btn-win{background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;}
+        .btn-mac{background:linear-gradient(135deg,#374151,#6b7280);color:#fff;}
+        .btn-ios{background:linear-gradient(135deg,#0891b2,#22d3ee);color:#fff;}
+        .btn-hua{background:linear-gradient(135deg,#c2410c,#f97316);color:#fff;}
+        .btn-disabled{background:rgba(100,116,139,.2);color:#64748b;cursor:default;}
+
+        .corner-badge{
+            position:absolute;top:16px;right:16px;
+            font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+            padding:3px 9px;border-radius:10px;
+        }
+        .cb-new{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.3);}
+        .cb-soon{background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid rgba(100,116,139,.2);}
+
+        /* ── MODE INFO BANNER ── */
+        .mode-banner{
+            width:100%;max-width:760px;
+            background:rgba(139,92,246,.1);
+            border:1px solid rgba(139,92,246,.25);
+            border-radius:16px;
+            padding:18px 24px;
+            display:flex;align-items:center;gap:16px;
+            margin-bottom:32px;
+        }
+        .mode-banner-icon{font-size:28px;flex-shrink:0;}
+        .mode-banner-text{flex:1;}
+        .mode-banner-title{font-size:15px;font-weight:700;margin-bottom:4px;}
+        .mode-banner-sub{font-size:13px;color:#94a3b8;line-height:1.5;}
+
+        /* ── SPEC TABLE ── */
+        .spec-section{width:100%;max-width:760px;margin-bottom:32px;}
+        .spec-title{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+        .spec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+        @media(max-width:500px){.spec-grid{grid-template-columns:1fr;}}
+        .spec-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;text-align:center;}
+        .spec-val{font-size:18px;font-weight:800;color:#e2e8f0;margin-bottom:4px;}
+        .spec-label{font-size:12px;color:#64748b;}
+
+        /* ── SUCCESS OVERLAY ── */
+        #success-overlay{
+            display:none;position:fixed;inset:0;z-index:100;
+            background:rgba(6,10,20,.92);backdrop-filter:blur(12px);
+            flex-direction:column;align-items:center;justify-content:center;gap:20px;
+        }
+        #success-overlay.show{display:flex;}
+        .success-icon{font-size:72px;animation:popIn .4s cubic-bezier(0.34,1.56,0.64,1);}
+        @keyframes popIn{0%{transform:scale(0);opacity:0;}100%{transform:scale(1);opacity:1;}}
+        .success-title{font-size:26px;font-weight:800;}
+        .success-sub{color:#94a3b8;font-size:14px;text-align:center;max-width:320px;line-height:1.6;}
+        .success-btns{display:flex;gap:12px;margin-top:8px;}
+        .success-btn{padding:12px 28px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;}
+        .sbtn-primary{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;}
+        .sbtn-secondary{background:rgba(255,255,255,.08);color:#e2e8f0;border:1px solid rgba(255,255,255,.15);}
+
+        /* ── BACK BUTTON ── */
+        .back-btn{
+            position:fixed;top:20px;left:20px;z-index:50;
+            display:flex;align-items:center;gap:8px;
+            padding:10px 18px;border-radius:12px;
+            background:rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.12);
+            color:#e2e8f0;font-size:14px;font-weight:600;
+            cursor:pointer;text-decoration:none;
+            transition:background .2s;
+        }
+        .back-btn:hover{background:rgba(255,255,255,.1);}
+
+        /* ── PROGRESS BAR ── */
+        #dl-progress{
+            display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;
+            background:rgba(6,10,20,.95);border-top:1px solid rgba(139,92,246,.3);
+            padding:20px 24px;
+        }
+        #dl-progress.show{display:block;}
+        .dl-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+        .dl-bar-wrap{background:rgba(255,255,255,.1);border-radius:8px;height:8px;overflow:hidden;}
+        .dl-bar-fill{height:100%;background:linear-gradient(90deg,#8b5cf6,#3b82f6);width:0%;border-radius:8px;transition:width .3s;}
+        .dl-pct{font-size:12px;color:#94a3b8;margin-top:6px;text-align:right;}
+
+        /* ── WEB INSTALL INFO ── */
+        .web-install-section{
+            width:100%;max-width:760px;
+            background:rgba(34,211,238,.06);
+            border:1px solid rgba(34,211,238,.15);
+            border-radius:16px;
+            padding:20px 24px;
+            margin-bottom:32px;
+        }
+        .web-install-title{font-size:14px;font-weight:700;color:#22d3ee;margin-bottom:10px;}
+        .install-steps{display:flex;flex-direction:column;gap:8px;}
+        .step{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#94a3b8;line-height:1.5;}
+        .step-num{width:22px;height:22px;border-radius:50%;background:rgba(34,211,238,.2);color:#22d3ee;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+    </style>
+</head>
+<body>
+
+<div id="particles"></div>
+
+<a class="back-btn" onclick="history.back()">← 返回</a>
+
+<div class="wrapper">
+    <div class="logo-line">
+        <div class="logo-icon">🏫</div>
+        <div>
+            <div class="logo-text">爱哲安民未来学校</div>
+            <div class="logo-sub">校园模拟器</div>
+        </div>
+    </div>
+
+    <h1 class="hero-title">选择你的平台</h1>
+    <p class="hero-sub">根据你的设备下载对应版本<br>桌面版 = 电脑界面 &nbsp;·&nbsp; 移动版 = 手机界面，自动适配</p>
+
+    <!-- mode banner -->
+    <div class="mode-banner" id="current-mode-banner" style="display:none;">
+        <div class="mode-banner-icon" id="mode-icon">💻</div>
+        <div class="mode-banner-text">
+            <div class="mode-banner-title" id="mode-title">当前：桌面模式</div>
+            <div class="mode-banner-sub" id="mode-sub">已选择 Windows 版本，正在使用电脑布局。</div>
+        </div>
+    </div>
+
+    <!-- platform cards -->
+    <div class="platforms">
+
+        <!-- Windows -->
+        <div class="platform-card card-win" id="card-win" onclick="selectPlatform('windows')">
+            <div class="corner-badge cb-new">最新版</div>
+            <div class="platform-icon">🪟</div>
+            <div class="platform-name">Windows</div>
+            <div class="platform-sys">Windows 10 / 11 (64位)<br>推荐 8GB 内存</div>
+            <div class="platform-badge badge-desktop">💻 桌面模式</div>
+            <button class="platform-dl-btn btn-win" onclick="event.stopPropagation();downloadWin()">
+                ⬇ 下载 .exe 安装包
+            </button>
+        </div>
+
+        <!-- macOS -->
+        <div class="platform-card card-mac" id="card-mac" onclick="selectPlatform('mac')">
+            <div class="corner-badge cb-soon">即将推出</div>
+            <div class="platform-icon"></div>
+            <div class="platform-name">macOS</div>
+            <div class="platform-sys">macOS 12 Monterey 及以上<br>支持 Intel &amp; Apple Silicon</div>
+            <div class="platform-badge badge-desktop">💻 桌面模式</div>
+            <button class="platform-dl-btn btn-disabled" onclick="event.stopPropagation();showComingSoon('mac')">
+                🔨 构建中，敬请期待
+            </button>
+        </div>
+
+        <!-- iOS -->
+        <div class="platform-card card-ios" id="card-ios" onclick="selectPlatform('ios')">
+            <div class="corner-badge cb-soon">PWA</div>
+            <div class="platform-icon">📱</div>
+            <div class="platform-name">苹果手机</div>
+            <div class="platform-sys">iPhone / iPad<br>iOS 15 及以上，Safari 浏览器</div>
+            <div class="platform-badge badge-mobile">📱 移动模式</div>
+            <button class="platform-dl-btn btn-ios" onclick="event.stopPropagation();showIOSGuide()">
+                📲 安装到主屏幕（PWA）
+            </button>
+        </div>
+
+        <!-- Huawei / Android -->
+        <div class="platform-card card-hua" id="card-hua" onclick="selectPlatform('android')">
+            <div class="corner-badge cb-soon">APK</div>
+            <div class="platform-icon">🤖</div>
+            <div class="platform-name">华为 / 安卓</div>
+            <div class="platform-sys">Android 9 及以上<br>华为 / 小米 / OPPO 等设备</div>
+            <div class="platform-badge badge-mobile">📱 移动模式</div>
+            <button class="platform-dl-btn btn-hua" onclick="event.stopPropagation();downloadAndroid()">
+                ⬇ 下载 APK
+            </button>
+        </div>
+
+    </div>
+
+    <!-- spec -->
+    <div class="spec-section">
+        <div class="spec-title">版本信息</div>
+        <div class="spec-grid">
+            <div class="spec-card">
+                <div class="spec-val" id="ver-num">加载中…</div>
+                <div class="spec-label">当前版本</div>
+            </div>
+            <div class="spec-card">
+                <div class="spec-val">2026</div>
+                <div class="spec-label">发布年份</div>
+            </div>
+            <div class="spec-card">
+                <div class="spec-val">免费</div>
+                <div class="spec-label">下载费用</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- web install guide for iOS -->
+    <div class="web-install-section" id="ios-guide" style="display:none;">
+        <div class="web-install-title">📲 iOS 安装到主屏幕步骤</div>
+        <div class="install-steps">
+            <div class="step"><div class="step-num">1</div><div>用 Safari 打开网站：<strong>yuchenfu701.github.io/campus-simulator</strong></div></div>
+            <div class="step"><div class="step-num">2</div><div>点击底部工具栏的 <strong>分享按钮（方框+箭头）</strong></div></div>
+            <div class="step"><div class="step-num">3</div><div>在弹出菜单中选择 <strong>「添加到主屏幕」</strong></div></div>
+            <div class="step"><div class="step-num">4</div><div>点击右上角 <strong>「添加」</strong>，即可像 App 一样使用</div></div>
+            <div class="step"><div class="step-num">5</div><div>打开后自动使用 <strong>手机模式</strong> 布局</div></div>
+        </div>
+    </div>
+
+    <p style="font-size:12px;color:#374151;text-align:center;max-width:600px;">
+        安装包由 GitHub Releases 直接提供，无第三方捆绑软件。APK 为独立版本，非 Google Play 分发。
+    </p>
+</div>
+
+<!-- download progress bar (Electron only) -->
+<div id="dl-progress">
+    <div class="dl-title" id="dl-label">正在下载安装包…</div>
+    <div class="dl-bar-wrap"><div class="dl-bar-fill" id="dl-fill"></div></div>
+    <div class="dl-pct" id="dl-pct">0%</div>
+</div>
+
+<!-- success overlay -->
+<div id="success-overlay">
+    <div class="success-icon">✅</div>
+    <div class="success-title" id="success-title">下载完成！</div>
+    <div class="success-sub" id="success-sub">安装包已保存，正在启动安装程序…</div>
+    <div class="success-btns">
+        <button class="success-btn sbtn-primary" onclick="location.href='main-menu.html'">返回主页</button>
+        <button class="success-btn sbtn-secondary" onclick="document.getElementById('success-overlay').classList.remove('show')">关闭</button>
+    </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const GITHUB_REPO  = 'yuchenfu701/campus-simulator';
+const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+
+// ── PARTICLES ───────────────────────────────────────────
+(function(){
+    const wrap = document.getElementById('particles');
+    const colors = ['#8b5cf633','#3b82f633','#22d3ee22','#f9731622'];
+    for(let i=0;i<25;i++){
+        const p = document.createElement('div');
+        p.className='p';
+        const sz = 4+Math.random()*12;
+        p.style.cssText = `
+            width:${sz}px;height:${sz}px;
+            left:${Math.random()*100}%;
+            bottom:-20px;
+            background:${colors[Math.floor(Math.random()*colors.length)]};
+            animation-duration:${8+Math.random()*14}s;
+            animation-delay:${Math.random()*10}s;
+        `;
+        wrap.appendChild(p);
+    }
+})();
+
+// ── VERSION ─────────────────────────────────────────────
+(async function loadVer(){
+    try{
+        const r = await fetch(RELEASES_API);
+        const j = await r.json();
+        document.getElementById('ver-num').textContent = j.tag_name || 'v2.0.0';
+        window._latestRelease = j;
+    }catch(e){
+        document.getElementById('ver-num').textContent = 'v2.0.0';
+    }
+})();
+
+// ── PLATFORM SELECTION ───────────────────────────────────
+function selectPlatform(p){
+    ['windows','mac','ios','android'].forEach(id=>{
+        const map = {windows:'win',mac:'mac',ios:'ios',android:'hua'};
+        document.getElementById(`card-${map[id]}`).classList.toggle('selected', id===p);
+    });
+    // save preference → drives mobile/desktop mode
+    localStorage.setItem('platform', p);
+    const isDesktop = p==='windows'||p==='mac';
+    CampusSettings.setMobileMode(!isDesktop);
+
+    const banner = document.getElementById('current-mode-banner');
+    const icon   = document.getElementById('mode-icon');
+    const title  = document.getElementById('mode-title');
+    const sub    = document.getElementById('mode-sub');
+    banner.style.display='flex';
+
+    if(isDesktop){
+        icon.textContent  ='💻';
+        title.textContent ='当前：桌面模式';
+        sub.textContent   = `已选择 ${p==='windows'?'Windows':'macOS'} 版本，使用电脑界面布局。`;
+    } else {
+        icon.textContent  ='📱';
+        title.textContent ='当前：手机模式';
+        sub.textContent   = `已选择 ${p==='ios'?'iPhone':'华为/安卓'} 版本，使用触控布局。`;
+    }
+}
+
+// ── RESTORE SAVED PLATFORM ───────────────────────────────
+(function(){
+    const saved = localStorage.getItem('platform');
+    if(saved) selectPlatform(saved);
+})();
+
+// ── DOWNLOAD WINDOWS ────────────────────────────────────
+async function downloadWin(){
+    selectPlatform('windows');
+    let url;
+    try{
+        const r = window._latestRelease || await fetch(RELEASES_API).then(r=>r.json());
+        const asset = (r.assets||[]).find(a=>a.name.endsWith('.exe'));
+        url = asset ? asset.browser_download_url
+                    : `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
+    }catch(e){
+        url = `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
+    }
+
+    // If inside Electron → use IPC for native download with progress
+    if(window.updater){
+        showProgress('正在下载 Windows 安装包…');
+        const result = await window.updater.downloadUpdate(url);
+        if(result.success){
+            hideProgress();
+            showSuccess('下载完成！','安装程序即将启动，请按提示完成安装。');
+            window.updater.openInstaller(result.path);
+        } else {
+            hideProgress();
+            alert('下载失败：'+result.error);
+        }
+        return;
+    }
+    // Browser → direct link
+    window.open(url, '_blank');
+}
+
+// ── DOWNLOAD ANDROID ─────────────────────────────────────
+function downloadAndroid(){
+    selectPlatform('android');
+    // TODO: replace with real APK URL when built
+    const url = `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator.apk`;
+    window.open(url, '_blank');
+}
+
+// ── iOS GUIDE ────────────────────────────────────────────
+function showIOSGuide(){
+    selectPlatform('ios');
+    const guide = document.getElementById('ios-guide');
+    guide.style.display = guide.style.display==='none' ? 'block' : 'none';
+    if(guide.style.display==='block') guide.scrollIntoView({behavior:'smooth'});
+}
+
+function showComingSoon(platform){
+    alert(`${platform==='mac'?'macOS':'该平台'} 版本正在开发中，敬请期待！\n\n目前可先使用网页版：\nhttps://yuchenfu701.github.io/campus-simulator/`);
+}
+
+// ── PROGRESS HELPERS ─────────────────────────────────────
+function showProgress(label){
+    const bar = document.getElementById('dl-progress');
+    document.getElementById('dl-label').textContent = label;
+    document.getElementById('dl-fill').style.width = '0%';
+    document.getElementById('dl-pct').textContent = '0%';
+    bar.classList.add('show');
+    if(window.updater){
+        window.updater.onProgress(function(d){
+            const pct = Math.round(d.percent||0);
+            document.getElementById('dl-fill').style.width = pct+'%';
+            document.getElementById('dl-pct').textContent = pct+'%';
+        });
+    }
+}
+function hideProgress(){
+    document.getElementById('dl-progress').classList.remove('show');
+}
+
+function showSuccess(title,sub){
+    document.getElementById('success-title').textContent = title;
+    document.getElementById('success-sub').textContent   = sub;
+    document.getElementById('success-overlay').classList.add('show');
+}
+</script>
+</body>
+</html>

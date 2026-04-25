@@ -94,6 +94,23 @@
             border: 1px solid rgba(148,163,184,0.25);
         }
         .btn-back:active { opacity: 0.85; }
+        .plat-btn {
+            padding: 12px 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(148,163,184,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #e2e8f0;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s, border-color .2s;
+        }
+        .plat-btn:hover { background: rgba(255,255,255,0.1); }
+        .plat-btn.active {
+            background: linear-gradient(135deg,rgba(139,92,246,.3),rgba(99,102,241,.3));
+            border-color: #8b5cf6;
+            color: #c4b5fd;
+        }
         .tips {
             max-width: 520px;
             margin: 16px auto 0;
@@ -106,17 +123,27 @@
 </head>
 <body>
     <div class="page-title">⚙️ 设置</div>
-    <div class="page-sub">手机模式会优化排版与触控操作</div>
+    <div class="page-sub">根据你的设备选择平台，界面自动适配</div>
+
+    <!-- 平台选择 -->
+    <div class="card">
+        <h2>📱 选择平台</h2>
+        <div id="platform-current" style="font-size:13px;color:#94a3b8;margin-bottom:14px;min-height:20px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+            <button class="plat-btn" id="plat-win" onclick="setPlatform('windows')">🪟 Windows</button>
+            <button class="plat-btn" id="plat-mac" onclick="setPlatform('mac')"> macOS</button>
+            <button class="plat-btn" id="plat-ios" onclick="setPlatform('ios')">📱 iPhone</button>
+            <button class="plat-btn" id="plat-android" onclick="setPlatform('android')">🤖 华为/安卓</button>
+        </div>
+        <div class="row" style="padding-top:0;">
+            <div class="row-label">
+                <small>Windows / macOS → 电脑布局 &nbsp;·&nbsp; iPhone / 华为 → 触控布局。也可前往 <a href="download.html" style="color:#8b5cf6;">下载页</a> 获取安装包。</small>
+            </div>
+        </div>
+    </div>
 
     <div class="card">
         <h2>显示与操作</h2>
-        <div class="row">
-            <div class="row-label">
-                <strong>📱 手机模式</strong>
-                <small>开启后主菜单、2D/3D 校园使用适合触控的布局；2D 点画布交互；3D 显示移动轮盘与交互键。</small>
-            </div>
-            <div class="switch" id="sw-mobile" role="switch" aria-checked="false" onclick="toggleMobile()"></div>
-        </div>
         <div class="row">
             <div class="row-label">
                 <strong>减少动态效果</strong>
@@ -169,21 +196,30 @@
     <p class="tips">2D：滑动画布移动角色；轻点画布为「交互」。3D：左侧轮盘移动，右侧按钮交互 / 跳跃。</p>
 
     <script>
-        function sync() {
-            var m = CampusSettings.isMobileMode();
-            document.getElementById('sw-mobile').classList.toggle('on', m);
-            document.getElementById('sw-mobile').setAttribute('aria-checked', m ? 'true' : 'false');
-            var rm = !!CampusSettings.load().reduceMotion;
-            document.getElementById('sw-motion').classList.toggle('on', rm);
-        }
-        function toggleMobile() {
-            CampusSettings.setMobileMode(!CampusSettings.isMobileMode());
-            sync();
+        var PLAT_LABELS = {windows:'🪟 Windows（电脑布局）',mac:' macOS（电脑布局）',ios:'📱 iPhone（触控布局）',android:'🤖 华为/安卓（触控布局）'};
+        function setPlatform(p) {
+            localStorage.setItem('platform', p);
+            var isDesktop = p==='windows'||p==='mac';
+            CampusSettings.setMobileMode(!isDesktop);
+            ['windows','mac','ios','android'].forEach(function(id){
+                var map = {windows:'win',mac:'mac',ios:'ios',android:'android'};
+                var btn = document.getElementById('plat-'+map[id]);
+                if(btn) btn.classList.toggle('active', id===p);
+            });
+            var cur = document.getElementById('platform-current');
+            if(cur) cur.textContent = '当前：' + (PLAT_LABELS[p]||p);
         }
         function toggleMotion() {
             CampusSettings.setReduceMotion(!CampusSettings.load().reduceMotion);
-            sync();
+            var rm = !!CampusSettings.load().reduceMotion;
+            document.getElementById('sw-motion').classList.toggle('on', rm);
         }
+        (function init(){
+            var saved = localStorage.getItem('platform') || (CampusSettings.isMobileMode()?'android':'windows');
+            setPlatform(saved);
+            var rm = !!CampusSettings.load().reduceMotion;
+            document.getElementById('sw-motion').classList.toggle('on', rm);
+        })();
         function goBack() {
             if (window.parent && window.parent !== window) {
                 try {
