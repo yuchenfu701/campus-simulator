@@ -126,6 +126,36 @@
         </div>
     </div>
 
+    <!-- 云端服务器配置 -->
+    <div class="card">
+        <h2>🌐 云端服务器</h2>
+        <div class="row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+            <div class="row-label">
+                <strong>服务器地址</strong>
+                <small>填入云端后端地址，启用多设备聊天、帖子、好友等功能。</small>
+            </div>
+            <input id="serverUrlInput" type="url"
+                placeholder="https://xxx.b4a.run"
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(148,163,184,0.3);
+                       background:rgba(255,255,255,0.08);color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;">
+            <div style="display:flex;gap:8px;width:100%;">
+                <button onclick="saveServer()"
+                    style="flex:1;padding:10px;border:none;border-radius:10px;
+                           background:linear-gradient(135deg,#8b5cf6,#6366f1);
+                           color:white;font-size:14px;font-weight:700;cursor:pointer;">
+                    💾 保存
+                </button>
+                <button onclick="testServer()"
+                    style="flex:1;padding:10px;border:none;border-radius:10px;
+                           background:rgba(255,255,255,0.1);border:1px solid rgba(148,163,184,0.25);
+                           color:#e2e8f0;font-size:14px;cursor:pointer;">
+                    🔍 测试连接
+                </button>
+            </div>
+            <div id="serverStatus" style="font-size:13px;color:#94a3b8;min-height:18px;"></div>
+        </div>
+    </div>
+
     <div class="card">
         <h2>说明</h2>
         <div class="row" style="border:none;padding-top:0;">
@@ -174,6 +204,54 @@
             }
         }
         sync();
+
+        // ── 云端服务器配置 ──────────────────────────────
+        (function initServerConfig() {
+            var saved = localStorage.getItem('api_server_url') || '';
+            // 去掉末尾 /api 只显示根地址
+            var display = saved.endsWith('/api') ? saved.slice(0, -4) : saved;
+            document.getElementById('serverUrlInput').value = display;
+        })();
+
+        function saveServer() {
+            var url = document.getElementById('serverUrlInput').value.trim().replace(/\/+$/, '');
+            var status = document.getElementById('serverStatus');
+            if (!url) {
+                localStorage.removeItem('api_server_url');
+                status.style.color = '#94a3b8';
+                status.textContent = '已清除服务器配置，使用本地模式';
+                return;
+            }
+            var apiUrl = url.endsWith('/api') ? url : url + '/api';
+            localStorage.setItem('api_server_url', apiUrl);
+            status.style.color = '#86efac';
+            status.textContent = '✅ 已保存：' + url;
+        }
+
+        async function testServer() {
+            var url = document.getElementById('serverUrlInput').value.trim().replace(/\/+$/, '');
+            var status = document.getElementById('serverStatus');
+            if (!url) { status.textContent = '请先填入服务器地址'; return; }
+            status.style.color = '#94a3b8';
+            status.textContent = '🔄 测试中...';
+            try {
+                var apiUrl = url.endsWith('/api') ? url : url + '/api';
+                var res = await fetch(apiUrl + '/health', { signal: AbortSignal.timeout(8000) });
+                var json = await res.json();
+                if (json.success) {
+                    status.style.color = '#86efac';
+                    status.textContent = '✅ 连接成功！服务器运行正常';
+                    // 自动保存
+                    localStorage.setItem('api_server_url', apiUrl);
+                } else {
+                    status.style.color = '#fca5a5';
+                    status.textContent = '❌ 服务器返回异常';
+                }
+            } catch (e) {
+                status.style.color = '#fca5a5';
+                status.textContent = '❌ 连接失败：' + (e.message || '无法访问');
+            }
+        }
     </script>
 </body>
 </html>
