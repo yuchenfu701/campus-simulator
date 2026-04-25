@@ -619,10 +619,10 @@
             <div class="char-class">CAMPUS OPERATOR</div>
         </div>
         <div class="skin-row">
-            <div class="skin-btn active" onclick="setSkin(0)" title="默认制服">👔</div>
-            <div class="skin-btn" onclick="setSkin(1)" title="迷彩装">🪖</div>
-            <div class="skin-btn" onclick="setSkin(2)" title="精英皮肤">⭐</div>
-            <div class="skin-btn" onclick="setSkin(3)" title="传说皮肤">👑</div>
+            <div class="skin-btn active" onclick="setSkin(0)" title="夏季校服">👕</div>
+            <div class="skin-btn" onclick="setSkin(1)" title="冬季校服">🧥</div>
+            <div class="skin-btn" onclick="setSkin(2)" title="运动服">🏃</div>
+            <div class="skin-btn" onclick="setSkin(3)" title="正装礼服">🎓</div>
         </div>
     </div>
 
@@ -803,51 +803,69 @@
     camera.lookAt(0,1.8,0);
 
     // ── lighting ──
-    const ambient=new THREE.AmbientLight(0x1a2040,3);
+    const ambient=new THREE.AmbientLight(0xfff5e0,2.5);
     scene.add(ambient);
 
-    const mainLight=new THREE.DirectionalLight(0xffeedd,3);
-    mainLight.position.set(2,5,3);
+    const mainLight=new THREE.DirectionalLight(0xfff8f0,4);
+    mainLight.position.set(2,6,4);
     mainLight.castShadow=true;
     scene.add(mainLight);
 
-    const rimLight=new THREE.DirectionalLight(0xf97316,2);
+    const rimLight=new THREE.DirectionalLight(0x8b5cf6,1.8);
     rimLight.position.set(-3,3,-2);
     scene.add(rimLight);
 
-    const fillLight=new THREE.DirectionalLight(0x22d3ee,1.2);
-    fillLight.position.set(3,0,2);
+    const fillLight=new THREE.DirectionalLight(0x93c5fd,1.5);
+    fillLight.position.set(3,1,2);
     scene.add(fillLight);
 
-    // point light at feet
-    const footLight=new THREE.PointLight(0xf97316,2,3);
-    footLight.position.set(0,.2,0);
+    const footLight=new THREE.PointLight(0x818cf8,2.5,4);
+    footLight.position.set(0,.1,0);
     scene.add(footLight);
 
     // ── materials ──
-    const MAT = {
-        body:  new THREE.MeshStandardMaterial({color:0x1e3a5f,roughness:.35,metalness:.6}),
-        suit:  new THREE.MeshStandardMaterial({color:0x243045,roughness:.4,metalness:.5}),
-        skin:  new THREE.MeshStandardMaterial({color:0xe8c5a0,roughness:.8,metalness:0}),
-        armor: new THREE.MeshStandardMaterial({color:0x2d4a6e,roughness:.3,metalness:.8,
-                   emissive:0x0a1f3a,emissiveIntensity:.2}),
-        glow:  new THREE.MeshStandardMaterial({color:0xf97316,emissive:0xf97316,emissiveIntensity:1.2,
-                   roughness:.2,metalness:.3}),
-        weapon:new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:.2,metalness:.9}),
+    const SKIN_COLOR=0xf5cba0;
+    const MAT={
+        skin: new THREE.MeshStandardMaterial({color:SKIN_COLOR,roughness:.85,metalness:0}),
+        hair: new THREE.MeshStandardMaterial({color:0x1a0a00,roughness:.9,metalness:0}),
+        // shirt (white)
+        shirt: new THREE.MeshStandardMaterial({color:0xfafafa,roughness:.7,metalness:0}),
+        // school pants/skirt (navy)
+        pants: new THREE.MeshStandardMaterial({color:0x1e2d5a,roughness:.6,metalness:0}),
+        // school tie
+        tie:   new THREE.MeshStandardMaterial({color:0xdc2626,roughness:.6,metalness:0}),
+        // shoes (black)
+        shoes: new THREE.MeshStandardMaterial({color:0x111111,roughness:.4,metalness:.2}),
+        // school bag (blue)
+        bag:   new THREE.MeshStandardMaterial({color:0x1d4ed8,roughness:.55,metalness:0}),
+        // badge/glow
+        badge: new THREE.MeshStandardMaterial({color:0xfbbf24,emissive:0xfbbf24,emissiveIntensity:.8,roughness:.3}),
+        // jacket (navy)
+        jacket:new THREE.MeshStandardMaterial({color:0x1e2d5a,roughness:.55,metalness:0}),
     };
 
-    const skins=[
-        {body:0x1e3a5f,armor:0x2d4a6e,glow:0xf97316},
-        {body:0x2d4a1e,armor:0x3d5a2e,glow:0x4ade80},
-        {body:0x3a1e5f,armor:0x4d2e6e,glow:0xa855f7},
-        {body:0x5f3a1e,armor:0x6e4d2e,glow:0xffd700},
+    // 4 school uniform skins
+    const SKINS=[
+        // 0: Summer — white shirt + navy pants
+        {shirt:0xfafafa,pants:0x1e2d5a,jacket:0xfafafa,tie:0xdc2626,bag:0x1d4ed8,hair:0x1a0a00,glow:0x818cf8},
+        // 1: Winter — navy jacket + navy pants
+        {shirt:0xdbeafe,pants:0x1e2d5a,jacket:0x1e3a8a,tie:0xfbbf24,bag:0x1d4ed8,hair:0x1a0a00,glow:0x60a5fa},
+        // 2: PE — red sports uniform
+        {shirt:0xdc2626,pants:0x1e2d5a,jacket:0xb91c1c,tie:0xffffff,bag:0x7c3aed,hair:0x1a0a00,glow:0xf87171},
+        // 3: Formal — white + gold
+        {shirt:0xffffff,pants:0x111827,jacket:0x1f2937,tie:0xfbbf24,bag:0x374151,hair:0x2d1b00,glow:0xfbbf24},
     ];
 
     function applySkin(i){
-        const s=skins[i]||skins[0];
-        MAT.body.color.setHex(s.body);
-        MAT.armor.color.setHex(s.armor);
-        MAT.glow.color.setHex(s.glow); MAT.glow.emissive.setHex(s.glow);
+        const s=SKINS[i]||SKINS[0];
+        MAT.shirt.color.setHex(s.shirt);
+        MAT.pants.color.setHex(s.pants);
+        MAT.jacket.color.setHex(s.jacket);
+        MAT.tie.color.setHex(s.tie);
+        MAT.bag.color.setHex(s.bag);
+        MAT.hair.color.setHex(s.hair);
+        MAT.badge.color.setHex(s.glow);
+        MAT.badge.emissive.setHex(s.glow);
         footLight.color.setHex(s.glow);
         rimLight.color.setHex(s.glow);
     }
@@ -856,102 +874,131 @@
         applySkin(i);
     };
 
-    // ── build character ──
+    // ── geometry helpers ──
     const char=new THREE.Group();
-    char.position.y=0;
 
-    function box(w,h,d,mat,x=0,y=0,z=0){
+    function box(w,h,d,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0){
         const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
-        m.position.set(x,y,z); m.castShadow=true; return m;
+        m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+        m.castShadow=true; return m;
     }
     function cyl(rt,rb,h,segs,mat,x=0,y=0,z=0){
         const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,segs),mat);
         m.position.set(x,y,z); m.castShadow=true; return m;
     }
-    function sph(r,mat,x=0,y=0,z=0){
-        const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,16),mat);
+    function sph(r,ws,hs,mat,x=0,y=0,z=0){
+        const m=new THREE.Mesh(new THREE.SphereGeometry(r,ws,hs),mat);
         m.position.set(x,y,z); m.castShadow=true; return m;
     }
 
-    // legs
-    char.add(box(.28,.9,.28,MAT.suit,-.2,-.95,0));
-    char.add(box(.28,.9,.28,MAT.suit, .2,-.95,0));
-    // boots
-    char.add(box(.3,.2,.38,MAT.armor,-.2,-1.5,.04));
-    char.add(box(.3,.2,.38,MAT.armor, .2,-1.5,.04));
-    // torso
-    char.add(box(.68,1,.5,MAT.body,0,0,0));
-    // chest armor
-    char.add(box(.64,.55,.14,MAT.armor,0,.15,.28));
-    // shoulder pads
-    char.add(box(.2,.3,.3,MAT.armor,-.48,.3,0));
-    char.add(box(.2,.3,.3,MAT.armor, .48,.3,0));
-    // arms upper
-    char.add(box(.2,.55,.2,MAT.suit,-.6,-.05,0));
-    char.add(box(.2,.55,.2,MAT.suit, .6,-.05,0));
-    // arms lower
-    char.add(box(.18,.45,.18,MAT.body,-.6,-.58,0));
-    char.add(box(.18,.45,.18,MAT.body, .6,-.58,0));
-    // gloves
-    char.add(box(.2,.2,.2,MAT.armor,-.6,-.87,0));
-    char.add(box(.2,.2,.2,MAT.armor, .6,-.87,0));
-    // neck
-    char.add(cyl(.12,.12,.2,8,MAT.skin,0,.6,0));
-    // head
-    char.add(box(.54,.54,.54,MAT.skin,0,.97,0));
-    // helmet
-    char.add(box(.6,.3,.62,MAT.armor,0,1.19,0));
-    char.add(box(.2,.16,.18,MAT.armor,0,1.25,.35)); // visor bump
-    // visor glow
-    char.add(box(.44,.09,.06,MAT.glow,0,1.15,.32));
-    // belt
-    char.add(box(.7,.12,.52,MAT.armor,0,-.52,0));
-    // utility pouches
-    char.add(box(.15,.2,.15,MAT.armor,-.3,-.5,.28));
-    char.add(box(.15,.2,.15,MAT.armor, .08,-.5,.28));
+    // ── STUDENT CHARACTER ──
 
-    // weapon (rifle) — held in right hand area
-    const gun=new THREE.Group();
-    gun.add(box(.08,.08,.8,MAT.weapon,0,0,0));   // barrel
-    gun.add(box(.14,.28,.35,MAT.weapon,0,-.06,.15)); // body
-    gun.add(box(.06,.06,.22,MAT.weapon,0,0,-.32));   // stock
-    gun.add(box(.06,.14,.08,MAT.weapon,0,-.22,.1));  // grip
-    gun.add(box(.09,.06,.35,MAT.weapon,0,.07,-.05)); // rail
-    gun.position.set(.72,-.6,.2);
-    gun.rotation.set(0,.15,-.1);
-    char.add(gun);
+    // === LEGS (navy pants) ===
+    char.add(box(.26,.9,.26,MAT.pants,-.18,-.9,0));
+    char.add(box(.26,.9,.26,MAT.pants, .18,-.9,0));
+
+    // === SHOES (black) ===
+    char.add(box(.28,.16,.38,MAT.shoes,-.18,-1.47,.05));
+    char.add(box(.28,.16,.38,MAT.shoes, .18,-1.47,.05));
+
+    // === SHIRT/TORSO (white shirt) ===
+    char.add(box(.6,.92,.44,MAT.shirt,0,-.05,0));
+
+    // === JACKET OVERLAY (open front, navy) — sides only ===
+    char.add(box(.14,.88,.46,MAT.jacket,-.31,-.05,0)); // left panel
+    char.add(box(.14,.88,.46,MAT.jacket, .31,-.05,0)); // right panel
+
+    // === TIE (red, small strip on chest) ===
+    char.add(box(.09,.45,.06,MAT.tie,0,.08,.23));
+
+    // === COLLAR ===
+    char.add(box(.44,.08,.48,MAT.shirt,0,.44,0));
+
+    // === ARMS — shirt sleeves ===
+    char.add(box(.2,.52,.2,MAT.shirt,-.48,.1,0));
+    char.add(box(.2,.52,.2,MAT.shirt, .48,.1,0));
+    // jacket sleeve overlay
+    char.add(box(.22,.52,.22,MAT.jacket,-.48,.1,0));
+    char.add(box(.22,.52,.22,MAT.jacket, .48,.1,0));
+    // forearms (shirt visible)
+    char.add(box(.18,.42,.18,MAT.shirt,-.48,-.36,0));
+    char.add(box(.18,.42,.18,MAT.shirt, .48,-.36,0));
+    // hands
+    char.add(sph(.13,8,8,MAT.skin,-.48,-.64,0));
+    char.add(sph(.13,8,8,MAT.skin, .48,-.64,0));
+
+    // === NECK ===
+    char.add(cyl(.11,.11,.2,10,MAT.skin,0,.5,0));
+
+    // === HEAD (round-ish face using scaled sphere) ===
+    const headGeo=new THREE.SphereGeometry(.32,16,16);
+    const head=new THREE.Mesh(headGeo,MAT.skin);
+    head.scale.set(1,.95,1); head.position.set(0,.92,0); head.castShadow=true;
+    char.add(head);
+
+    // face — eyes
+    char.add(box(.06,.05,.05,new THREE.MeshStandardMaterial({color:0x1a0a00}),-.11,.95,.32));
+    char.add(box(.06,.05,.05,new THREE.MeshStandardMaterial({color:0x1a0a00}), .11,.95,.32));
+    // eye shine
+    char.add(box(.025,.025,.04,new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:.5}),-.1,.97,.34));
+    char.add(box(.025,.025,.04,new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:.5}),.12,.97,.34));
+    // smile
+    char.add(box(.15,.03,.04,new THREE.MeshStandardMaterial({color:0xc87941}),0,.83,.32));
+
+    // === HAIR (black, simple style) ===
+    // top hair cap
+    char.add(box(.62,.2,.64,MAT.hair,0,1.17,-.02));
+    // front fringe
+    char.add(box(.54,.14,.18,MAT.hair,0,1.07,.24));
+    // side hair left
+    char.add(box(.12,.3,.54,MAT.hair,-.33,.96,-.02));
+    // side hair right
+    char.add(box(.12,.3,.54,MAT.hair, .33,.96,-.02));
+    // back hair
+    char.add(box(.56,.28,.18,MAT.hair,0,.97,-.28));
+
+    // === SCHOOL BAG (backpack on back) ===
+    const bag=new THREE.Group();
+    bag.add(box(.38,.52,.18,MAT.bag,0,0,0));      // main body
+    bag.add(box(.32,.22,.10,MAT.bag,0,.18,.1));   // top pocket
+    bag.add(box(.32,.22,.10,MAT.bag,0,-.16,.1));  // bottom pocket
+    // badge/logo
+    bag.add(box(.1,.1,.04,MAT.badge,0,.18,.16));
+    // straps
+    bag.add(box(.05,.44,.06,MAT.jacket,-.14,0,-.12));
+    bag.add(box(.05,.44,.06,MAT.jacket, .14,0,-.12));
+    bag.position.set(0,-.05,-.34);
+    char.add(bag);
+
+    // === SCHOOL BADGE on chest ===
+    char.add(box(.12,.1,.06,MAT.badge,-.18,.18,.26));
 
     scene.add(char);
 
-    // ── platform ring ──
+    // ── platform rings ──
     const ring=new THREE.Mesh(
-        new THREE.RingGeometry(1.1,1.5,64),
-        new THREE.MeshBasicMaterial({color:0xf97316,transparent:true,opacity:.25,side:THREE.DoubleSide})
+        new THREE.RingGeometry(1.1,1.4,64),
+        new THREE.MeshBasicMaterial({color:0x818cf8,transparent:true,opacity:.3,side:THREE.DoubleSide})
     );
-    ring.rotation.x=-Math.PI/2;
-    ring.position.y=-1.65;
+    ring.rotation.x=-Math.PI/2; ring.position.y=-1.58;
     scene.add(ring);
 
     const ring2=new THREE.Mesh(
-        new THREE.RingGeometry(.5,.75,64),
-        new THREE.MeshBasicMaterial({color:0x22d3ee,transparent:true,opacity:.2,side:THREE.DoubleSide})
+        new THREE.RingGeometry(.55,.72,64),
+        new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.25,side:THREE.DoubleSide})
     );
-    ring2.rotation.x=-Math.PI/2;
-    ring2.position.y=-1.64;
+    ring2.rotation.x=-Math.PI/2; ring2.position.y=-1.57;
     scene.add(ring2);
 
-    // circle plane (shadow receiver)
     const platform=new THREE.Mesh(
-        new THREE.CylinderGeometry(2,2,.02,64),
-        new THREE.MeshStandardMaterial({color:0x0d1428,roughness:1,metalness:0})
+        new THREE.CylinderGeometry(1.8,1.8,.02,64),
+        new THREE.MeshStandardMaterial({color:0x0d1428,roughness:1})
     );
-    platform.position.y=-1.66;
-    platform.receiveShadow=true;
+    platform.position.y=-1.59; platform.receiveShadow=true;
     scene.add(platform);
 
     // ── animate ──
-    let t=0;
-    let mouseX=0, mouseY=0;
+    let t=0, mouseX=0, mouseY=0;
     document.addEventListener('mousemove',e=>{
         mouseX=(e.clientX/innerWidth-.5)*2;
         mouseY=(e.clientY/innerHeight-.5)*2;
@@ -959,23 +1006,18 @@
 
     function tick(){
         requestAnimationFrame(tick);
-        t+=.012;
-
-        // breathing
-        char.position.y=Math.sin(t)*.025;
-        char.scale.y=1+Math.sin(t)*.01;
-
-        // slight tilt toward mouse
-        char.rotation.y=mouseX*.12 + Math.sin(t*.3)*.04;
-
+        t+=.010;
+        // gentle breathing
+        char.position.y=Math.sin(t)*.022;
+        char.scale.y=1+Math.sin(t)*.008;
+        // follow mouse
+        char.rotation.y=mouseX*.1+Math.sin(t*.25)*.03;
         // ring spin
-        ring.rotation.z+=.008;
-        ring2.rotation.z-=.012;
-
-        // glow pulse
-        footLight.intensity=1.6+Math.sin(t*2)*.6;
-        MAT.glow.emissiveIntensity=1+Math.sin(t*1.5)*.4;
-
+        ring.rotation.z+=.006;
+        ring2.rotation.z-=.009;
+        // badge glow pulse
+        footLight.intensity=2+Math.sin(t*1.8)*.7;
+        MAT.badge.emissiveIntensity=.7+Math.sin(t*1.4)*.35;
         renderer.render(scene,camera);
     }
 
