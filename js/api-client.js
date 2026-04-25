@@ -4,25 +4,27 @@
 
 class APIClient {
   constructor() {
-    // 优先使用配置的服务器地址（如果有）
+    // ⚡ 默认云端服务器地址（用户无需任何配置，打开即用）
+    // 如需更换服务器，只改这一行即可
+    const DEFAULT_CLOUD = 'https://campussimulatorapi-6n8pusd7.b4a.run/api';
+
     const configServer = localStorage.getItem('api_server_url');
-    
+    const isElectron   = navigator.userAgent.includes('Electron');
+    const isLocalhost  = window.location.hostname === 'localhost' ||
+                         window.location.hostname === '127.0.0.1';
+
     if (configServer) {
-      // 使用用户配置的服务器地址
+      // 用户在设置里手动填了地址 → 优先使用
       this.baseURL = configServer.endsWith('/api') ? configServer : `${configServer}/api`;
-      console.log('🌐 使用配置的服务器地址:', this.baseURL);
-    } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      // 本地开发环境
+      console.log('🌐 使用手动配置的服务器:', this.baseURL);
+    } else if (isLocalhost && !isElectron) {
+      // 本地开发环境 → 用本地服务器
       this.baseURL = 'http://localhost:3000/api';
-      console.log('💻 使用本地服务器地址:', this.baseURL);
+      console.log('💻 使用本地服务器:', this.baseURL);
     } else {
-      // 生产环境：如果没有配置服务器，使用相对路径
-      // 如果部署在静态托管平台（如Netlify、GitHub Pages），这些功能会失败
-      // 这是正常的，因为静态托管平台不支持后端API
-      this.baseURL = '/api';
-      console.log('🌍 使用相对路径:', this.baseURL);
-      console.log('💡 提示：如果看到"拒绝连接"错误，说明需要配置后端服务器');
-      console.log('💡 访问 server-config.html 配置云端服务器地址');
+      // 网页版 / 软件版 → 自动使用云端服务器，无需用户操作
+      this.baseURL = DEFAULT_CLOUD;
+      console.log('☁️ 自动使用云端服务器:', this.baseURL);
     }
   }
   
