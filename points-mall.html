@@ -1,789 +1,979 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>积分商城</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei',sans-serif;}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>装备商城 · 爱哲校园</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;}
+:root{
+  --bg:#060a14;--panel:rgba(8,14,28,.92);
+  --gold:#f5a623;--gold2:#ffd700;
+  --orange:#f97316;--cyan:#22d3ee;--purple:#8b5cf6;--green:#22c55e;
+  --rare:#3b82f6;--epic:#a855f7;--legend:#f59e0b;
+  --border:rgba(249,115,22,.2);
+  --hi:rgba(255,255,255,.95);--mid:rgba(255,255,255,.65);--lo:rgba(255,255,255,.35);
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--hi);overflow-x:hidden;}
 
-        :root{
-            --bg:#070d1a;
-            --panel:rgba(8,14,28,.9);
-            --orange:#f97316;
-            --orange-dim:rgba(249,115,22,.3);
-            --gold:#ffd700;
-            --cyan:#22d3ee;
-            --purple:#a855f7;
-            --green:#4ade80;
-            --border:rgba(249,115,22,.22);
-            --text-hi:rgba(255,255,255,.95);
-            --text-mid:rgba(255,255,255,.65);
-            --text-lo:rgba(255,255,255,.35);
-            /* rarity */
-            --common-c:#6b7280;   --common-g:rgba(107,114,128,.2);
-            --rare-c:#3b82f6;     --rare-g:rgba(59,130,246,.25);
-            --epic-c:#a855f7;     --epic-g:rgba(168,85,247,.25);
-            --legend-c:#f59e0b;   --legend-g:rgba(245,158,11,.25);
-        }
+/* ── ANIMATED BACKGROUND ── */
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.scanlines{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);}
 
-        html,body{min-height:100vh;background:var(--bg);overflow-x:hidden;}
+/* ── HEADER ── */
+.header{position:sticky;top:0;z-index:200;
+  background:rgba(4,8,20,.96);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(24px);padding:12px 16px 0;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;}
+.h-back{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:18px;flex-shrink:0;}
+.h-title{font-size:18px;font-weight:800;letter-spacing:.5px;flex:1;}
+.pts-badge{display:flex;align-items:center;gap:6px;padding:6px 14px;
+  background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);
+  border-radius:20px;flex-shrink:0;}
+.pts-icon{font-size:16px;}
+.pts-val{font-size:18px;font-weight:900;
+  background:linear-gradient(135deg,var(--gold),#fb923c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 
-        /* ── BACKGROUND ── */
-        body::before{
-            content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-            background:
-                radial-gradient(ellipse at 20% 0%,rgba(249,115,22,.07) 0%,transparent 55%),
-                radial-gradient(ellipse at 80% 100%,rgba(34,211,238,.05) 0%,transparent 55%);
-        }
-        body::after{
-            content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-            background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);
-        }
+/* ── TABS ── */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:7px 16px;border-radius:8px;white-space:nowrap;cursor:pointer;
+  font-size:12px;font-weight:700;letter-spacing:.3px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:var(--mid);transition:all .2s;flex-shrink:0;}
+.tab:hover{background:rgba(255,255,255,.1);color:var(--hi);}
+.tab.active{background:rgba(249,115,22,.2);border-color:var(--orange);color:var(--orange);}
 
-        /* ── HEADER ── */
-        .header{
-            position:sticky;top:0;z-index:100;
-            background:rgba(4,8,20,.95);
-            border-bottom:1px solid var(--border);
-            backdrop-filter:blur(20px);
-            padding:14px 20px 0;
-        }
+/* ── LAYOUT ── */
+.main-layout{position:relative;z-index:10;display:flex;gap:0;}
 
-        .header-top{
-            display:flex;align-items:center;justify-content:space-between;
-            margin-bottom:14px;
-        }
+/* ── PREVIEW SIDEBAR ── */
+.preview-sidebar{
+  width:260px;flex-shrink:0;position:sticky;top:96px;height:calc(100vh - 96px);
+  overflow-y:auto;padding:16px;border-right:1px solid rgba(255,255,255,.06);
+  display:none;
+}
+@media(min-width:900px){.preview-sidebar{display:block;}}
+.preview-sidebar::-webkit-scrollbar{width:4px;}
+.preview-sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
 
-        .user-row{display:flex;align-items:center;gap:12px;}
-        .avatar-icon{
-            width:44px;height:44px;border-radius:10px;flex-shrink:0;
-            background:linear-gradient(135deg,var(--orange),#ef4444);
-            display:flex;align-items:center;justify-content:center;font-size:24px;
-            border:2px solid rgba(249,115,22,.4);
-        }
-        .user-name{font-size:16px;font-weight:700;color:var(--text-hi);}
-        .user-class{font-size:11px;color:var(--text-lo);margin-top:2px;}
+.preview-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;padding:20px;text-align:center;margin-bottom:12px;}
+.preview-art{width:120px;height:200px;margin:0 auto 12px;position:relative;display:flex;align-items:center;justify-content:center;}
+.preview-art svg{width:100%;height:100%;}
+.preview-name{font-size:16px;font-weight:800;margin-bottom:4px;}
+.preview-desc{font-size:11px;color:var(--lo);line-height:1.5;margin-bottom:12px;}
+.preview-rarity{display:inline-block;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:10px;margin-bottom:14px;}
+.preview-price{font-size:22px;font-weight:900;margin-bottom:14px;}
+.preview-btn{width:100%;padding:12px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .1s;}
+.preview-btn:active{transform:scale(.96);}
+.preview-btn.equip{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;}
+.preview-btn.buy{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;}
+.preview-btn.owned{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#4ade80;cursor:default;}
+.preview-btn.free{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;}
 
-        .pts-box{text-align:right;}
-        .pts-val{
-            font-size:30px;font-weight:900;
-            background:linear-gradient(135deg,var(--gold),#fb923c);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;
-            filter:drop-shadow(0 0 8px rgba(255,215,0,.4));
-        }
-        .pts-lbl{font-size:11px;color:var(--text-lo);letter-spacing:1px;}
+/* ── ITEMS AREA ── */
+.items-area{flex:1;min-width:0;padding:16px 16px 120px;}
 
-        /* category tabs */
-        .tabs{
-            display:flex;gap:8px;overflow-x:auto;padding-bottom:14px;
-            scrollbar-width:none;
-        }
-        .tabs::-webkit-scrollbar{display:none;}
+/* ── FEATURED BANNER ── */
+.featured-banner{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#1e1b4b,#312e81 40%,#1e1b4b);
+  border:1px solid rgba(139,92,246,.4);border-radius:20px;
+  padding:24px 20px;margin-bottom:20px;
+  display:flex;align-items:center;gap:20px;cursor:pointer;
+  transition:transform .2s,box-shadow .2s;
+}
+.featured-banner:hover{transform:translateY(-3px);box-shadow:0 20px 60px rgba(139,92,246,.3);}
+.featured-banner::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 80% 50%,rgba(139,92,246,.25),transparent 60%);pointer-events:none;}
+.featured-glow{position:absolute;right:-20px;top:-20px;width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(245,166,35,.15),transparent 70%);}
+.featured-art{width:100px;height:140px;flex-shrink:0;filter:drop-shadow(0 0 20px rgba(139,92,246,.6));}
+.featured-art svg{width:100%;height:100%;}
+.featured-info{flex:1;}
+.featured-tag{display:inline-block;background:linear-gradient(135deg,#f59e0b,#ef4444);
+  color:#fff;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  padding:3px 10px;border-radius:10px;margin-bottom:8px;}
+.featured-name{font-size:22px;font-weight:900;margin-bottom:6px;
+  background:linear-gradient(135deg,#fff,var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.featured-desc{font-size:12px;color:var(--mid);margin-bottom:12px;line-height:1.5;}
+.featured-price{font-size:14px;font-weight:800;color:var(--gold);}
 
-        .tab{
-            padding:8px 18px;border-radius:8px;white-space:nowrap;cursor:pointer;
-            font-size:13px;font-weight:600;
-            background:rgba(255,255,255,.06);
-            border:1px solid rgba(255,255,255,.1);
-            color:var(--text-mid);
-            transition:all .2s;flex-shrink:0;
-        }
-        .tab:hover{background:rgba(255,255,255,.1);color:var(--text-hi);}
-        .tab.active{
-            background:rgba(249,115,22,.2);
-            border-color:var(--orange);
-            color:var(--orange);
-            box-shadow:0 0 12px rgba(249,115,22,.2);
-        }
+/* ── SECTION TITLE ── */
+.section-title{
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  color:var(--mid);margin:20px 0 12px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08);}
 
-        /* ── CONTENT ── */
-        .content{position:relative;z-index:1;padding:20px 16px 100px;}
+/* ── ITEMS GRID ── */
+.items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+@media(min-width:900px){.items-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}}
+@media(max-width:420px){.items-grid{grid-template-columns:repeat(2,1fr);}}
 
-        /* section title */
-        .section-title{
-            display:flex;align-items:center;gap:10px;
-            font-size:14px;font-weight:800;letter-spacing:2px;
-            color:var(--orange);text-transform:uppercase;
-            margin:24px 0 14px;
-        }
-        .section-title::before{
-            content:'';width:3px;height:16px;border-radius:2px;
-            background:var(--orange);flex-shrink:0;
-        }
-        .section-title::after{
-            content:'';flex:1;height:1px;
-            background:linear-gradient(to right,rgba(249,115,22,.3),transparent);
-        }
+/* ── ITEM CARD ── */
+.item-card{
+  position:relative;border-radius:16px;overflow:hidden;cursor:pointer;
+  background:rgba(10,15,30,.8);border:1px solid rgba(255,255,255,.1);
+  transition:transform .2s,box-shadow .2s,border-color .2s;
+  display:flex;flex-direction:column;
+}
+.item-card:hover{transform:translateY(-5px);}
+.item-card.selected{outline:2px solid var(--orange);outline-offset:2px;}
 
-        /* items grid */
-        .items-grid{
-            display:grid;
-            grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
-            gap:12px;
-            margin-bottom:8px;
-        }
+/* rarity borders */
+.r-common{border-color:rgba(107,114,128,.4);}
+.r-rare{border-color:rgba(59,130,246,.5);}
+.r-epic{border-color:rgba(168,85,247,.5);}
+.r-legend{border-color:rgba(245,158,11,.6);animation:legendPulse 2.5s ease-in-out infinite;}
+@keyframes legendPulse{0%,100%{box-shadow:0 0 12px rgba(245,158,11,.2);}50%{box-shadow:0 0 28px rgba(245,158,11,.45),0 0 50px rgba(245,158,11,.1);}}
 
-        /* ── ITEM CARD ── */
-        .item-card{
-            position:relative;border-radius:16px;padding:18px 14px 16px;
-            cursor:pointer;overflow:hidden;
-            border:1px solid rgba(255,255,255,.1);
-            background:rgba(10,16,32,.8);
-            transition:all .3s cubic-bezier(.4,0,.2,1);
-            display:flex;flex-direction:column;align-items:center;
-            text-align:center;
-            min-height:170px;
-        }
+/* card art area */
+.card-art{
+  position:relative;height:160px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+.card-art-bg{position:absolute;inset:0;}
+.card-art svg{position:relative;z-index:2;width:80px;height:130px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5));}
+.card-art .art-glow{position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:80px;height:40px;border-radius:50%;filter:blur(20px);z-index:1;}
 
-        /* rarity top stripe */
-        .item-card::before{
-            content:'';position:absolute;top:0;left:0;right:0;height:3px;
-            border-radius:16px 16px 0 0;
-        }
+/* rarity art backgrounds */
+.r-common .card-art-bg{background:linear-gradient(160deg,#1e293b,#0f172a);}
+.r-rare .card-art-bg{background:linear-gradient(160deg,#1e3a5f,#0c1a2e);}
+.r-epic .card-art-bg{background:linear-gradient(160deg,#2d1b69,#150b30);}
+.r-legend .card-art-bg{background:linear-gradient(160deg,#451a03,#292524,#1c1917);}
 
-        /* rarity: common */
-        .rarity-common{border-color:rgba(107,114,128,.3);}
-        .rarity-common::before{background:var(--common-c);}
+/* card info area */
+.card-info{padding:10px;flex:1;display:flex;flex-direction:column;gap:4px;}
+.card-rarity{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+.r-common .card-rarity{color:#9ca3af;}
+.r-rare .card-rarity{color:#60a5fa;}
+.r-epic .card-rarity{color:#c084fc;}
+.r-legend .card-rarity{
+  background:linear-gradient(135deg,var(--gold),#fb923c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.card-name{font-size:13px;font-weight:700;}
+.card-tags{display:flex;gap:4px;flex-wrap:wrap;}
+.card-tag{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.08);color:var(--lo);}
+.card-price{font-size:14px;font-weight:800;margin-top:auto;padding-top:6px;}
+.card-price.p-common{color:#9ca3af;}
+.card-price.p-rare{color:#60a5fa;}
+.card-price.p-epic{color:#c084fc;}
+.card-price.p-legend{
+  background:linear-gradient(135deg,var(--gold),#fb923c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.card-price.p-free{color:#4ade80;}
 
-        /* rarity: rare */
-        .rarity-rare{border-color:rgba(59,130,246,.4);}
-        .rarity-rare::before{background:linear-gradient(90deg,#1d4ed8,#60a5fa);}
-        .rarity-rare:hover{box-shadow:0 0 24px rgba(59,130,246,.3),0 8px 24px rgba(0,0,0,.5);}
+/* card badges */
+.card-badge{
+  position:absolute;top:8px;left:8px;z-index:10;
+  font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;
+}
+.badge-owned{background:rgba(34,197,94,.25);color:#4ade80;border:1px solid rgba(34,197,94,.3);}
+.badge-equipped{background:rgba(249,115,22,.25);color:#fb923c;border:1px solid rgba(249,115,22,.4);}
+.badge-new{background:rgba(236,72,153,.25);color:#f472b6;border:1px solid rgba(236,72,153,.3);}
+.badge-limited{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
 
-        /* rarity: epic */
-        .rarity-epic{border-color:rgba(168,85,247,.45);}
-        .rarity-epic::before{background:linear-gradient(90deg,#7c3aed,#d946ef);}
-        .rarity-epic:hover{box-shadow:0 0 28px rgba(168,85,247,.35),0 8px 24px rgba(0,0,0,.5);}
+/* ── TASK CARDS ── */
+.task-card{
+  background:linear-gradient(145deg,rgba(14,20,40,.9),rgba(20,14,40,.9));
+  border-color:rgba(251,191,36,.3);
+}
+.task-card:hover{border-color:rgba(251,191,36,.6);box-shadow:0 0 30px rgba(251,191,36,.15);}
+.task-art{height:100px;display:flex;align-items:center;justify-content:center;font-size:44px;
+  background:linear-gradient(160deg,rgba(245,158,11,.1),rgba(139,92,246,.05));}
+.task-badge-top{position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6);}
+.task-teacher{font-size:10px;padding:2px 8px;border-radius:5px;
+  background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);color:#fbbf24;
+  width:fit-content;}
+.task-reward{font-size:15px;font-weight:900;margin-top:auto;
+  background:linear-gradient(135deg,#4ade80,#22d3ee);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 
-        /* rarity: legendary */
-        .rarity-legend{border-color:rgba(245,158,11,.5);}
-        .rarity-legend::before{background:linear-gradient(90deg,#d97706,#fbbf24,#f59e0b);}
-        .rarity-legend{animation:legendPulse 3s ease-in-out infinite;}
-        @keyframes legendPulse{
-            0%,100%{box-shadow:0 0 18px rgba(245,158,11,.2),0 4px 16px rgba(0,0,0,.4);}
-            50%{box-shadow:0 0 36px rgba(245,158,11,.45),0 4px 16px rgba(0,0,0,.4);}
-        }
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:300;
+  background:rgba(4,8,20,.97);border-top:1px solid var(--border);
+  backdrop-filter:blur(24px);
+  display:flex;justify-content:space-around;
+  padding:8px 0 env(safe-area-inset-bottom,8px);}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 14px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--lo);}
+.bnav-item:hover,.bnav-item.active{color:var(--orange);background:rgba(249,115,22,.08);}
+.bnav-icon{font-size:20px;}
+.bnav-label{font-size:10px;font-weight:700;}
 
-        .item-card:hover{
-            transform:translateY(-6px) scale(1.02);
-            border-color:rgba(249,115,22,.5);
-        }
-        .rarity-rare:hover{border-color:rgba(59,130,246,.7);}
-        .rarity-epic:hover{border-color:rgba(168,85,247,.7);}
-        .rarity-legend:hover{border-color:rgba(245,158,11,.8);animation:none;}
+/* ── MODAL ── */
+.modal{display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,.8);backdrop-filter:blur(16px);
+  align-items:center;justify-content:center;}
+.modal.show{display:flex;animation:fadeIn .2s;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{background:linear-gradient(145deg,#080d1e,#0f1729);
+  border:1px solid rgba(249,115,22,.4);border-radius:24px;
+  padding:32px 24px;max-width:360px;width:90%;text-align:center;}
+.modal-art{width:80px;height:130px;margin:0 auto 14px;filter:drop-shadow(0 0 20px rgba(139,92,246,.5));}
+.modal-art svg{width:100%;height:100%;}
+.modal-icon{font-size:52px;margin-bottom:12px;display:block;}
+.modal-title{font-size:20px;font-weight:900;margin-bottom:8px;}
+.modal-text{font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:20px;}
+.modal-btns{display:flex;gap:10px;}
+.mbtn{flex:1;padding:13px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;}
+.mbtn-cancel{background:rgba(255,255,255,.08);color:var(--hi);border:1px solid rgba(255,255,255,.15);}
+.mbtn-confirm{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;}
+.mbtn-equip{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;}
+input.code-input{width:100%;padding:12px 14px;margin-bottom:14px;
+  border-radius:10px;border:1px solid rgba(148,163,184,.25);
+  background:rgba(255,255,255,.07);color:var(--hi);font-size:15px;letter-spacing:2px;text-align:center;outline:none;}
 
-        /* rarity badge */
-        .rarity-badge{
-            position:absolute;top:10px;right:10px;
-            font-size:9px;font-weight:800;letter-spacing:1px;
-            padding:2px 7px;border-radius:4px;
-        }
-        .badge-common{background:rgba(107,114,128,.3);color:#9ca3af;}
-        .badge-rare{background:rgba(59,130,246,.25);color:#60a5fa;}
-        .badge-epic{background:rgba(168,85,247,.25);color:#c084fc;}
-        .badge-legend{
-            background:linear-gradient(135deg,rgba(245,158,11,.3),rgba(251,191,36,.3));
-            color:#fbbf24;
-            animation:shimmerBadge 2s linear infinite;
-        }
-        @keyframes shimmerBadge{
-            0%{box-shadow:0 0 4px rgba(245,158,11,.2)}
-            50%{box-shadow:0 0 10px rgba(245,158,11,.6)}
-            100%{box-shadow:0 0 4px rgba(245,158,11,.2)}
-        }
+/* ── TOAST ── */
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;
+  background:rgba(14,20,40,.97);border:1px solid rgba(249,115,22,.4);
+  color:var(--hi);padding:16px 28px;border-radius:14px;
+  font-size:15px;font-weight:700;display:none;pointer-events:none;
+  box-shadow:0 0 40px rgba(249,115,22,.2),0 20px 40px rgba(0,0,0,.6);
+  min-width:180px;text-align:center;}
+.toast.show{display:block;animation:popIn .3s;}
+@keyframes popIn{from{transform:translate(-50%,-50%) scale(.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
 
-        /* icon */
-        .item-icon{
-            font-size:46px;margin-bottom:10px;flex-shrink:0;
-            filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));
-            transition:transform .3s;
-        }
-        .item-card:hover .item-icon{transform:scale(1.12) translateY(-2px);}
-        .rarity-legend .item-icon{
-            filter:drop-shadow(0 0 12px rgba(245,158,11,.6)) drop-shadow(0 4px 8px rgba(0,0,0,.5));
-        }
-
-        .item-name{
-            font-size:13px;font-weight:700;color:var(--text-hi);
-            margin-bottom:5px;line-height:1.3;
-        }
-        .item-description{
-            font-size:10px;color:var(--text-lo);margin-bottom:10px;
-            flex:1;line-height:1.5;overflow:hidden;
-            display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-        }
-
-        .item-price{
-            font-size:16px;font-weight:800;margin-top:auto;
-        }
-        .price-common{color:#9ca3af;}
-        .price-rare{color:#60a5fa;}
-        .price-epic{color:#c084fc;}
-        .price-legend{
-            background:linear-gradient(135deg,var(--gold),#fb923c);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;
-            filter:drop-shadow(0 0 6px rgba(245,158,11,.4));
-        }
-
-        .item-stock{font-size:10px;color:#ef4444;margin-top:4px;}
-
-        /* TASK CARD */
-        .task-card{
-            background:linear-gradient(145deg,rgba(14,20,40,.9),rgba(20,14,40,.9));
-            border-color:rgba(251,191,36,.35);
-            min-height:190px;
-        }
-        .task-card::before{background:linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6);}
-        .task-card:hover{
-            border-color:rgba(251,191,36,.7);
-            box-shadow:0 0 32px rgba(251,191,36,.2),0 8px 24px rgba(0,0,0,.5);
-            transform:translateY(-6px) scale(1.02);
-        }
-        .task-badge{
-            position:absolute;top:-1px;left:16px;
-            background:linear-gradient(135deg,#f59e0b,#ef4444);
-            color:white;padding:3px 10px;border-radius:0 0 8px 8px;
-            font-size:10px;font-weight:800;letter-spacing:1px;
-        }
-        .task-teacher{
-            font-size:10px;padding:3px 10px;border-radius:6px;
-            background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25);
-            color:#fbbf24;margin:6px 0;
-        }
-        .task-reward{
-            font-size:17px;font-weight:900;margin-top:6px;
-            background:linear-gradient(135deg,#4ade80,#22d3ee);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;
-            filter:drop-shadow(0 0 6px rgba(74,222,128,.3));
-        }
-
-        /* ── BOTTOM NAV ── */
-        .bottom-nav{
-            position:fixed;bottom:0;left:0;right:0;
-            background:rgba(4,8,20,.97);
-            border-top:1px solid var(--border);
-            backdrop-filter:blur(20px);
-            display:flex;justify-content:space-around;
-            padding:8px 0 env(safe-area-inset-bottom,8px);
-            z-index:200;
-        }
-        .nav-item{
-            display:flex;flex-direction:column;align-items:center;gap:4px;
-            padding:6px 16px;border-radius:10px;cursor:pointer;
-            transition:all .2s;
-        }
-        .nav-item:hover{background:rgba(249,115,22,.1);}
-        .nav-item.active .nav-icon,.nav-item.active .nav-label{color:var(--orange);}
-        .nav-icon{font-size:22px;transition:transform .2s;}
-        .nav-item:active .nav-icon{transform:scale(.88);}
-        .nav-label{font-size:11px;color:var(--text-lo);font-weight:600;}
-        .nav-item.active .nav-label{color:var(--orange);}
-
-        /* ── MODALS ── */
-        .modal{
-            display:none;position:fixed;inset:0;z-index:1000;
-            background:rgba(0,0,0,.75);backdrop-filter:blur(12px);
-            align-items:center;justify-content:center;
-        }
-        .modal.show{display:flex;animation:fadeIn .2s ease;}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-
-        .modal-content{
-            background:linear-gradient(145deg,#080d1e,#0f1729);
-            border:1px solid rgba(249,115,22,.4);
-            border-radius:20px;padding:32px 28px;
-            max-width:380px;width:90%;text-align:center;
-            box-shadow:0 0 60px rgba(249,115,22,.15),0 30px 60px rgba(0,0,0,.6);
-            animation:slideUp .35s cubic-bezier(.175,.885,.32,1.275);
-        }
-        @keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
-
-        .modal-icon{font-size:56px;margin-bottom:12px;}
-        .modal-title{font-size:18px;font-weight:800;color:var(--text-hi);margin-bottom:8px;}
-        .modal-text{font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:20px;}
-        .modal-text strong{color:var(--text-hi);}
-
-        .modal-buttons{display:flex;gap:10px;}
-        .btn{
-            flex:1;padding:12px;border:none;border-radius:10px;
-            font-size:14px;font-weight:700;cursor:pointer;
-            font-family:inherit;transition:all .2s;
-        }
-        .btn-primary{
-            background:linear-gradient(135deg,var(--orange),#ef4444);
-            color:white;
-            box-shadow:0 0 20px rgba(249,115,22,.3);
-        }
-        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(249,115,22,.5);}
-        .btn-secondary{
-            background:rgba(255,255,255,.08);
-            border:1px solid rgba(255,255,255,.15);
-            color:var(--text-mid);
-        }
-        .btn-secondary:hover{background:rgba(255,255,255,.14);color:var(--text-hi);}
-
-        /* activation input */
-        #activationCodeInput{
-            width:100%;padding:12px;
-            background:rgba(255,255,255,.06);
-            border:1px solid rgba(255,255,255,.15);
-            border-radius:10px;
-            font-size:16px;text-align:center;letter-spacing:3px;
-            color:var(--text-hi);margin-bottom:18px;
-            font-family:inherit;
-            transition:border-color .2s;
-        }
-        #activationCodeInput:focus{
-            outline:none;border-color:var(--orange);
-            box-shadow:0 0 0 3px rgba(249,115,22,.15);
-        }
-        #activationCodeInput::placeholder{letter-spacing:1px;color:var(--text-lo);}
-
-        /* ── TOAST ── */
-        .toast{
-            position:fixed;top:50%;left:50%;
-            transform:translate(-50%,-50%);
-            background:linear-gradient(135deg,rgba(14,20,40,.97),rgba(20,14,40,.97));
-            border:1px solid rgba(249,115,22,.4);
-            color:var(--text-hi);padding:18px 36px;
-            border-radius:14px;font-size:16px;font-weight:700;
-            z-index:11000;display:none;
-            box-shadow:0 0 40px rgba(249,115,22,.25),0 20px 40px rgba(0,0,0,.6);
-            pointer-events:none;backdrop-filter:blur(20px);
-            min-width:200px;text-align:center;
-        }
-        .toast.show{display:block;animation:popIn .3s ease;}
-        @keyframes popIn{
-            from{transform:translate(-50%,-50%) scale(.8);opacity:0}
-            to{transform:translate(-50%,-50%) scale(1);opacity:1}
-        }
-
-        /* ── EMPTY STATE ── */
-        .empty-state{
-            text-align:center;padding:60px 20px;
-            color:var(--text-lo);
-        }
-        .empty-state .ei{font-size:56px;margin-bottom:14px;filter:grayscale(1);}
-        .empty-state p{font-size:14px;}
-
-        @media(max-width:480px){
-            .items-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
-        }
-    </style>
+.empty-state{text-align:center;padding:60px 20px;color:var(--lo);}
+.empty-state .ei{font-size:56px;margin-bottom:14px;filter:grayscale(1);}
+</style>
 </head>
 <body>
+<canvas id="bg-canvas"></canvas>
+<div class="scanlines"></div>
 
 <!-- ── HEADER ── -->
 <div class="header">
-    <div class="header-top">
-        <div class="user-row">
-            <div class="avatar-icon">👤</div>
-            <div>
-                <div class="user-name" id="userName">玩家</div>
-                <div class="user-class" id="userClass">校园成员</div>
-            </div>
-        </div>
-        <div class="pts-box">
-            <div class="pts-val" id="pointsValue">—</div>
-            <div class="pts-lbl">💎 我的积分</div>
-        </div>
+  <div class="header-top">
+    <div class="h-back" onclick="goBack()">←</div>
+    <div class="h-title">⚔️ 装备商城</div>
+    <div class="pts-badge">
+      <span class="pts-icon">💎</span>
+      <span class="pts-val" id="ptsVal">—</span>
     </div>
-    <div class="tabs">
-        <button class="tab active" onclick="filterCategory('all',this)">全部</button>
-        <button class="tab" onclick="filterCategory('task',this)">📋 任务</button>
-        <button class="tab" onclick="filterCategory('virtual',this)">🎮 虚拟</button>
-        <button class="tab" onclick="filterCategory('real',this)">🎁 实物</button>
-        <button class="tab" onclick="filterCategory('hair',this)">💇 发型</button>
-        <button class="tab" onclick="filterCategory('glasses',this)">🕶️ 眼镜</button>
-        <button class="tab" onclick="filterCategory('hat',this)">🎩 帽子</button>
-        <button class="tab" onclick="filterCategory('title',this)">🏅 称号</button>
-    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="setTab('all',this)">🌐 全部</button>
+    <button class="tab" onclick="setTab('skin',this)">👔 角色换装</button>
+    <button class="tab" onclick="setTab('weapon',this)">⚔️ 武器道具</button>
+    <button class="tab" onclick="setTab('bg',this)">🌅 背景主题</button>
+    <button class="tab" onclick="setTab('model',this)">🧍 角色模型</button>
+    <button class="tab" onclick="setTab('task',this)">📋 任务</button>
+  </div>
 </div>
 
-<!-- ── CONTENT ── -->
-<div class="content">
+<!-- ── MAIN LAYOUT ── -->
+<div class="main-layout">
+
+  <!-- SIDEBAR PREVIEW (desktop) -->
+  <div class="preview-sidebar" id="previewSidebar">
+    <div class="preview-box" id="previewBox">
+      <div class="preview-art" id="previewArt"></div>
+      <div class="preview-name" id="previewName">选择物品预览</div>
+      <div class="preview-desc" id="previewDesc">点击任意物品查看详情</div>
+      <div class="preview-rarity" id="previewRarity"></div>
+      <div class="preview-price" id="previewPrice"></div>
+      <button class="preview-btn" id="previewBtn" onclick="previewAction()" style="display:none;"></button>
+    </div>
+    <div style="font-size:11px;color:#374151;text-align:center;line-height:1.6;">
+      购买后可随时装备 / 更换<br>装备效果实时显示在主菜单
+    </div>
+  </div>
+
+  <!-- ITEMS AREA -->
+  <div class="items-area" id="itemsArea">
+
+    <!-- FEATURED (only shown on 'all' tab) -->
+    <div id="featuredSection"></div>
+
+    <!-- DYNAMIC CONTENT -->
     <div id="itemsContainer"></div>
     <div class="empty-state" id="emptyState" style="display:none;">
-        <div class="ei">📦</div>
-        <p>暂无商品</p>
+      <div class="ei">📦</div><p>暂无商品</p>
     </div>
+  </div>
 </div>
 
 <!-- ── BOTTOM NAV ── -->
 <div class="bottom-nav">
-    <div class="nav-item active" onclick="goToPage('mall')">
-        <div class="nav-icon">🏪</div>
-        <div class="nav-label">商城</div>
-    </div>
-    <div class="nav-item" onclick="goToPage('inventory')">
-        <div class="nav-icon">🎒</div>
-        <div class="nav-label">背包</div>
-    </div>
-    <div class="nav-item" onclick="goToPage('avatar')">
-        <div class="nav-icon">👤</div>
-        <div class="nav-label">形象</div>
-    </div>
-    <div class="nav-item" onclick="goToPage('rank')">
-        <div class="nav-icon">🏆</div>
-        <div class="nav-label">排行榜</div>
-    </div>
-    <div class="nav-item" onclick="goToPage('tasks')">
-        <div class="nav-icon">📋</div>
-        <div class="nav-label">任务</div>
-    </div>
+  <div class="bnav-item active" onclick="goToPage('mall')"><div class="bnav-icon">🏪</div><div class="bnav-label">商城</div></div>
+  <div class="bnav-item" onclick="goToPage('inventory')"><div class="bnav-icon">🎒</div><div class="bnav-label">背包</div></div>
+  <div class="bnav-item" onclick="goToPage('avatar')"><div class="bnav-icon">👤</div><div class="bnav-label">形象</div></div>
+  <div class="bnav-item" onclick="goToPage('rank')"><div class="bnav-icon">🏆</div><div class="bnav-label">排行榜</div></div>
+  <div class="bnav-item" onclick="goToPage('tasks')"><div class="bnav-icon">📋</div><div class="bnav-label">任务</div></div>
 </div>
 
 <!-- ── EXCHANGE MODAL ── -->
-<div class="modal" id="exchangeModal" onclick="handleModalClick(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-icon" id="modalIcon">🎁</div>
-        <div class="modal-title" id="modalTitle">确认兑换</div>
-        <div class="modal-text" id="modalText">
-            确定要花费 <strong id="modalPrice">50</strong> 积分兑换<br>
-            <strong id="modalItemName">商品名称</strong> 吗？
-        </div>
-        <div class="modal-buttons">
-            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-            <button class="btn btn-primary" onclick="confirmExchange()">确认兑换</button>
-        </div>
+<div class="modal" id="exchangeModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-art" id="modalArt"></div>
+    <div class="modal-title" id="modalTitle">确认购买</div>
+    <div class="modal-text" id="modalText"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal()">取消</button>
+      <button class="mbtn mbtn-confirm" id="modalConfirmBtn" onclick="confirmBuy()">花积分购买</button>
     </div>
+  </div>
 </div>
 
-<!-- ── ACTIVATION MODAL ── -->
+<!-- ── TASK ACTIVATION MODAL ── -->
 <div class="modal" id="activationModal">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-icon" id="taskModalIcon">🎯</div>
-        <div class="modal-title" id="taskModalTitle">输入激活码</div>
-        <div class="modal-text" id="taskModalText">请输入从老师处获得的激活码</div>
-        <input type="text" id="activationCodeInput" placeholder="请输入激活码">
-        <div class="modal-buttons">
-            <button class="btn btn-secondary" onclick="closeActivationModal()">取消</button>
-            <button class="btn btn-primary" onclick="submitActivationCode()">确认提交</button>
-        </div>
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <span class="modal-icon" id="taskModalIcon">🎯</span>
+    <div class="modal-title" id="taskModalTitle">输入激活码</div>
+    <div class="modal-text" id="taskModalText">请输入从老师处获得的激活码</div>
+    <input class="code-input" type="text" id="activationCodeInput" placeholder="输入激活码">
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeActivationModal()">取消</button>
+      <button class="mbtn mbtn-confirm" onclick="submitActivationCode()">确认提交</button>
     </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script src="js/points-system.js"></script>
 <script>
-    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-    const userId   = userData.userId || 'student_001';
+// ═══════════════════════════════════════════════════════════
+// SVG ART GENERATORS
+// ═══════════════════════════════════════════════════════════
+function hex(n){return '#'+n.toString(16).padStart(6,'0');}
 
-    const pointsSystem = new PointsSystem();
-    pointsSystem.setCurrentUser(userId);
+function skinSVG(s,extra){
+  const {shirt,pants,jacket,tie,hair}=s;
+  return `<svg viewBox="0 0 80 136" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sg" cx="50%" cy="60%"><stop offset="0%" stop-color="rgba(255,255,255,.12)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient>
+  </defs>
+  <ellipse cx="40" cy="134" rx="22" ry="5" fill="rgba(0,0,0,.35)"/>
+  <ellipse cx="40" cy="19" rx="19" ry="17" fill="${hex(hair)}"/>
+  <ellipse cx="40" cy="27" rx="15" ry="18" fill="#f5c5a3"/>
+  <rect x="24" y="13" width="32" height="9" rx="4" fill="${hex(hair)}"/>
+  <ellipse cx="34" cy="25" rx="2.5" ry="3" fill="#1a0a00"/>
+  <ellipse cx="46" cy="25" rx="2.5" ry="3" fill="#1a0a00"/>
+  <ellipse cx="34.8" cy="24" rx="1" ry="1" fill="rgba(255,255,255,.7)"/>
+  <ellipse cx="46.8" cy="24" rx="1" ry="1" fill="rgba(255,255,255,.7)"/>
+  <path d="M35 32 Q40 36 45 32" stroke="#1a0a00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <rect x="23" y="46" width="34" height="46" rx="5" fill="${hex(jacket)}"/>
+  <polygon points="40,46 32,58 40,55" fill="${hex(shirt)}"/>
+  <polygon points="40,46 48,58 40,55" fill="${hex(shirt)}"/>
+  <polygon points="40,52 38,57 40,75 42,57" fill="${hex(tie)}"/>
+  <rect x="9" y="48" width="14" height="38" rx="5" fill="${hex(jacket)}" transform="rotate(-8 16 67)"/>
+  <rect x="57" y="48" width="14" height="38" rx="5" fill="${hex(jacket)}" transform="rotate(8 64 67)"/>
+  <rect x="25" y="90" width="15" height="46" rx="4" fill="${hex(pants)}"/>
+  <rect x="40" y="90" width="15" height="46" rx="4" fill="${hex(pants)}"/>
+  <ellipse cx="32" cy="134" rx="9" ry="4" fill="#111"/>
+  <ellipse cx="48" cy="134" rx="9" ry="4" fill="#111"/>
+  ${extra||''}
+  <rect x="0" y="0" width="80" height="136" fill="url(#sg)"/>
+</svg>`;
+}
 
-    let currentCategory = 'all';
-    let selectedItem    = null;
-    let currentTask     = null;
+function bagSVG(color){
+  return `<rect x="52" y="52" width="14" height="20" rx="3" fill="${color}"/>
+          <rect x="54" y="48" width="4" height="6" rx="2" fill="${color}"/>
+          <rect x="59" y="48" width="4" height="6" rx="2" fill="${color}"/>`;
+}
 
-    /* ── RARITY helper ── */
-    function getRarity(item){
-        if(item.category==='task') return 'task';
-        const p=item.price||0;
-        if(p>=200) return 'legend';
-        if(p>=100) return 'epic';
-        if(p>=51)  return 'rare';
-        return 'common';
-    }
-    const RARITY_LABELS={common:'普通',rare:'稀有',epic:'史诗',legend:'传说',task:'任务'};
+function weaponSVG(type){
+  const svgOpen='<svg viewBox="0 0 80 160" xmlns="http://www.w3.org/2000/svg">';
+  const svgClose='</svg>';
+  switch(type){
+    case 'pen':return svgOpen+`
+      <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs>
+      <ellipse cx="40" cy="158" rx="16" ry="5" fill="rgba(0,0,0,.3)"/>
+      <rect x="35" y="15" width="10" height="110" rx="5" fill="url(#pg)"/>
+      <polygon points="35,125 45,125 40,155" fill="#93c5fd"/>
+      <rect x="34" y="13" width="12" height="8" rx="3" fill="#1e40af"/>
+      <rect x="36" y="8" width="8" height="8" rx="2" fill="#fbbf24"/>
+      <ellipse cx="40" cy="80" rx="5" ry="2" fill="rgba(255,255,255,.2)"/>
+      `+svgClose;
+    case 'ruler':return svgOpen+`
+      <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+      <ellipse cx="40" cy="158" rx="16" ry="5" fill="rgba(0,0,0,.3)"/>
+      <rect x="28" y="10" width="24" height="140" rx="4" fill="url(#rg)"/>
+      <rect x="28" y="10" width="24" height="4" rx="2" fill="#fcd34d"/>
+      ${[20,30,40,50,60,70,80,90,100,110,120,130,140].map(y=>`<rect x="28" y="${y}" width="8" height="2" fill="rgba(255,255,255,.5)"/>`).join('')}
+      <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <rect x="28" y="10" width="24" height="140" rx="4" fill="none" stroke="rgba(251,191,36,.6)" stroke-width="1" filter="url(#glow)"/>
+      `+svgClose;
+    case 'laser':return svgOpen+`
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#0891b2"/></linearGradient>
+        <filter id="glow2"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <ellipse cx="40" cy="158" rx="16" ry="5" fill="rgba(0,0,0,.3)"/>
+      <rect x="30" y="60" width="20" height="80" rx="6" fill="#0f172a"/>
+      <rect x="33" y="63" width="14" height="72" rx="4" fill="url(#lg)" filter="url(#glow2)"/>
+      <rect x="26" y="85" width="28" height="12" rx="4" fill="#1e293b"/>
+      <rect x="24" y="88" width="8" height="6" rx="2" fill="#334155"/>
+      <ellipse cx="40" cy="63" rx="8" ry="3" fill="#22d3ee" filter="url(#glow2)"/>
+      <line x1="40" y1="10" x2="40" y2="63" stroke="rgba(34,211,238,.7)" stroke-width="3" filter="url(#glow2)"/>
+      <ellipse cx="40" cy="10" rx="4" ry="10" fill="rgba(34,211,238,.4)" filter="url(#glow2)"/>
+      `+svgClose;
+    case 'book':return svgOpen+`
+      <defs><radialGradient id="bkg" cx="50%" cy="50%"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#4c1d95"/></radialGradient></defs>
+      <ellipse cx="40" cy="158" rx="20" ry="5" fill="rgba(0,0,0,.3)"/>
+      <rect x="15" y="30" width="50" height="120" rx="6" fill="url(#bkg)"/>
+      <rect x="20" y="35" width="40" height="110" rx="4" fill="#1e1b4b"/>
+      <rect x="36" y="30" width="8" height="120" fill="#5b21b6"/>
+      <text x="40" y="90" text-anchor="middle" fill="rgba(196,167,255,.8)" font-size="20" font-family="serif">✦</text>
+      <text x="40" y="115" text-anchor="middle" fill="rgba(196,167,255,.5)" font-size="10">魔法典籍</text>
+      <rect x="15" y="30" width="50" height="120" rx="6" fill="none" stroke="rgba(139,92,246,.6)" stroke-width="1.5"/>
+      `+svgClose;
+    default:return svgOpen+'<text x="40" y="80" text-anchor="middle" fill="white" font-size="40">✨</text>'+svgClose;
+  }
+}
 
-    /* ── TASKS ── */
-    const teacherTasks=[
-        {id:'task_pe_teacher',name:'体育老师任务',icon:'🏃‍♂️',description:'找体育老师对话，完成任务领取激活码',reward:100,activationCode:'629457298',teacher:'体育老师',category:'task'},
-        {id:'task_chinese_teacher',name:'语文老师任务',icon:'📖',description:'找语文老师对话，完成任务领取激活码',reward:100,activationCode:'35792468001',teacher:'语文老师',category:'task'},
-        {id:'task_english_teacher_katie',name:'英语老师凯蒂任务',icon:'👩‍🏫',description:'找英语老师凯蒂对话，完成任务领取激活码',reward:100,activationCode:'576890138',teacher:'英语老师凯蒂',category:'task'},
-        {id:'task_english_teacher_lixiang',name:'英语老师李响任务',icon:'👨‍🏫',description:'找英语老师李响对话，完成任务领取激活码',reward:100,activationCode:'15267683145',teacher:'英语老师李响',category:'task'}
-    ];
+function bgSVG(type){
+  switch(type){
+    case 'spring':return `<svg viewBox="0 0 140 80" xmlns="http://www.w3.org/2000/svg">
+      <rect width="140" height="80" fill="#fce7f3"/>
+      <rect y="55" width="140" height="25" fill="#86efac"/>
+      <rect x="10" y="20" width="8" height="35" fill="#854d0e"/>
+      <ellipse cx="14" cy="18" rx="14" ry="12" fill="#f9a8d4"/>
+      <rect x="70" y="15" width="6" height="40" fill="#854d0e"/>
+      <ellipse cx="73" cy="13" rx="12" ry="10" fill="#f9a8d4"/>
+      ${[15,25,35,60,80,100,120].map(x=>`<ellipse cx="${x}" cy="${30+Math.sin(x)*5}" rx="4" ry="4" fill="rgba(251,207,232,.7)"/>`).join('')}
+      <rect x="0" y="0" width="140" height="80" fill="rgba(252,231,243,.3)"/>
+    </svg>`;
+    case 'night':return `<svg viewBox="0 0 140 80" xmlns="http://www.w3.org/2000/svg">
+      <defs><radialGradient id="ng" cx="50%" cy="0%"><stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#030712"/></radialGradient></defs>
+      <rect width="140" height="80" fill="url(#ng)"/>
+      ${Array.from({length:30},(_,i)=>`<circle cx="${Math.round(Math.random()*140)}" cy="${Math.round(Math.random()*50)}" r="${Math.random()>.7?2:1}" fill="white" opacity="${0.4+Math.random()*0.6}"/>`).join('')}
+      <path d="M0 65 Q35 45 70 60 Q105 75 140 55 L140 80 L0 80Z" fill="#0f172a"/>
+      <path d="M100 8 Q110 0 118 8 Q110 5 100 8" fill="#fbbf24"/>
+    </svg>`;
+    case 'cyber':return `<svg viewBox="0 0 140 80" xmlns="http://www.w3.org/2000/svg">
+      <rect width="140" height="80" fill="#030712"/>
+      <rect y="50" width="140" height="30" fill="#0f172a"/>
+      ${[10,25,45,60,80,95,115,130].map((x,i)=>`<rect x="${x}" y="${20+i%3*10}" width="${10+i%4*4}" height="${30-i%2*5}" fill="#0f172a" stroke="rgba(34,211,238,.3)" stroke-width="0.5"/>`).join('')}
+      ${[5,20,40,70,100,120].map(x=>`<line x1="${x}" y1="50" x2="${x}" y2="80" stroke="rgba(249,115,22,.3)" stroke-width="0.5"/>`).join('')}
+      <line x1="0" y1="50" x2="140" y2="50" stroke="rgba(34,211,238,.5)" stroke-width="1"/>
+      <text x="15" y="30" fill="rgba(34,211,238,.6)" font-size="6" font-family="monospace">CAMPUS</text>
+      <text x="90" y="45" fill="rgba(249,115,22,.5)" font-size="5" font-family="monospace">v2.0</text>
+    </svg>`;
+    default:return '';
+  }
+}
 
-    /* ── INIT ── */
-    window.addEventListener('DOMContentLoaded',()=>{
-        updateUI();
-        renderItems();
-        const modal=document.getElementById('exchangeModal');
-        if(modal){modal.style.display='none';modal.classList.remove('show');}
-        document.addEventListener('keydown',e=>{
-            if(e.key==='Escape'){
-                const m=document.getElementById('exchangeModal');
-                if(m&&m.classList.contains('show')) closeModal();
-            }
-        });
-        const input=document.getElementById('activationCodeInput');
-        if(input) input.addEventListener('keypress',e=>{if(e.key==='Enter') submitActivationCode();});
+function modelSVG(type){
+  switch(type){
+    case 'teacher':return skinSVG(
+      {shirt:0xffffff,pants:0x1f2937,jacket:0x374151,tie:0x1d4ed8,hair:0x374151},
+      `<rect x="20" y="88" width="40" height="4" rx="2" fill="#6b7280"/>`
+    );
+    case 'robot':return `<svg viewBox="0 0 80 136" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="rbt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient></defs>
+      <ellipse cx="40" cy="134" rx="22" ry="5" fill="rgba(0,0,0,.35)"/>
+      <rect x="24" y="6" width="32" height="34" rx="8" fill="url(#rbt)" stroke="rgba(34,211,238,.4)" stroke-width="1"/>
+      <rect x="29" y="12" width="8" height="6" rx="2" fill="#22d3ee" opacity=".9"/>
+      <rect x="43" y="12" width="8" height="6" rx="2" fill="#22d3ee" opacity=".9"/>
+      <rect x="32" y="26" width="16" height="3" rx="1.5" fill="rgba(34,211,238,.5)"/>
+      <rect x="18" y="44" width="44" height="52" rx="6" fill="url(#rbt)" stroke="rgba(34,211,238,.3)" stroke-width="1"/>
+      <rect x="22" y="50" width="36" height="16" rx="3" fill="rgba(34,211,238,.1)" stroke="rgba(34,211,238,.3)" stroke-width=".5"/>
+      <circle cx="30" cy="58" r="4" fill="#22d3ee" opacity=".7"/>
+      <circle cx="40" cy="58" r="4" fill="#f59e0b" opacity=".7"/>
+      <circle cx="50" cy="58" r="4" fill="#f87171" opacity=".7"/>
+      <rect x="8" y="46" width="12" height="40" rx="5" fill="url(#rbt)" stroke="rgba(34,211,238,.2)" stroke-width=".5"/>
+      <rect x="60" y="46" width="12" height="40" rx="5" fill="url(#rbt)" stroke="rgba(34,211,238,.2)" stroke-width=".5"/>
+      <rect x="24" y="94" width="15" height="42" rx="4" fill="url(#rbt)" stroke="rgba(34,211,238,.2)" stroke-width=".5"/>
+      <rect x="41" y="94" width="15" height="42" rx="4" fill="url(#rbt)" stroke="rgba(34,211,238,.2)" stroke-width=".5"/>
+      <rect x="20" y="132" width="20" height="6" rx="3" fill="#334155"/>
+      <rect x="40" y="132" width="20" height="6" rx="3" fill="#334155"/>
+    </svg>`;
+    default:return '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// COSMETICS DATA
+// ═══════════════════════════════════════════════════════════
+const SKINS_DEF=[
+  {shirt:0xfafafa,pants:0x1e2d5a,jacket:0xfafafa,tie:0xdc2626,hair:0x1a0a00},
+  {shirt:0xdbeafe,pants:0x1e2d5a,jacket:0x1e3a8a,tie:0xfbbf24,hair:0x1a0a00},
+  {shirt:0xdc2626,pants:0x1e2d5a,jacket:0xb91c1c,tie:0xffffff,hair:0x1a0a00},
+  {shirt:0xffffff,pants:0x111827,jacket:0x1f2937,tie:0xfbbf24,hair:0x2d1b00},
+  {shirt:0xfce7f3,pants:0x831843,jacket:0xfb7185,tie:0xffffff,hair:0x7c3aed},
+  {shirt:0x1e1b4b,pants:0x0f172a,jacket:0x312e81,tie:0x818cf8,hair:0x0f172a},
+  {shirt:0xffffff,pants:0x1a1a2e,jacket:0x16213e,tie:0xffd700,hair:0x111827},
+];
+const COSMETICS=[
+  // ── SKINS ──
+  {id:'skin_0',name:'夏日制服',cat:'skin',si:0,price:0,r:'common',
+   desc:'清爽夏日，白衬衫配藏青裤，永久免费',tags:['免费','默认'],isDefault:true},
+  {id:'skin_1',name:'冬季大衣',cat:'skin',si:1,price:50,r:'rare',
+   desc:'深冬暖意，深蓝校服配金色领带',tags:['校服','冬季']},
+  {id:'skin_2',name:'运动健将',cat:'skin',si:2,price:80,r:'rare',
+   desc:'活力四射，红色运动全套出战',tags:['运动','PE']},
+  {id:'skin_3',name:'精英正装',cat:'skin',si:3,price:150,r:'epic',
+   desc:'盛装出席，深色正装配金领带',tags:['正式','精英']},
+  {id:'skin_4',name:'樱花限定',cat:'skin',si:4,price:300,r:'legend',
+   desc:'限定·春季限量，粉色绡纱校服',tags:['限定','春季'],isNew:true,isLimited:true},
+  {id:'skin_5',name:'星夜幻影',cat:'skin',si:5,price:500,r:'legend',
+   desc:'虚空之子，深紫星辰战袍',tags:['传说','宇宙']},
+  {id:'skin_6',name:'金色荣耀',cat:'skin',si:6,price:800,r:'legend',
+   desc:'终极传说，金黑配色至尊装备',tags:['传说','限量'],isNew:true},
+  // ── WEAPONS ──
+  {id:'wpn_pen',name:'钢笔宝剑',cat:'weapon',wt:'pen',price:60,r:'rare',
+   desc:'文武双全——墨水也是剑气',tags:['武器','文具']},
+  {id:'wpn_ruler',name:'传说教尺',cat:'weapon',wt:'ruler',price:150,r:'epic',
+   desc:'三十厘米量遍天下道理',tags:['武器','传说']},
+  {id:'wpn_laser',name:'科学光炮',cat:'weapon',wt:'laser',price:280,r:'legend',
+   desc:'物理学到极致就是奇迹',tags:['武器','科学'],isNew:true},
+  {id:'wpn_book',name:'魔法典籍',cat:'weapon',wt:'book',price:400,r:'legend',
+   desc:'知识就是力量，字面意义',tags:['武器','魔法'],isLimited:true},
+  // ── BACKGROUNDS ──
+  {id:'bg_spring',name:'春日校园',cat:'bg',bg:'spring',price:40,r:'common',
+   desc:'樱花飘落的午后操场',tags:['背景','春天']},
+  {id:'bg_night',name:'星空夜景',cat:'bg',bg:'night',price:120,r:'epic',
+   desc:'星河长夜，无尽宇宙',tags:['背景','夜晚'],isNew:true},
+  {id:'bg_cyber',name:'赛博都市',cat:'bg',bg:'cyber',price:350,r:'legend',
+   desc:'霓虹闪烁，未来都市夜景',tags:['背景','赛博']},
+  // ── CHARACTER MODELS ──
+  {id:'mdl_teacher',name:'师者之风',cat:'model',mt:'teacher',price:300,r:'epic',
+   desc:'儒雅学者，知识渊博的导师形象',tags:['模型','老师']},
+  {id:'mdl_robot',name:'机械少年',cat:'model',mt:'robot',price:600,r:'legend',
+   desc:'赛博格变体，钢铁之心脉冲电力',tags:['模型','机器人'],isNew:true},
+];
+
+const RARITY_NAMES={common:'普通',rare:'稀有',epic:'史诗',legend:'传说'};
+const RARITY_COLORS={common:'#9ca3af',rare:'#60a5fa',epic:'#c084fc',legend:'#f59e0b'};
+
+// ═══════════════════════════════════════════════════════════
+// EQUIP / OWN SYSTEM  (separate from pointsSystem)
+// ═══════════════════════════════════════════════════════════
+function getOwned(){return JSON.parse(localStorage.getItem('campus_cosmetics')||'{}');}
+function setOwned(o){localStorage.setItem('campus_cosmetics',JSON.stringify(o));}
+function isOwned(id){
+  if(COSMETICS.find(c=>c.id===id&&c.isDefault)) return true;
+  if(id==='skin_0') return true;
+  return !!getOwned()[id];
+}
+
+function getEquipped(){return JSON.parse(localStorage.getItem('campus_equipped')||'{"skin":"skin_0"}');}
+function setEquipped(slot,id){
+  const eq=getEquipped();eq[slot]=id;
+  localStorage.setItem('campus_equipped',JSON.stringify(eq));
+  // also write skinIndex so main-menu can read it
+  const item=COSMETICS.find(c=>c.id===id);
+  if(item&&item.si!==undefined) localStorage.setItem('equipped_skin_index',item.si);
+  if(item&&item.bg) localStorage.setItem('equipped_bg',item.bg);
+  if(item&&item.mt) localStorage.setItem('equipped_model',item.mt);
+}
+
+// ═══════════════════════════════════════════════════════════
+// POINTS  (bridge to pointsSystem)
+// ═══════════════════════════════════════════════════════════
+const userData=JSON.parse(localStorage.getItem('campus_user')||'{}');
+const userId=userData.userId||'student_001';
+const pointsSystem=new PointsSystem();
+pointsSystem.setCurrentUser(userId);
+
+function getPoints(){
+  const st=pointsSystem.getCurrentStudent();
+  return st?st.points:0;
+}
+function spendPoints(n,desc){
+  pointsSystem.addPoints(userId,-n,desc);
+}
+function refreshPts(){
+  document.getElementById('ptsVal').textContent=getPoints();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB / FILTER
+// ═══════════════════════════════════════════════════════════
+let currentTab='all';
+let selectedId=null;
+
+function setTab(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════
+function renderAll(){
+  const container=document.getElementById('itemsContainer');
+  const featured=document.getElementById('featuredSection');
+  const empty=document.getElementById('emptyState');
+  container.innerHTML=''; featured.innerHTML='';
+
+  if(currentTab==='task'){
+    renderTasks(container,empty); return;
+  }
+
+  // featured banner (all tab only)
+  if(currentTab==='all'){
+    const feat=COSMETICS.find(c=>c.id==='skin_6');
+    featured.innerHTML=makeFeaturedBanner(feat);
+  }
+
+  let items=COSMETICS;
+  if(currentTab!=='all') items=items.filter(c=>c.cat===currentTab);
+
+  if(!items.length){empty.style.display='block';return;}
+  empty.style.display='none';
+
+  // group by rarity
+  const groups={legend:[],epic:[],rare:[],common:[]};
+  items.forEach(c=>{if(groups[c.r]) groups[c.r].push(c);});
+
+  const sec=(title,arr)=>{
+    if(!arr.length) return;
+    const d=document.createElement('div');
+    const t=document.createElement('div');
+    t.className='section-title';t.textContent=title;
+    const g=document.createElement('div');g.className='items-grid';
+    arr.forEach(item=>g.appendChild(makeCard(item)));
+    d.appendChild(t);d.appendChild(g);
+    container.appendChild(d);
+  };
+  sec('👑 传说级别',groups.legend);
+  sec('💜 史诗级别',groups.epic);
+  sec('💙 稀有级别',groups.rare);
+  sec('⚪ 普通级别',groups.common);
+}
+
+function makeFeaturedBanner(item){
+  if(!item) return '';
+  const art=item.cat==='skin'?skinSVG(SKINS_DEF[item.si])
+            :item.cat==='weapon'?weaponSVG(item.wt)
+            :item.cat==='model'?modelSVG(item.mt):'';
+  return `<div class="featured-banner" onclick="selectItem('${item.id}')">
+    <div class="featured-glow"></div>
+    <div class="featured-art">${art}</div>
+    <div class="featured-info">
+      <div class="featured-tag">⭐ 本期精选</div>
+      <div class="featured-name">${item.name}</div>
+      <div class="featured-desc">${item.desc}</div>
+      <div class="featured-price">💎 ${item.price} 积分</div>
+    </div>
+  </div>`;
+}
+
+function getItemArtSVG(item){
+  if(item.cat==='skin')   return skinSVG(SKINS_DEF[item.si]||SKINS_DEF[0]);
+  if(item.cat==='weapon') return weaponSVG(item.wt);
+  if(item.cat==='bg')     return bgSVG(item.bg);
+  if(item.cat==='model')  return modelSVG(item.mt);
+  return '';
+}
+
+function makeCard(item){
+  const card=document.createElement('div');
+  card.className=`item-card r-${item.r}`;
+  card.onclick=()=>selectItem(item.id);
+
+  const owned=isOwned(item.id);
+  const eq=getEquipped();
+  const eqSlot={skin:'skin',weapon:'weapon',bg:'bg',model:'model'}[item.cat];
+  const equipped=eq[eqSlot]===item.id;
+
+  const glowColor={common:'#6b7280',rare:'#3b82f6',epic:'#a855f7',legend:'#f59e0b'}[item.r];
+
+  let badge='';
+  if(equipped)      badge=`<div class="card-badge badge-equipped">已装备</div>`;
+  else if(owned)    badge=`<div class="card-badge badge-owned">已拥有</div>`;
+  else if(item.isNew)    badge=`<div class="card-badge badge-new">NEW</div>`;
+  else if(item.isLimited) badge=`<div class="card-badge badge-limited">限定</div>`;
+
+  const artHTML=item.cat==='bg'
+    ?`<div style="width:100%;height:100%;position:relative;z-index:2;">${bgSVG(item.bg)}</div>`
+    :`<svg style="width:80px;height:130px;position:relative;z-index:2;">${getItemArtSVG(item).replace(/<svg[^>]*>/,'').replace('</svg>','')}</svg>`;
+
+  const priceHTML=item.price===0
+    ?`<div class="card-price p-free">🆓 免费</div>`
+    :`<div class="card-price p-${item.r}">💎 ${item.price}</div>`;
+
+  card.innerHTML=`
+    ${badge}
+    <div class="card-art">
+      <div class="card-art-bg"></div>
+      ${artHTML}
+      <div class="art-glow" style="background:${glowColor};opacity:.5;"></div>
+    </div>
+    <div class="card-info">
+      <div class="card-rarity">${RARITY_NAMES[item.r]}</div>
+      <div class="card-name">${item.name}</div>
+      <div class="card-tags">${(item.tags||[]).map(t=>`<span class="card-tag">${t}</span>`).join('')}</div>
+      ${priceHTML}
+    </div>`;
+  return card;
+}
+
+// ─── TASK CARDS ───
+const teacherTasks=[
+  {id:'task_pe',name:'体育老师任务',icon:'🏃‍♂️',desc:'找体育老师对话，完成任务领取激活码',reward:100,code:'629457298',teacher:'体育老师',cat:'task'},
+  {id:'task_chinese',name:'语文老师任务',icon:'📖',desc:'找语文老师对话，完成任务领取激活码',reward:100,code:'35792468001',teacher:'语文老师',cat:'task'},
+  {id:'task_katie',name:'英语老师凯蒂',icon:'👩‍🏫',desc:'找英语老师凯蒂对话，完成任务领取激活码',reward:100,code:'576890138',teacher:'英语老师凯蒂',cat:'task'},
+  {id:'task_lixiang',name:'英语老师李响',icon:'👨‍🏫',desc:'找英语老师李响对话，完成任务领取激活码',reward:100,code:'15267683145',teacher:'英语老师李响',cat:'task'},
+];
+let currentTask=null;
+
+function renderTasks(container,empty){
+  const pending=teacherTasks.filter(t=>!isTaskDone(t.id));
+  if(!pending.length){empty.style.display='block';empty.querySelector('p').textContent='所有任务已完成 🎉';return;}
+  empty.style.display='none';
+  const t=document.createElement('div');t.className='section-title';t.textContent='📋 可用任务';
+  const g=document.createElement('div');g.className='items-grid';
+  pending.forEach(task=>{
+    const c=document.createElement('div');
+    c.className='item-card r-epic task-card';
+    c.onclick=()=>openTaskModal(task);
+    c.innerHTML=`
+      <div class="task-badge-top"></div>
+      <div class="task-art">${task.icon}</div>
+      <div class="card-info">
+        <div class="card-rarity">任务</div>
+        <div class="card-name">${task.name}</div>
+        <div class="task-teacher">💬 ${task.teacher}</div>
+        <div class="task-reward">+${task.reward} 积分</div>
+      </div>`;
+    g.appendChild(c);
+  });
+  container.appendChild(t);container.appendChild(g);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECT ITEM → PREVIEW SIDEBAR
+// ═══════════════════════════════════════════════════════════
+let selectedItem=null;
+
+function selectItem(id){
+  selectedId=id;
+  const item=COSMETICS.find(c=>c.id===id);
+  if(!item) return;
+  selectedItem=item;
+
+  // highlight
+  document.querySelectorAll('.item-card').forEach(c=>c.classList.remove('selected'));
+  event&&event.currentTarget&&event.currentTarget.classList.add('selected');
+
+  // update sidebar
+  const art=getItemArtSVG(item);
+  document.getElementById('previewArt').innerHTML=art;
+  document.getElementById('previewName').textContent=item.name;
+  document.getElementById('previewDesc').textContent=item.desc;
+  const rEl=document.getElementById('previewRarity');
+  rEl.textContent=RARITY_NAMES[item.r];
+  rEl.style.background=RARITY_COLORS[item.r]+'22';
+  rEl.style.color=RARITY_COLORS[item.r];
+  rEl.style.border=`1px solid ${RARITY_COLORS[item.r]}44`;
+
+  const priceEl=document.getElementById('previewPrice');
+  priceEl.textContent=item.price===0?'🆓 免费':`💎 ${item.price} 积分`;
+  priceEl.style.color=item.price===0?'#4ade80':RARITY_COLORS[item.r];
+
+  const btn=document.getElementById('previewBtn');
+  btn.style.display='block';
+  const owned=isOwned(item.id);
+  const eq=getEquipped();
+  const eqSlot={skin:'skin',weapon:'weapon',bg:'bg',model:'model'}[item.cat];
+  const equipped=eq[eqSlot]===item.id;
+
+  if(equipped){
+    btn.className='preview-btn owned';btn.textContent='✅ 已装备';
+  } else if(owned){
+    btn.className='preview-btn equip';btn.textContent='⚡ 装备';
+  } else if(item.price===0){
+    btn.className='preview-btn free';btn.textContent='🆓 免费获取';
+  } else {
+    btn.className='preview-btn buy';btn.textContent=`💎 ${item.price} 购买`;
+  }
+
+  // mobile: open modal directly
+  if(window.innerWidth<900) openBuyModal(item);
+}
+
+function previewAction(){
+  if(!selectedItem) return;
+  const owned=isOwned(selectedItem.id);
+  if(owned) equipItem(selectedItem);
+  else openBuyModal(selectedItem);
+}
+
+function equipItem(item){
+  const slot={skin:'skin',weapon:'weapon',bg:'bg',model:'model'}[item.cat]||'skin';
+  setEquipped(slot,item.id);
+  showToast(`⚡ ${item.name} 已装备！`);
+  renderAll();
+  if(selectedId) selectItem(selectedId);
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUY MODAL
+// ═══════════════════════════════════════════════════════════
+function openBuyModal(item){
+  const art=getItemArtSVG(item);
+  document.getElementById('modalArt').innerHTML=art;
+  document.getElementById('modalTitle').textContent=item.price===0?'免费领取':'确认购买';
+  const pts=getPoints();
+  const confirmBtn=document.getElementById('modalConfirmBtn');
+  if(item.price===0){
+    document.getElementById('modalText').innerHTML=`<strong>${item.name}</strong><br><br>免费领取，立即拥有！`;
+    confirmBtn.textContent='🆓 免费领取';confirmBtn.style.display='block';
+  } else if(pts<item.price){
+    document.getElementById('modalText').innerHTML=`积分不足！<br>当前 <strong>${pts}</strong> 积分，还差 <strong style="color:#ef4444;">${item.price-pts}</strong> 积分`;
+    confirmBtn.style.display='none';
+  } else {
+    document.getElementById('modalText').innerHTML=`花费 <strong style="color:#f59e0b;">${item.price}</strong> 积分购买<br><strong>${item.name}</strong>`;
+    confirmBtn.textContent=`💎 ${item.price} 购买`;confirmBtn.style.display='block';
+  }
+  const m=document.getElementById('exchangeModal');
+  m.style.display='flex';m.classList.add('show');
+}
+
+function confirmBuy(){
+  if(!selectedItem) return;
+  const item=selectedItem;
+  const owned=isOwned(item.id);
+  if(!owned){
+    if(item.price>0) spendPoints(item.price,'购买:'+item.name);
+    const o=getOwned();o[item.id]=true;setOwned(o);
+  }
+  closeModal();
+  refreshPts();
+  // auto-equip on purchase
+  equipItem(item);
+}
+
+function closeModal(){
+  const m=document.getElementById('exchangeModal');
+  m.classList.remove('show');m.style.display='none';
+}
+
+// ═══════════════════════════════════════════════════════════
+// TASK MODAL
+// ═══════════════════════════════════════════════════════════
+function openTaskModal(task){
+  currentTask=task;
+  document.getElementById('taskModalIcon').textContent=task.icon;
+  document.getElementById('taskModalTitle').textContent=task.name;
+  document.getElementById('taskModalText').innerHTML=`
+    <strong style="color:#f59e0b;">📍 任务：</strong>${task.desc}<br><br>
+    <span style="color:#4ade80;font-weight:700;">完成奖励：+${task.reward} 积分</span>`;
+  document.getElementById('activationCodeInput').value='';
+  const m=document.getElementById('activationModal');
+  m.style.display='flex';m.classList.add('show');
+  setTimeout(()=>document.getElementById('activationCodeInput').focus(),100);
+}
+
+function closeActivationModal(){
+  const m=document.getElementById('activationModal');
+  m.classList.remove('show');m.style.display='none';
+  currentTask=null;
+}
+
+function submitActivationCode(){
+  if(!currentTask) return;
+  const code=document.getElementById('activationCodeInput').value.trim();
+  if(!code){showToast('❌ 请输入激活码');return;}
+  if(code===currentTask.code){
+    if(isTaskDone(currentTask.id)){showToast('⚠️ 任务已完成');closeActivationModal();return;}
+    pointsSystem.addPoints(userId,currentTask.reward,'完成'+currentTask.name);
+    markTaskDone(currentTask.id);
+    closeActivationModal();
+    setTimeout(()=>{refreshPts();renderAll();showToast(`🎉 获得 ${currentTask.reward} 积分！`);},100);
+  } else {
+    showToast('❌ 激活码错误');
+    document.getElementById('activationCodeInput').value='';
+    document.getElementById('activationCodeInput').focus();
+  }
+}
+
+function isTaskDone(id){const ct=JSON.parse(localStorage.getItem('completed_tasks')||'{}');return !!(ct[userId]&&ct[userId][id]);}
+function markTaskDone(id){
+  const ct=JSON.parse(localStorage.getItem('completed_tasks')||'{}');
+  if(!ct[userId]) ct[userId]={};
+  ct[userId][id]={completed:true,at:new Date().toISOString()};
+  localStorage.setItem('completed_tasks',JSON.stringify(ct));
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST + NAV + MISC
+// ═══════════════════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');
+  if(window.toastTimer) clearTimeout(window.toastTimer);
+  t.textContent=msg;t.classList.add('show');t.style.display='block';
+  window.toastTimer=setTimeout(()=>{t.classList.remove('show');t.style.display='none';},3000);
+}
+
+function goToPage(page){
+  const pages={mall:'points-mall.html',inventory:'points-inventory.html',avatar:'points-avatar.html',rank:'points-rank.html',tasks:'points-tasks.html'};
+  if(page==='mall'&&window.location.href.includes('points-mall')) return;
+  if(window.parent&&window.parent!==window){
+    try{if(typeof window.parent.openInGame==='function'){window.parent.openInGame(pages[page],page);return;}}catch(e){}
+  }
+  window.location.replace(pages[page]);
+}
+
+function goBack(){
+  if(window.parent&&window.parent!==window){
+    try{if(typeof window.parent.closeModal==='function'){window.parent.closeModal('feature-modal');return;}}catch(e){}
+  }
+  window.history.length>1?window.history.back():window.location.replace('main-menu.html');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ANIMATED BACKGROUND
+// ═══════════════════════════════════════════════════════════
+(function initBg(){
+  const c=document.getElementById('bg-canvas');
+  const ctx=c.getContext('2d');
+  let W,H,stars=[];
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;
+    stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.3,v:Math.random()*.3+.1,a:Math.random()}));}
+  resize();window.addEventListener('resize',resize);
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    stars.forEach(s=>{
+      s.a+=.008;if(s.a>1)s.a-=1;
+      const alpha=Math.sin(s.a*Math.PI)*.6;
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${alpha})`;ctx.fill();
     });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
 
-    /* ── UPDATE UI ── */
-    function updateUI(){
-        const st=pointsSystem.getCurrentStudent();
-        if(st){
-            document.getElementById('userName').textContent=st.name;
-            document.getElementById('userClass').textContent=st.class||'校园成员';
-            document.getElementById('pointsValue').textContent=st.points;
-        }
-    }
-
-    /* ── RENDER ── */
-    function renderItems(){
-        const items=pointsSystem.getRewardItems();
-        const container=document.getElementById('itemsContainer');
-        const empty=document.getElementById('emptyState');
-        container.innerHTML='';
-
-        let allItems=[];
-        if(currentCategory==='all'||currentCategory==='task'){
-            allItems=[...teacherTasks.filter(t=>!isTaskCompleted(t.id))];
-        }
-        if(currentCategory!=='task'){
-            let fi=items;
-            if(currentCategory!=='all'){
-                if(currentCategory==='virtual'||currentCategory==='real'){
-                    fi=items.filter(i=>i.category===currentCategory);
-                } else {
-                    fi=items.filter(i=>i.type===currentCategory);
-                }
-            }
-            const st=pointsSystem.getCurrentStudent();
-            if(st&&st.inventory){
-                fi=fi.filter(i=>{
-                    if(i.category==='real') return true;
-                    return !st.inventory.some(inv=>inv.itemId===i.id);
-                });
-            }
-            allItems=[...allItems,...fi];
-        }
-
-        if(!allItems.length){empty.style.display='block';return;}
-        empty.style.display='none';
-
-        const taskItems=[], legendItems=[], epicItems=[], rareItems=[], commonItems=[];
-        allItems.forEach(item=>{
-            if(item.category==='task'){taskItems.push(item); return;}
-            const r=getRarity(item);
-            if(r==='legend') legendItems.push(item);
-            else if(r==='epic') epicItems.push(item);
-            else if(r==='rare') rareItems.push(item);
-            else commonItems.push(item);
-        });
-
-        function section(title,arr){
-            if(!arr.length) return;
-            const sec=document.createElement('div');
-            const t=document.createElement('div');
-            t.className='section-title';t.textContent=title;
-            const g=document.createElement('div');g.className='items-grid';
-            arr.forEach(item=>g.appendChild(createItemCard(item)));
-            sec.appendChild(t);sec.appendChild(g);
-            container.appendChild(sec);
-        }
-
-        section('📋 任务中心',taskItems);
-        section('👑 传说道具',legendItems);
-        section('💜 史诗道具',epicItems);
-        section('💙 稀有道具',rareItems);
-        section('⚪ 普通道具',commonItems);
-    }
-
-    /* ── CREATE CARD ── */
-    function createItemCard(item){
-        const card=document.createElement('div');
-
-        if(item.category==='task'){
-            card.className='item-card task-card';
-            card.onclick=()=>showTaskActivationModal(item);
-            card.innerHTML=`
-                <div class="task-badge">MISSION</div>
-                <div class="item-icon">${item.icon}</div>
-                <div class="item-name">${item.name}</div>
-                <div class="item-description">${item.description}</div>
-                <div class="task-teacher">💬 找 ${item.teacher}</div>
-                <div class="task-reward">+${item.reward} 积分</div>
-            `;
-        } else {
-            const r=getRarity(item);
-            card.className=`item-card rarity-${r}`;
-            card.onclick=()=>showExchangeModal(item);
-
-            const priceClass=`price-${r}`;
-            let stockInfo='';
-            if(item.category==='real'&&item.stock>=0){
-                stockInfo=`<div class="item-stock">库存: ${item.stock}</div>`;
-            }
-
-            card.innerHTML=`
-                <div class="rarity-badge badge-${r}">${RARITY_LABELS[r]}</div>
-                <div class="item-icon">${item.image}</div>
-                <div class="item-name">${item.name}</div>
-                <div class="item-description">${item.description}</div>
-                <div class="item-price ${priceClass}">💎 ${item.price}</div>
-                ${stockInfo}
-            `;
-        }
-        return card;
-    }
-
-    /* ── FILTER ── */
-    function filterCategory(cat,el){
-        currentCategory=cat;
-        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-        if(el) el.classList.add('active');
-        renderItems();
-    }
-
-    /* ── EXCHANGE MODAL ── */
-    function showExchangeModal(item){
-        selectedItem=null;
-        const modal=document.getElementById('exchangeModal');
-        if(modal) modal.style.display='flex';
-        selectedItem=item;
-        document.getElementById('modalIcon').textContent=item.image;
-        document.getElementById('modalItemName').textContent=item.name;
-        document.getElementById('modalPrice').textContent=item.price;
-        const st=pointsSystem.getCurrentStudent();
-        const confirmBtn=document.querySelector('#exchangeModal .btn-primary');
-        if(st.points<item.price){
-            document.getElementById('modalText').innerHTML=`
-                <span style="color:#ef4444;">积分不足！</span><br>
-                当前 <strong>${st.points}</strong> 积分，还差 <strong>${item.price-st.points}</strong> 积分
-            `;
-            if(confirmBtn) confirmBtn.style.display='none';
-        } else {
-            document.getElementById('modalText').innerHTML=`
-                花费 <strong>${item.price}</strong> 积分兑换<br>
-                <strong>${item.name}</strong> ？
-            `;
-            if(confirmBtn) confirmBtn.style.display='block';
-        }
-        document.getElementById('exchangeModal').classList.add('show');
-    }
-
-    function handleModalClick(e){
-        if(e.target.id==='exchangeModal') closeModal();
-    }
-
-    function closeModal(){
-        const m=document.getElementById('exchangeModal');
-        if(m){m.classList.remove('show');m.style.display='none';}
-        selectedItem=null;
-        const btn=document.querySelector('#exchangeModal .btn-primary');
-        if(btn) btn.style.display='block';
-    }
-
-    function confirmExchange(){
-        if(!selectedItem) return;
-        const itemId=selectedItem.id;
-        const result=pointsSystem.exchangeReward(userId,itemId);
-        const m=document.getElementById('exchangeModal');
-        if(m){m.classList.remove('show');m.style.display='none';}
-        selectedItem=null;
-        updateUI(); renderItems();
-        showToast(result.success?'🎉 '+result.message:'❌ '+result.message);
-    }
-
-    /* ── TASK MODAL ── */
-    function showTaskActivationModal(task){
-        currentTask=task;
-        document.getElementById('taskModalIcon').textContent=task.icon;
-        document.getElementById('taskModalTitle').textContent=task.name;
-        document.getElementById('taskModalText').innerHTML=`
-            <div style="margin-bottom:10px;"><strong style="color:#f59e0b;">📍 任务提示：</strong><br>${task.description}</div>
-            <div style="color:#4ade80;font-weight:700;">完成后获得 +${task.reward} 积分 🎁</div>
-        `;
-        document.getElementById('activationCodeInput').value='';
-        document.getElementById('activationModal').classList.add('show');
-        setTimeout(()=>document.getElementById('activationCodeInput').focus(),100);
-    }
-
-    function closeActivationModal(){
-        const m=document.getElementById('activationModal');
-        if(m){
-            m.classList.remove('show');
-            m.style.display='none';
-            setTimeout(()=>{m.style.display='';},500);
-        }
-        document.getElementById('activationCodeInput').value='';
-        currentTask=null;
-    }
-
-    function submitActivationCode(){
-        if(!currentTask) return;
-        const code=document.getElementById('activationCodeInput').value.trim();
-        if(!code){showToast('❌ 请输入激活码');return;}
-        if(code===currentTask.activationCode){
-            if(isTaskCompleted(currentTask.id)){
-                showToast('⚠️ 该任务已完成');closeActivationModal();return;
-            }
-            const reward=currentTask.reward, name=currentTask.name, id=currentTask.id;
-            const st=pointsSystem.getCurrentStudent();
-            if(st){
-                try{
-                    pointsSystem.addPoints(userId,reward,`完成${name}`);
-                    markTaskCompleted(id);
-                    const m=document.getElementById('activationModal');
-                    if(m){m.classList.remove('show');m.style.display='none';}
-                    currentTask=null;
-                    setTimeout(()=>{updateUI();renderItems();showToast(`🎉 获得 ${reward} 积分！`);},100);
-                }catch(e){alert('错误: '+e.message);}
-            } else {alert('未找到学生信息，请重新登录');}
-        } else {
-            showToast('❌ 激活码错误，请重试');
-            document.getElementById('activationCodeInput').value='';
-            document.getElementById('activationCodeInput').focus();
-        }
-    }
-
-    /* ── TASK STATUS ── */
-    function isTaskCompleted(taskId){
-        const ct=JSON.parse(localStorage.getItem('completed_tasks')||'{}');
-        return ct[userId]&&ct[userId][taskId];
-    }
-    function markTaskCompleted(taskId){
-        const ct=JSON.parse(localStorage.getItem('completed_tasks')||'{}');
-        if(!ct[userId]) ct[userId]={};
-        ct[userId][taskId]={completed:true,completedAt:new Date().toISOString()};
-        localStorage.setItem('completed_tasks',JSON.stringify(ct));
-    }
-
-    /* ── TOAST ── */
-    function showToast(msg){
-        const t=document.getElementById('toast');
-        if(!t){alert(msg);return;}
-        if(window.toastTimer) clearTimeout(window.toastTimer);
-        t.textContent=msg;t.classList.add('show');t.style.display='block';
-        window.toastTimer=setTimeout(()=>{t.classList.remove('show');t.style.display='none';},3000);
-    }
-
-    /* ── NAV ── */
-    function goToPage(page){
-        const pages={
-            mall:'points-mall.html',inventory:'points-inventory.html',
-            avatar:'points-avatar.html',rank:'points-rank.html',tasks:'points-tasks.html'
-        };
-        const titles={
-            mall:'💎 积分商城',inventory:'🎒 我的背包',
-            avatar:'👤 虚拟形象',rank:'🏆 排行榜',tasks:'📋 任务中心'
-        };
-        if(!pages[page]) return;
-        if(page==='mall'&&window.location.pathname.includes('points-mall.html')) return;
-        if(window.parent&&window.parent!==window){
-            try{
-                if(typeof window.parent.openInGame==='function'){
-                    window.parent.openInGame(pages[page],titles[page]);return;
-                }
-            }catch(e){}
-        }
-        window.location.replace(pages[page]);
-    }
-
-    /* ── AUTO SAVE ── */
-    function autoSavePoints(){
-        try{if(pointsSystem&&userId) pointsSystem.savePointsData();}catch(e){}
-    }
-    window.addEventListener('beforeunload',autoSavePoints);
-    setInterval(autoSavePoints,30000);
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  refreshPts();
+  renderAll();
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){closeModal();closeActivationModal();}
+  });
+  document.getElementById('activationCodeInput').addEventListener('keypress',e=>{
+    if(e.key==='Enter') submitActivationCode();
+  });
+  // sync user name
+  const st=pointsSystem.getCurrentStudent();
+  if(st){
+    const uEl=document.querySelector('.h-title');
+    if(uEl) uEl.textContent=`⚔️ ${st.name||'装备商城'}`;
+  }
+});
+window.addEventListener('beforeunload',()=>{try{pointsSystem.savePointsData();}catch(e){}});
+setInterval(()=>{try{pointsSystem.savePointsData();}catch(e){}},30000);
 </script>
 </body>
 </html>

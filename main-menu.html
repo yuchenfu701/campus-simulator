@@ -854,16 +854,18 @@
         jacket:new THREE.MeshStandardMaterial({color:0x1e2d5a,roughness:.55,metalness:0}),
     };
 
-    // 4 school uniform skins
+    // 7 school uniform skins (0-3 default, 4-6 from mall)
     const SKINS=[
-        // 0: Summer — white shirt + navy pants
         {shirt:0xfafafa,pants:0x1e2d5a,jacket:0xfafafa,tie:0xdc2626,bag:0x1d4ed8,hair:0x1a0a00,glow:0x818cf8},
-        // 1: Winter — navy jacket + navy pants
         {shirt:0xdbeafe,pants:0x1e2d5a,jacket:0x1e3a8a,tie:0xfbbf24,bag:0x1d4ed8,hair:0x1a0a00,glow:0x60a5fa},
-        // 2: PE — red sports uniform
         {shirt:0xdc2626,pants:0x1e2d5a,jacket:0xb91c1c,tie:0xffffff,bag:0x7c3aed,hair:0x1a0a00,glow:0xf87171},
-        // 3: Formal — white + gold
         {shirt:0xffffff,pants:0x111827,jacket:0x1f2937,tie:0xfbbf24,bag:0x374151,hair:0x2d1b00,glow:0xfbbf24},
+        // 4: 樱花限定 — pink cherry blossom (mall)
+        {shirt:0xfce7f3,pants:0x831843,jacket:0xfb7185,tie:0xffffff,bag:0xec4899,hair:0x7c3aed,glow:0xf9a8d4},
+        // 5: 星夜幻影 — cosmic purple (mall)
+        {shirt:0x1e1b4b,pants:0x0f172a,jacket:0x312e81,tie:0x818cf8,bag:0x4f46e5,hair:0x0f172a,glow:0x818cf8},
+        // 6: 金色荣耀 — gold & black (mall)
+        {shirt:0xffffff,pants:0x1a1a2e,jacket:0x16213e,tie:0xffd700,bag:0x374151,hair:0x111827,glow:0xffd700},
     ];
 
     function applySkin(i){
@@ -882,7 +884,26 @@
     window.setSkin=function(i){
         document.querySelectorAll('.skin-btn').forEach((b,j)=>b.classList.toggle('active',i===j));
         applySkin(i);
+        // persist choice
+        try{
+            const eq=JSON.parse(localStorage.getItem('campus_equipped')||'{}');
+            const skinId='skin_'+i;
+            eq.skin=skinId;
+            localStorage.setItem('campus_equipped',JSON.stringify(eq));
+            localStorage.setItem('equipped_skin_index',i);
+        }catch(e){}
     };
+
+    // read mall-equipped skin on load
+    (function loadEquippedSkin(){
+        try{
+            const si=parseInt(localStorage.getItem('equipped_skin_index')||'0',10);
+            if(si>=0&&si<SKINS.length){
+                applySkin(si);
+                document.querySelectorAll('.skin-btn').forEach((b,j)=>b.classList.toggle('active',si===j));
+            }
+        }catch(e){}
+    })();
 
     // ── geometry helpers ──
     const char=new THREE.Group();
