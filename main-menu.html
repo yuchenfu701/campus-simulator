@@ -4,1587 +4,1208 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>主菜单 - 爱哲安民未来学校校园模拟器</title>
-    <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#764ba2">
+    <meta name="theme-color" content="#0a0e1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="爱哲学校">
     <link rel="apple-touch-icon" href="images/icon-192.png">
     <script src="js/campus-settings.js"></script>
     <link rel="stylesheet" href="css/campus-mobile.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        }
-        
-        body {
-            width: 100vw;
-            min-height: 100vh;
-            min-height: 100dvh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: #0a0e27;
-        }
-        
-        /* 背景层 - 更柔和的渐变 */
-        .bg-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, 
-                #0f172a 0%, 
-                #1e293b 25%, 
-                #312e81 50%, 
-                #1e293b 75%, 
-                #0f172a 100%);
-            z-index: 0;
-        }
-        
-        /* 动态光效 - 多层光效 */
-        .light-effect {
-            position: fixed;
-            width: 200%;
-            height: 200%;
-            top: -50%;
-            left: -50%;
-            background: 
-                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
-            animation: rotate 30s linear infinite;
-            z-index: 1;
-        }
-        
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        /* 星空Canvas */
-        #starsCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            pointer-events: none;
-        }
-        
-        /* 主容器 */
-        .main-container {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            height: 100%;
-            display: grid;
-            grid-template-columns: 300px 1fr 300px;
-            grid-template-rows: 80px 1fr 120px;
-            gap: 20px;
-            padding: 20px;
-        }
-        
-        /* 顶部导航栏 - 更精致的设计 */
-        .top-bar {
-            grid-column: 1 / -1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 20px;
-            padding: 0 30px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .logo-icon {
-            font-size: 36px;
-        }
-        
-        .logo-text {
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        
-        .top-info {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        
-        .settings-top-btn {
-            background: rgba(139, 92, 246, 0.35);
-            border: 1px solid rgba(196, 181, 253, 0.45);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-        }
-        .settings-top-btn:active {
-            opacity: 0.88;
-        }
-        
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 18px;
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(10px);
-            border-radius: 14px;
-            color: white;
-            font-size: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-        
-        .info-item:hover {
-            background: rgba(255, 255, 255, 0.18);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-        }
-        
-        .info-icon {
-            font-size: 20px;
-        }
-        
-        /* 左侧用户信息 */
-        .left-panel {
-            grid-row: 2 / 3;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        /* 用户卡片 - 更精致的设计 */
-        .user-card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 24px;
-            padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-        }
-        
-        .user-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        }
-        
-        .user-avatar {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 15px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5),
-                        0 0 0 4px rgba(139, 92, 246, 0.2);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s;
-        }
-        
-        .user-avatar::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            animation: shine 3s infinite;
-        }
-        
-        @keyframes shine {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .user-card:hover .user-avatar {
-            transform: scale(1.05);
-            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6),
-                        0 0 0 6px rgba(139, 92, 246, 0.3);
-        }
-        
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .user-name {
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        
-        .user-id {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-            margin-bottom: 15px;
-        }
-        
-        .user-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        .stat-box {
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(10px);
-            border-radius: 14px;
-            padding: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-        }
-        
-        .stat-box:hover {
-            background: rgba(255, 255, 255, 0.18);
-            transform: translateY(-2px);
-        }
-        
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ffd700;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        /* 虚拟形象展示 - 更精致的设计 */
-        .avatar-display {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 24px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-        }
-        
-        .avatar-display:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        }
-        
-        .avatar-title {
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        
-        .avatar-preview-large {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto;
-            border-radius: 24px;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(99, 102, 241, 0.4));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4),
-                        inset 0 2px 4px rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-        }
-        
-        .avatar-display:hover .avatar-preview-large {
-            transform: scale(1.05);
-            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6),
-                        inset 0 2px 4px rgba(255, 255, 255, 0.15);
-        }
-        
-        .avatar-edit-btn {
-            margin-top: 15px;
-            padding: 10px 24px;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(99, 102, 241, 0.3));
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 14px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-        
-        .avatar-edit-btn:hover {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(99, 102, 241, 0.5));
-            transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
-        }
-        
-        /* 中央内容区 */
-        .center-content {
-            grid-row: 2 / 3;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow: hidden;
-        }
-        
-        /* 功能网格 */
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            flex: 1;
-            overflow-y: auto;
-            padding-bottom: 10px;
-        }
-        
-        .feature-card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 20px;
-            padding: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            min-height: 150px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-        
-        .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, 
-                rgba(139, 92, 246, 0.2), 
-                rgba(99, 102, 241, 0.2),
-                rgba(59, 130, 246, 0.2));
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-        
-        .feature-card::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.4),
-                        0 0 0 1px rgba(255, 255, 255, 0.2),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            border-color: rgba(139, 92, 246, 0.6);
-        }
-        
-        .feature-card:hover::before {
-            opacity: 1;
-        }
-        
-        .feature-card:hover::after {
-            opacity: 1;
-            animation: rotate 3s linear infinite;
-        }
-        
-        .feature-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-            position: relative;
-            z-index: 1;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-            transition: all 0.4s;
-        }
-        
-        .feature-card:hover .feature-icon {
-            transform: scale(1.15) rotate(5deg);
-            filter: drop-shadow(0 6px 12px rgba(139, 92, 246, 0.6));
-        }
-        
-        .feature-title {
-            color: white;
-            font-size: 17px;
-            font-weight: 600;
-            margin-bottom: 6px;
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            letter-spacing: 0.5px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .feature-desc {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 12px;
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            line-height: 1.4;
-        }
-        
-        /* 右侧面板 */
-        .right-panel {
-            grid-row: 2 / 3;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        /* 排行榜预览 - 更精致的设计 */
-        .rank-preview {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 24px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            flex: 1;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-        
-        .panel-title {
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .rank-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            border-radius: 14px;
-            margin-bottom: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        .rank-item:hover {
-            background: rgba(255, 255, 255, 0.12);
-            transform: translateX(4px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-        
-        .rank-number {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #ffd700, #ffed4e);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #333;
-            font-size: 14px;
-        }
-        
-        .rank-info {
-            flex: 1;
-        }
-        
-        .rank-name {
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        
-        .rank-score {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-        }
-        
-        /* 公告栏 - 更精致的设计 */
-        .notice-panel {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 24px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-        
-        .notice-item {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 13px;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            margin-bottom: 10px;
-            border-left: 3px solid #8b5cf6;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        .notice-item:hover {
-            background: rgba(255, 255, 255, 0.12);
-            transform: translateX(4px);
-            border-left-color: #6366f1;
-        }
-        
-        /* 底部控制栏 */
-        .bottom-bar {
-            grid-column: 1 / -1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            z-index: 100;
-            position: relative;
-        }
-        
-        .main-button {
-            padding: 18px 60px;
-            border-radius: 16px;
-            border: none;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-start-game {
-            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
-            color: white;
-            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5),
-                        0 0 0 0 rgba(139, 92, 246, 0.4);
-            min-width: 220px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-start-game::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-        
-        .btn-start-game:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 16px 40px rgba(139, 92, 246, 0.6),
-                        0 0 0 4px rgba(139, 92, 246, 0.3);
-        }
-        
-        .btn-start-game:hover::before {
-            left: 100%;
-        }
-        
-        .btn-start-game:active {
-            transform: translateY(-2px);
-        }
-        
-        .btn-logout {
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(10px);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s;
-        }
-        
-        .btn-logout:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* 响应式 */
-        @media (max-width: 1600px) {
-            .feature-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-        
-        @media (max-width: 1200px) {
-            .main-container {
-                grid-template-columns: 250px 1fr 250px;
-            }
-            .feature-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-        
-        @media (max-width: 900px) {
-            .feature-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto auto 1fr auto;
-                padding: 10px;
-            }
-            
-            .left-panel, .right-panel {
-                display: none;
-            }
-            
-            .center-content {
-                grid-row: 3;
-            }
-            
-            .feature-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
-        /* 地图选择弹窗 */
-        #map-select-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.75);
-            z-index: 99999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(6px);
-            animation: fadeIn 0.25s ease;
-        }
-        #map-select-overlay.hidden { display: none; }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to   { opacity: 1; }
-        }
-        .map-select-box {
-            background: linear-gradient(135deg, #1e1b4b, #312e81);
-            border: 1px solid rgba(167,139,250,0.35);
-            border-radius: 28px;
-            padding: 44px 40px 36px;
-            text-align: center;
-            max-width: 600px;
-            width: 90%;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
-            animation: popUp 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
-        }
-        @keyframes popUp {
-            from { opacity:0; transform: scale(0.85) translateY(20px); }
-            to   { opacity:1; transform: scale(1) translateY(0); }
-        }
-        .map-select-box h2 {
-            color: #e0d7ff;
-            font-size: 26px;
-            font-weight: 800;
-            margin-bottom: 8px;
-            letter-spacing: 1px;
-        }
-        .map-select-box p {
-            color: #a5b4fc;
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
-        .map-btn-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-            margin-bottom: 22px;
-        }
-        .map-btn {
-            background: rgba(255,255,255,0.06);
-            border: 2px solid rgba(167,139,250,0.3);
-            border-radius: 18px;
-            padding: 26px 16px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
-            color: #e0d7ff;
-            font-family: inherit;
-            width: 100%;
-            text-align: center;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        button.map-btn {
-            appearance: none;
-            -webkit-appearance: none;
-        }
-        .map-btn:hover {
-            background: rgba(167,139,250,0.18);
-            border-color: #a78bfa;
-            transform: translateY(-5px) scale(1.03);
-            box-shadow: 0 12px 30px rgba(139,92,246,0.35);
-        }
-        .map-btn:active { transform: scale(0.97); }
-        .map-btn .btn-icon { font-size: 52px; display: block; margin-bottom: 12px; }
-        .map-btn .btn-label { display: block; font-size: 17px; font-weight: 700; }
-        .map-btn .btn-sub { display: block; font-size: 12px; color: #a5b4fc; margin-top: 5px; }
-        .map-cancel-btn {
-            background: none;
-            border: none;
-            color: #6b7280;
-            font-size: 14px;
-            cursor: pointer;
-            padding: 8px 20px;
-            border-radius: 10px;
-            transition: color 0.2s;
-        }
-        .map-cancel-btn:hover { color: #9ca3af; }
 
-        /* iframe模态框 */
-        .feature-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            transition: opacity 0.3s;
+    <!-- Three.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei',sans-serif;}
+
+        :root{
+            --orange:#f97316;
+            --orange-dim:rgba(249,115,22,.35);
+            --cyan:#22d3ee;
+            --cyan-dim:rgba(34,211,238,.25);
+            --purple:#8b5cf6;
+            --bg:#070b17;
+            --panel:rgba(10,15,30,.82);
+            --border:rgba(249,115,22,.25);
+            --text-hi:rgba(255,255,255,.95);
+            --text-mid:rgba(255,255,255,.6);
+            --text-lo:rgba(255,255,255,.35);
         }
-        
-        .feature-modal.hidden {
-            display: none;
-            opacity: 0;
+
+        html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+
+        /* ─── BACKGROUND ─── */
+        #bgCanvas{position:fixed;inset:0;z-index:0;}
+
+        .scanlines{
+            position:fixed;inset:0;z-index:1;pointer-events:none;
+            background:repeating-linear-gradient(
+                0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px
+            );
         }
-        
-        .modal-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+        .vignette{
+            position:fixed;inset:0;z-index:2;pointer-events:none;
+            background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.75) 100%);
         }
-        
-        .modal-title {
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
+
+        /* ─── LAYOUT ─── */
+        .layout{
+            position:relative;z-index:10;
+            width:100vw;height:100vh;
+            display:grid;
+            grid-template-columns:280px 1fr 300px;
+            grid-template-rows:64px 1fr 88px;
         }
-        
-        .modal-close-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+
+        /* ─── TOP BAR ─── */
+        .topbar{
+            grid-column:1/-1;
+            display:flex;align-items:center;justify-content:space-between;
+            padding:0 28px;
+            background:rgba(4,8,20,.88);
+            border-bottom:1px solid var(--border);
+            backdrop-filter:blur(16px);
         }
-        
-        .modal-close-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: rotate(90deg);
+
+        .logo-row{display:flex;align-items:center;gap:14px;}
+        .logo-badge{
+            width:40px;height:40px;border-radius:10px;
+            background:linear-gradient(135deg,var(--orange),#ef4444);
+            display:flex;align-items:center;justify-content:center;
+            font-size:22px;
+            box-shadow:0 0 16px rgba(249,115,22,.5);
         }
-        
-        .feature-iframe {
-            flex: 1;
-            width: 100%;
-            border: none;
-            background: white;
+        .logo-name{
+            font-size:16px;font-weight:800;letter-spacing:2px;
+            color:var(--text-hi);
+            text-shadow:0 0 20px rgba(249,115,22,.4);
+        }
+        .logo-sub{font-size:11px;color:var(--text-lo);letter-spacing:1px;margin-top:2px;}
+
+        .season-tag{
+            background:linear-gradient(135deg,rgba(249,115,22,.2),rgba(239,68,68,.2));
+            border:1px solid var(--border);
+            border-radius:8px;padding:4px 14px;
+            font-size:12px;font-weight:700;color:var(--orange);letter-spacing:1px;
+        }
+
+        .topbar-right{display:flex;align-items:center;gap:12px;}
+
+        .tb-chip{
+            display:flex;align-items:center;gap:7px;
+            background:rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.1);
+            border-radius:8px;padding:6px 14px;
+            font-size:13px;color:var(--text-hi);
+            transition:all .2s;cursor:default;
+        }
+        .tb-chip:hover{background:rgba(255,255,255,.1);border-color:var(--orange-dim);}
+        .tb-chip .icon{font-size:15px;}
+        .tb-chip.pts{border-color:rgba(255,215,0,.3);}
+        .tb-chip.pts .val{color:#ffd700;font-weight:700;}
+
+        .settings-top-btn{
+            background:rgba(249,115,22,.15);
+            border:1px solid var(--border);
+            color:var(--orange);
+            padding:6px 14px;border-radius:8px;
+            font-size:13px;font-weight:600;cursor:pointer;
+            font-family:inherit;transition:all .2s;
+        }
+        .settings-top-btn:hover{background:rgba(249,115,22,.3);}
+
+        /* ─── LEFT NAV ─── */
+        .left-nav{
+            display:flex;flex-direction:column;
+            background:var(--panel);
+            border-right:1px solid var(--border);
+            backdrop-filter:blur(20px);
+            padding:20px 0;
+            overflow:hidden;
+        }
+
+        /* user card inside left nav */
+        .nav-user{
+            padding:16px 20px 20px;
+            border-bottom:1px solid var(--border);
+            margin-bottom:16px;
+        }
+        .nav-user-row{display:flex;align-items:center;gap:12px;}
+        .nav-avatar{
+            width:52px;height:52px;border-radius:12px;flex-shrink:0;
+            background:linear-gradient(135deg,var(--orange),#ef4444);
+            display:flex;align-items:center;justify-content:center;
+            font-size:28px;
+            border:2px solid rgba(249,115,22,.5);
+            box-shadow:0 0 16px rgba(249,115,22,.3);
+            overflow:hidden;
+            transition:box-shadow .3s;
+        }
+        .nav-avatar:hover{box-shadow:0 0 24px rgba(249,115,22,.6);}
+        .nav-avatar img{width:100%;height:100%;object-fit:cover;}
+        .nav-user-info{}
+        .nav-uname{font-size:15px;font-weight:700;color:var(--text-hi);}
+        .nav-uid{font-size:11px;color:var(--text-lo);margin-top:3px;}
+        .nav-badges{display:flex;gap:6px;margin-top:10px;}
+        .nav-badge{
+            font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;
+            background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);
+            color:var(--orange);
+        }
+        .nav-badge.cyan{
+            background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.3);
+            color:var(--cyan);
+        }
+
+        /* nav items */
+        .nav-list{flex:1;overflow-y:auto;padding:0 12px;scrollbar-width:none;}
+        .nav-list::-webkit-scrollbar{display:none;}
+
+        .nav-item{
+            display:flex;align-items:center;gap:14px;
+            padding:12px 16px;border-radius:12px;
+            cursor:pointer;transition:all .25s;
+            position:relative;overflow:hidden;
+            margin-bottom:4px;
+        }
+        .nav-item::before{
+            content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+            background:var(--orange);border-radius:0 3px 3px 0;
+            transform:scaleY(0);transition:transform .25s;
+        }
+        .nav-item:hover{
+            background:rgba(249,115,22,.1);
+            border:1px solid rgba(249,115,22,.2);
+            padding-left:20px;
+        }
+        .nav-item:hover::before{transform:scaleY(1);}
+        .nav-item:active{transform:scale(.97);}
+
+        .nav-icon{
+            width:36px;height:36px;border-radius:10px;flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;
+            font-size:18px;
+            background:rgba(255,255,255,.07);
+            border:1px solid rgba(255,255,255,.1);
+            transition:all .25s;
+        }
+        .nav-item:hover .nav-icon{
+            background:rgba(249,115,22,.2);
+            border-color:rgba(249,115,22,.4);
+            box-shadow:0 0 12px rgba(249,115,22,.3);
+        }
+        .nav-label{
+            flex:1;font-size:14px;font-weight:600;
+            color:var(--text-mid);transition:color .25s;
+        }
+        .nav-item:hover .nav-label{color:var(--text-hi);}
+        .nav-tag{
+            font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
+            background:rgba(249,115,22,.8);color:white;
+        }
+        .nav-tag.new{background:linear-gradient(135deg,#10b981,#059669);}
+
+        .nav-sep{
+            height:1px;background:var(--border);
+            margin:8px 16px;
+        }
+
+        /* ─── CENTER (3D + overlay) ─── */
+        .center-area{
+            position:relative;overflow:hidden;
+        }
+
+        #charCanvas{
+            position:absolute;inset:0;width:100%;height:100%;
+            display:block;
+        }
+
+        /* center overlays */
+        .center-overlay{
+            position:absolute;inset:0;pointer-events:none;
+        }
+
+        /* bottom fog */
+        .center-overlay::after{
+            content:'';position:absolute;bottom:0;left:0;right:0;height:180px;
+            background:linear-gradient(to top,var(--bg) 0%,transparent 100%);
+        }
+
+        /* top dim */
+        .center-overlay::before{
+            content:'';position:absolute;top:0;left:0;right:0;height:120px;
+            background:linear-gradient(to bottom,rgba(4,8,20,.7) 0%,transparent 100%);
+        }
+
+        /* character name plate */
+        .char-plate{
+            position:absolute;bottom:100px;left:50%;transform:translateX(-50%);
+            text-align:center;pointer-events:none;
+        }
+        .char-name{
+            font-size:26px;font-weight:800;letter-spacing:3px;
+            color:var(--text-hi);
+            text-shadow:0 0 30px rgba(249,115,22,.6),0 2px 8px rgba(0,0,0,.8);
+        }
+        .char-class{
+            font-size:12px;letter-spacing:4px;color:var(--orange);
+            text-transform:uppercase;margin-top:4px;
+            text-shadow:0 0 12px rgba(249,115,22,.5);
+        }
+
+        /* center top label */
+        .center-title{
+            position:absolute;top:20px;left:50%;transform:translateX(-50%);
+            font-size:11px;letter-spacing:6px;color:var(--text-lo);
+            text-transform:uppercase;pointer-events:none;
+        }
+
+        /* skin selector row at bottom */
+        .skin-row{
+            position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+            display:flex;gap:12px;pointer-events:all;
+        }
+        .skin-btn{
+            width:44px;height:44px;border-radius:10px;cursor:pointer;
+            border:2px solid rgba(255,255,255,.15);
+            background:rgba(255,255,255,.08);
+            backdrop-filter:blur(8px);
+            display:flex;align-items:center;justify-content:center;font-size:20px;
+            transition:all .2s;
+        }
+        .skin-btn:hover{
+            border-color:var(--orange);
+            box-shadow:0 0 14px rgba(249,115,22,.5);
+            transform:translateY(-3px);
+        }
+        .skin-btn.active{
+            border-color:var(--orange);
+            background:rgba(249,115,22,.2);
+            box-shadow:0 0 18px rgba(249,115,22,.6);
+        }
+
+        /* ─── RIGHT PANEL ─── */
+        .right-panel{
+            display:flex;flex-direction:column;gap:12px;
+            padding:16px 14px;
+            background:var(--panel);
+            border-left:1px solid var(--border);
+            backdrop-filter:blur(20px);
+            overflow-y:auto;scrollbar-width:none;
+        }
+        .right-panel::-webkit-scrollbar{display:none;}
+
+        .rp-card{
+            background:rgba(255,255,255,.04);
+            border:1px solid rgba(255,255,255,.08);
+            border-radius:14px;padding:14px;
+            transition:border-color .2s;
+        }
+        .rp-card:hover{border-color:var(--border);}
+
+        .rp-title{
+            font-size:12px;font-weight:700;letter-spacing:2px;
+            color:var(--orange);text-transform:uppercase;
+            margin-bottom:12px;
+            display:flex;align-items:center;gap:8px;
+        }
+        .rp-title::before{
+            content:'';width:3px;height:14px;border-radius:2px;
+            background:var(--orange);flex-shrink:0;
+        }
+
+        /* stats grid */
+        .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .stat-cell{
+            background:rgba(255,255,255,.05);border-radius:10px;
+            padding:10px;text-align:center;
+            border:1px solid rgba(255,255,255,.07);
+            transition:all .2s;
+        }
+        .stat-cell:hover{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.2);}
+        .stat-val{
+            font-size:22px;font-weight:800;color:#ffd700;
+            text-shadow:0 0 12px rgba(255,215,0,.4);
+        }
+        .stat-lbl{font-size:10px;color:var(--text-lo);margin-top:4px;letter-spacing:1px;}
+
+        /* rank list */
+        .rank-row{
+            display:flex;align-items:center;gap:10px;
+            padding:8px 10px;border-radius:10px;
+            background:rgba(255,255,255,.04);
+            margin-bottom:6px;
+            transition:all .2s;
+            border:1px solid transparent;
+        }
+        .rank-row:hover{background:rgba(249,115,22,.06);border-color:rgba(249,115,22,.15);}
+        .rank-no{
+            width:26px;height:26px;border-radius:50%;flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;
+            font-weight:800;font-size:12px;color:#333;
+            background:linear-gradient(135deg,#ffd700,#ffed4e);
+        }
+        .rank-no.s{background:linear-gradient(135deg,#c0c0c0,#e8e8e8);}
+        .rank-no.b{background:linear-gradient(135deg,#cd7f32,#e8a95c);}
+        .rank-info-col{flex:1;min-width:0;}
+        .rank-nm{font-size:13px;font-weight:700;color:var(--text-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .rank-sc{font-size:11px;color:var(--text-lo);}
+
+        /* notices */
+        .notice-line{
+            font-size:12px;color:var(--text-mid);padding:8px 10px;
+            border-radius:8px;background:rgba(255,255,255,.04);
+            border-left:2px solid var(--orange);margin-bottom:6px;
+            line-height:1.5;
+        }
+
+        /* avatar preview */
+        .avatar-showcase{
+            text-align:center;padding:8px 0;
+        }
+        .avatar-big{
+            width:90px;height:90px;border-radius:18px;
+            margin:0 auto 10px;
+            background:linear-gradient(135deg,rgba(139,92,246,.4),rgba(99,102,241,.4));
+            display:flex;align-items:center;justify-content:center;
+            font-size:48px;
+            border:2px solid rgba(139,92,246,.4);
+            box-shadow:0 0 24px rgba(139,92,246,.3);
+            cursor:pointer;transition:all .3s;overflow:hidden;
+        }
+        .avatar-big:hover{
+            transform:scale(1.05);
+            box-shadow:0 0 36px rgba(139,92,246,.5);
+        }
+        .avatar-edit{
+            padding:7px 20px;border-radius:8px;border:none;cursor:pointer;
+            background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(99,102,241,.25));
+            border:1px solid rgba(139,92,246,.35);
+            color:var(--text-hi);font-size:12px;font-weight:600;
+            font-family:inherit;transition:all .2s;
+        }
+        .avatar-edit:hover{background:linear-gradient(135deg,rgba(139,92,246,.45),rgba(99,102,241,.45));}
+
+        /* ─── BOTTOM BAR ─── */
+        .bottom-bar{
+            grid-column:1/-1;
+            display:flex;align-items:center;justify-content:center;gap:20px;
+            padding:0 32px;
+            background:rgba(4,8,20,.9);
+            border-top:1px solid var(--border);
+            backdrop-filter:blur(16px);
+        }
+
+        .btn-main{
+            padding:0 56px;height:52px;border-radius:12px;border:none;
+            font-size:17px;font-weight:800;letter-spacing:2px;cursor:pointer;
+            font-family:inherit;transition:all .3s;position:relative;overflow:hidden;
+        }
+        .btn-enter{
+            background:linear-gradient(135deg,var(--orange),#ef4444);
+            color:white;
+            box-shadow:0 0 32px rgba(249,115,22,.45);
+            min-width:200px;
+        }
+        .btn-enter::before{
+            content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);
+            transition:left .5s;
+        }
+        .btn-enter:hover{
+            transform:translateY(-3px);
+            box-shadow:0 0 48px rgba(249,115,22,.7),0 8px 24px rgba(0,0,0,.4);
+        }
+        .btn-enter:hover::before{left:100%;}
+        .btn-enter:active{transform:translateY(-1px);}
+
+        .btn-logout{
+            background:rgba(255,255,255,.07);
+            border:1px solid rgba(255,255,255,.15);
+            color:var(--text-mid);
+            padding:0 28px;height:52px;border-radius:12px;border:1px solid rgba(255,255,255,.15);
+            font-size:14px;font-weight:600;letter-spacing:1px;cursor:pointer;
+            font-family:inherit;transition:all .2s;
+        }
+        .btn-logout:hover{background:rgba(255,255,255,.12);color:var(--text-hi);}
+
+        .bottom-center-info{
+            position:absolute;left:50%;transform:translateX(-50%);
+            display:flex;gap:32px;pointer-events:none;
+        }
+        .bci-item{text-align:center;}
+        .bci-val{font-size:13px;font-weight:700;color:var(--text-hi);}
+        .bci-lbl{font-size:10px;color:var(--text-lo);letter-spacing:1px;}
+
+        /* ─── MAP MODAL ─── */
+        #map-select-overlay{
+            position:fixed;inset:0;z-index:99999;
+            background:rgba(0,0,0,.8);backdrop-filter:blur(12px);
+            display:flex;align-items:center;justify-content:center;
+            animation:fadeIn .2s ease;
+        }
+        #map-select-overlay.hidden{display:none;}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+        .map-select-box{
+            background:linear-gradient(145deg,#080d1e,#0f1729);
+            border:1px solid rgba(249,115,22,.4);
+            border-radius:24px;padding:40px;
+            max-width:580px;width:90%;
+            box-shadow:0 0 80px rgba(249,115,22,.2),0 40px 80px rgba(0,0,0,.6);
+            animation:popUp .35s cubic-bezier(.175,.885,.32,1.275);
+        }
+        @keyframes popUp{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:none}}
+
+        .map-select-box h2{
+            color:var(--text-hi);font-size:24px;font-weight:800;
+            letter-spacing:2px;margin-bottom:6px;
+            text-shadow:0 0 20px rgba(249,115,22,.4);
+        }
+        .map-select-box p{color:var(--text-lo);font-size:13px;margin-bottom:28px;}
+
+        .map-btn-group{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+        .map-btn{
+            background:rgba(255,255,255,.04);
+            border:2px solid rgba(249,115,22,.25);
+            border-radius:16px;padding:28px 16px;cursor:pointer;
+            color:var(--text-hi);font-family:inherit;
+            text-align:center;transition:all .3s;
+        }
+        .map-btn:hover{
+            background:rgba(249,115,22,.1);border-color:var(--orange);
+            transform:translateY(-4px);
+            box-shadow:0 12px 32px rgba(249,115,22,.25);
+        }
+        .map-btn:active{transform:scale(.97);}
+        .map-btn .btn-icon{font-size:48px;display:block;margin-bottom:10px;}
+        .map-btn .btn-label{font-size:16px;font-weight:700;display:block;}
+        .map-btn .btn-sub{font-size:11px;color:var(--text-lo);margin-top:4px;display:block;}
+        .map-cancel-btn{
+            background:none;border:none;color:var(--text-lo);
+            font-size:13px;cursor:pointer;padding:6px 18px;border-radius:8px;
+            transition:color .2s;font-family:inherit;
+        }
+        .map-cancel-btn:hover{color:var(--text-mid);}
+
+        /* ─── FEATURE MODAL ─── */
+        .feature-modal{
+            position:fixed;inset:0;z-index:10000;
+            display:flex;flex-direction:column;
+            background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+        }
+        .feature-modal.hidden{display:none;}
+        .modal-header{
+            background:linear-gradient(135deg,rgba(249,115,22,.9),rgba(239,68,68,.9));
+            padding:16px 28px;
+            display:flex;justify-content:space-between;align-items:center;
+            box-shadow:0 4px 20px rgba(0,0,0,.4);
+        }
+        .modal-title{color:white;font-size:20px;font-weight:800;letter-spacing:1px;}
+        .modal-close-btn{
+            background:rgba(255,255,255,.2);color:white;border:none;
+            width:38px;height:38px;border-radius:50%;
+            font-size:22px;cursor:pointer;transition:all .2s;
+            display:flex;align-items:center;justify-content:center;
+        }
+        .modal-close-btn:hover{background:rgba(255,255,255,.35);transform:rotate(90deg);}
+        .feature-iframe{flex:1;width:100%;border:none;background:white;}
+
+        /* ─── RESPONSIVE ─── */
+        @media(max-width:1100px){
+            .layout{grid-template-columns:240px 1fr 260px;}
+        }
+        @media(max-width:900px){
+            .layout{grid-template-columns:1fr;grid-template-rows:64px 1fr 88px;}
+            .left-nav,.right-panel{display:none;}
+            .center-area{grid-column:1;}
         }
     </style>
 </head>
 <body>
-    <!-- 背景层 -->
-    <div class="bg-layer"></div>
-    <div class="light-effect"></div>
-    <canvas id="starsCanvas"></canvas>
-    
-    <!-- 主容器 -->
-    <div class="main-container">
-        <!-- 顶部导航栏 -->
-        <div class="top-bar">
-            <div class="logo-section">
-                <div class="logo-icon">🎓</div>
-                <div class="logo-text">爱哲安民未来学校校园模拟器</div>
+<canvas id="bgCanvas"></canvas>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<div class="layout">
+
+    <!-- ═══ TOP BAR ═══ -->
+    <div class="topbar">
+        <div class="logo-row">
+            <div class="logo-badge">🎓</div>
+            <div>
+                <div class="logo-name">爱哲安民未来学校</div>
+                <div class="logo-sub">CAMPUS SIMULATOR · v2.0</div>
             </div>
-            
-            <div class="top-info">
-                <button type="button" class="settings-top-btn" onclick="location.href='settings.html'" title="设置">⚙️ 设置</button>
-                <div class="info-item">
-                    <span class="info-icon">💎</span>
-                    <span id="userPoints">100</span>
+        </div>
+        <div class="season-tag">第一赛季</div>
+        <div class="topbar-right">
+            <button type="button" class="settings-top-btn" onclick="location.href='settings.html'">⚙️ 设置</button>
+            <div class="tb-chip pts">
+                <span class="icon">💎</span>
+                <span class="val" id="userPoints">—</span>
+            </div>
+            <div class="tb-chip">
+                <span class="icon">🏆</span>
+                <span>第 <span id="userRank">—</span> 名</span>
+            </div>
+            <div class="tb-chip">
+                <span class="icon">🕐</span>
+                <span id="currentTime">—</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ LEFT NAV ═══ -->
+    <div class="left-nav">
+        <div class="nav-user">
+            <div class="nav-user-row">
+                <div class="nav-avatar" id="userAvatar">👤</div>
+                <div class="nav-user-info">
+                    <div class="nav-uname" id="userName">玩家</div>
+                    <div class="nav-uid" id="userId">ID: —</div>
                 </div>
-                <div class="info-item">
-                    <span class="info-icon">🏆</span>
-                    <span>排名: <span id="userRank">--</span></span>
+            </div>
+            <div class="nav-badges">
+                <span class="nav-badge">积分: <span id="navPts">—</span></span>
+                <span class="nav-badge cyan">连续 <span id="dayStreak">—</span> 天</span>
+            </div>
+        </div>
+
+        <div class="nav-list">
+            <div class="nav-item" onclick="openFeature('mall')">
+                <div class="nav-icon">🏪</div>
+                <div class="nav-label">积分商城</div>
+                <span class="nav-tag new">新品</span>
+            </div>
+            <div class="nav-item" onclick="openFeature('games')">
+                <div class="nav-icon">🎮</div>
+                <div class="nav-label">校园小游戏</div>
+            </div>
+            <div class="nav-item" onclick="openFeature('forum')">
+                <div class="nav-icon">💬</div>
+                <div class="nav-label">校园论坛</div>
+            </div>
+            <div class="nav-item" onclick="openFeature('rank')">
+                <div class="nav-icon">🏆</div>
+                <div class="nav-label">排行榜</div>
+            </div>
+            <div class="nav-item" onclick="openFeature('friends')">
+                <div class="nav-icon">👥</div>
+                <div class="nav-label">好友系统</div>
+            </div>
+            <div class="nav-sep"></div>
+            <div class="nav-item" onclick="openFeature('tasks')">
+                <div class="nav-icon">📋</div>
+                <div class="nav-label">任务中心</div>
+                <span class="nav-tag">奖励</span>
+            </div>
+            <div class="nav-item" onclick="openFeature('recharge')">
+                <div class="nav-icon">💰</div>
+                <div class="nav-label">充值中心</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ CENTER (3D CHARACTER) ═══ -->
+    <div class="center-area">
+        <canvas id="charCanvas"></canvas>
+        <div class="center-overlay"></div>
+        <div class="center-title">操作员</div>
+        <div class="char-plate">
+            <div class="char-name" id="charDisplayName">玩家</div>
+            <div class="char-class">CAMPUS OPERATOR</div>
+        </div>
+        <div class="skin-row">
+            <div class="skin-btn active" onclick="setSkin(0)" title="默认制服">👔</div>
+            <div class="skin-btn" onclick="setSkin(1)" title="迷彩装">🪖</div>
+            <div class="skin-btn" onclick="setSkin(2)" title="精英皮肤">⭐</div>
+            <div class="skin-btn" onclick="setSkin(3)" title="传说皮肤">👑</div>
+        </div>
+    </div>
+
+    <!-- ═══ RIGHT PANEL ═══ -->
+    <div class="right-panel">
+
+        <!-- avatar preview -->
+        <div class="rp-card">
+            <div class="rp-title">我的形象</div>
+            <div class="avatar-showcase">
+                <div class="avatar-big" id="avatarPreview" onclick="openAvatarEditor()">👤</div>
+                <button class="avatar-edit" onclick="openAvatarEditor()">✨ 编辑形象</button>
+            </div>
+        </div>
+
+        <!-- stats -->
+        <div class="rp-card">
+            <div class="rp-title">战绩数据</div>
+            <div class="stats-grid">
+                <div class="stat-cell">
+                    <div class="stat-val" id="totalPoints">—</div>
+                    <div class="stat-lbl">总积分</div>
                 </div>
-                <div class="info-item">
-                    <span class="info-icon">⏰</span>
-                    <span id="currentTime">--:--</span>
+                <div class="stat-cell">
+                    <div class="stat-val" id="statStreak">—</div>
+                    <div class="stat-lbl">连续天数</div>
+                </div>
+                <div class="stat-cell">
+                    <div class="stat-val" id="userRank2">—</div>
+                    <div class="stat-lbl">当前排名</div>
+                </div>
+                <div class="stat-cell">
+                    <div class="stat-val" id="inventoryCount">—</div>
+                    <div class="stat-lbl">拥有道具</div>
                 </div>
             </div>
         </div>
-        
-        <!-- 左侧用户信息 -->
-        <div class="left-panel">
-            <!-- 用户卡片 -->
-            <div class="user-card">
-                <div class="user-avatar" id="userAvatar">👤</div>
-                <div class="user-name" id="userName">玩家</div>
-                <div class="user-id" id="userId">ID: 10001</div>
-                
-                <div class="user-stats">
-                    <div class="stat-box">
-                        <div class="stat-value" id="totalPoints">100</div>
-                        <div class="stat-label">总积分</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="dayStreak">1</div>
-                        <div class="stat-label">连续天数</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 虚拟形象展示 -->
-            <div class="avatar-display">
-                <div class="avatar-title">👤 我的形象</div>
-                <div class="avatar-preview-large" id="avatarPreview">👤</div>
-                <button class="avatar-edit-btn" onclick="openAvatarEditor()">
-                    ✨ 编辑形象
-                </button>
-            </div>
-        </div>
-        
-        <!-- 中央内容区 -->
-        <div class="center-content">
-            <div class="feature-grid">
-                <!-- 积分商城 -->
-                <div class="feature-card" onclick="openFeature('mall')">
-                    <div class="feature-icon">🏪</div>
-                    <div class="feature-title">积分商城</div>
-                    <div class="feature-desc">兑换奖励，装扮形象</div>
-                </div>
-                
-                <!-- 校园小游戏 -->
-                <div class="feature-card" onclick="openFeature('games')">
-                    <div class="feature-icon">🎮</div>
-                    <div class="feature-title">校园小游戏</div>
-                    <div class="feature-desc">休闲益智，趣味无穷</div>
-                </div>
-                
-                <!-- 论坛 -->
-                <div class="feature-card" onclick="openFeature('forum')">
-                    <div class="feature-icon">💬</div>
-                    <div class="feature-title">校园论坛</div>
-                    <div class="feature-desc">分享交流，畅所欲言</div>
-                </div>
-                
-                <!-- 排行榜 -->
-                <div class="feature-card" onclick="openFeature('rank')">
-                    <div class="feature-icon">🏆</div>
-                    <div class="feature-title">排行榜</div>
-                    <div class="feature-desc">竞技角逐，争当第一</div>
-                </div>
-                
-                <!-- 充值中心 -->
-                <div class="feature-card" onclick="openFeature('recharge')">
-                    <div class="feature-icon">💰</div>
-                    <div class="feature-title">充值中心</div>
-                    <div class="feature-desc">获取积分，解锁特权</div>
-                </div>
-                
-                <!-- 任务中心 -->
-                <div class="feature-card" onclick="openFeature('tasks')">
-                    <div class="feature-icon">📋</div>
-                    <div class="feature-title">任务中心</div>
-                    <div class="feature-desc">完成任务，领取奖励</div>
-                </div>
-                
-                <!-- 好友系统 -->
-                <div class="feature-card" onclick="openFeature('friends')">
-                    <div class="feature-icon">👥</div>
-                    <div class="feature-title">好友系统</div>
-                    <div class="feature-desc">添加好友，建立社交</div>
+
+        <!-- leaderboard -->
+        <div class="rp-card">
+            <div class="rp-title">积分榜</div>
+            <div id="rankList">
+                <div class="rank-row">
+                    <div class="rank-no">1</div>
+                    <div class="rank-info-col"><div class="rank-nm">——</div><div class="rank-sc">加载中...</div></div>
                 </div>
             </div>
         </div>
-        
-        <!-- 右侧面板 -->
-        <div class="right-panel">
-            <!-- 排行榜预览 -->
-            <div class="rank-preview">
-                <div class="panel-title">🏆 积分排行</div>
-                <div id="rankList">
-                    <div class="rank-item">
-                        <div class="rank-number">1</div>
-                        <div class="rank-info">
-                            <div class="rank-name">学霸小明</div>
-                            <div class="rank-score">💎 1580分</div>
-                        </div>
-                    </div>
-                    <div class="rank-item">
-                        <div class="rank-number" style="background: linear-gradient(135deg, #c0c0c0, #e8e8e8);">2</div>
-                        <div class="rank-info">
-                            <div class="rank-name">努力小红</div>
-                            <div class="rank-score">💎 1420分</div>
-                        </div>
-                    </div>
-                    <div class="rank-item">
-                        <div class="rank-number" style="background: linear-gradient(135deg, #cd7f32, #daa520);">3</div>
-                        <div class="rank-info">
-                            <div class="rank-name">勤奋小李</div>
-                            <div class="rank-score">💎 1350分</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 公告栏 -->
-            <div class="notice-panel">
-                <div class="panel-title">📢 校园公告</div>
-                <div class="notice-item">🎉 积分商城新品上架！</div>
-                <div class="notice-item">🏆 本周排行榜已更新</div>
-                <div class="notice-item">📚 期末考试即将开始</div>
-            </div>
+
+        <!-- notices -->
+        <div class="rp-card">
+            <div class="rp-title">校园公告</div>
+            <div class="notice-line">🎉 积分商城新皮肤上架！</div>
+            <div class="notice-line">🏆 本周排行榜已更新</div>
+            <div class="notice-line">📚 期末考试活动即将开始</div>
         </div>
-        
-        <!-- 底部控制栏 -->
-        <div class="bottom-bar">
-            <button class="main-button btn-start-game" onclick="startGame()">
-                🎮 开始游戏
+    </div>
+
+    <!-- ═══ BOTTOM BAR ═══ -->
+    <div class="bottom-bar">
+        <button class="btn-logout" onclick="logout()">🚪 退出登录</button>
+        <button class="btn-main btn-enter" onclick="startGame()">▶ 进入游戏</button>
+    </div>
+
+</div>
+
+<!-- ─── MAP SELECT MODAL ─── -->
+<div id="map-select-overlay" class="hidden">
+    <div class="map-select-box">
+        <h2>🎮 选择战场</h2>
+        <p>选择你想要进入的校园世界</p>
+        <div class="map-btn-group">
+            <button type="button" class="map-btn" onclick="enterMap('2d')">
+                <span class="btn-icon">🗺️</span>
+                <span class="btn-label">2D 爱哲地图</span>
+                <span class="btn-sub">经典校园模拟器</span>
             </button>
-            <button class="main-button btn-logout" onclick="logout()">
-                🚪 退出登录
+            <button type="button" class="map-btn" onclick="enterMap('3d')">
+                <span class="btn-icon">🏫</span>
+                <span class="btn-label">3D 虚拟地图</span>
+                <span class="btn-sub">沉浸式3D教学楼漫游</span>
             </button>
         </div>
+        <button class="map-cancel-btn" onclick="closeMapSelect()">取消</button>
     </div>
-    
-    <!-- 地图选择弹窗 -->
-    <div id="map-select-overlay" class="hidden">
-        <div class="map-select-box">
-            <h2>🎮 选择地图</h2>
-            <p>选择你想要进入的校园世界</p>
-            <div class="map-btn-group">
-                <button type="button" class="map-btn" onclick="enterMap('2d')">
-                    <span class="btn-icon">🗺️</span>
-                    <span class="btn-label">2D 爱哲地图</span>
-                    <span class="btn-sub">经典校园模拟器</span>
-                </button>
-                <button type="button" class="map-btn" onclick="enterMap('3d')">
-                    <span class="btn-icon">🏫</span>
-                    <span class="btn-label">3D 虚拟地图</span>
-                    <span class="btn-sub">沉浸式3D教学楼漫游</span>
-                </button>
+</div>
+
+<!-- ─── FEATURE MODAL ─── -->
+<div id="feature-modal" class="feature-modal hidden">
+    <div class="modal-header">
+        <div class="modal-title" id="modalTitle">功能</div>
+        <button class="modal-close-btn" onclick="closeFeatureModal()">✕</button>
+    </div>
+    <iframe id="feature-iframe" class="feature-iframe" frameborder="0"></iframe>
+</div>
+
+<script src="js/points-system.js"></script>
+<script src="js/api-client.js"></script>
+<script>
+/* ═══════════════════════════════════════
+   BACKGROUND CANVAS (animated grid + particles)
+═══════════════════════════════════════ */
+(function initBg(){
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let W,H;
+    function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}
+    resize(); window.addEventListener('resize',resize);
+
+    // grid lines
+    function drawGrid(){
+        ctx.save();
+        ctx.strokeStyle='rgba(249,115,22,.06)';
+        ctx.lineWidth=1;
+        const sz=60;
+        for(let x=0;x<W;x+=sz){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+        for(let y=0;y<H;y+=sz){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+        ctx.restore();
+    }
+
+    // particles
+    const PTS=[];
+    for(let i=0;i<80;i++) PTS.push({
+        x:Math.random()*2000, y:Math.random()*1200,
+        r:Math.random()*1.5+.3,
+        vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+        a:Math.random()*.5+.1
+    });
+
+    function animBg(){
+        ctx.clearRect(0,0,W,H);
+        // deep bg
+        const grd=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,Math.max(W,H)*.7);
+        grd.addColorStop(0,'#0d1428'); grd.addColorStop(1,'#070b17');
+        ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+
+        drawGrid();
+
+        // particles
+        PTS.forEach(p=>{
+            p.x+=p.vx; p.y+=p.vy;
+            if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+            if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+            ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+            ctx.fillStyle=`rgba(249,115,22,${p.a})`;ctx.fill();
+        });
+
+        requestAnimationFrame(animBg);
+    }
+    animBg();
+})();
+
+/* ═══════════════════════════════════════
+   THREE.JS CHARACTER
+═══════════════════════════════════════ */
+(function init3D(){
+    if(typeof THREE==='undefined') return;
+
+    const canvas = document.getElementById('charCanvas');
+    const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.shadowMap.enabled=true;
+    renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.1;
+
+    function resize(){
+        const w=canvas.parentElement.clientWidth, h=canvas.parentElement.clientHeight;
+        renderer.setSize(w,h,false);
+        camera.aspect=w/h; camera.updateProjectionMatrix();
+    }
+
+    const scene=new THREE.Scene();
+    scene.fog=new THREE.FogExp2(0x070b17,.06);
+
+    const camera=new THREE.PerspectiveCamera(45,1,.1,100);
+    camera.position.set(0,2.2,5.5);
+    camera.lookAt(0,1.8,0);
+
+    // ── lighting ──
+    const ambient=new THREE.AmbientLight(0x1a2040,3);
+    scene.add(ambient);
+
+    const mainLight=new THREE.DirectionalLight(0xffeedd,3);
+    mainLight.position.set(2,5,3);
+    mainLight.castShadow=true;
+    scene.add(mainLight);
+
+    const rimLight=new THREE.DirectionalLight(0xf97316,2);
+    rimLight.position.set(-3,3,-2);
+    scene.add(rimLight);
+
+    const fillLight=new THREE.DirectionalLight(0x22d3ee,1.2);
+    fillLight.position.set(3,0,2);
+    scene.add(fillLight);
+
+    // point light at feet
+    const footLight=new THREE.PointLight(0xf97316,2,3);
+    footLight.position.set(0,.2,0);
+    scene.add(footLight);
+
+    // ── materials ──
+    const MAT = {
+        body:  new THREE.MeshStandardMaterial({color:0x1e3a5f,roughness:.35,metalness:.6}),
+        suit:  new THREE.MeshStandardMaterial({color:0x243045,roughness:.4,metalness:.5}),
+        skin:  new THREE.MeshStandardMaterial({color:0xe8c5a0,roughness:.8,metalness:0}),
+        armor: new THREE.MeshStandardMaterial({color:0x2d4a6e,roughness:.3,metalness:.8,
+                   emissive:0x0a1f3a,emissiveIntensity:.2}),
+        glow:  new THREE.MeshStandardMaterial({color:0xf97316,emissive:0xf97316,emissiveIntensity:1.2,
+                   roughness:.2,metalness:.3}),
+        weapon:new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:.2,metalness:.9}),
+    };
+
+    const skins=[
+        {body:0x1e3a5f,armor:0x2d4a6e,glow:0xf97316},
+        {body:0x2d4a1e,armor:0x3d5a2e,glow:0x4ade80},
+        {body:0x3a1e5f,armor:0x4d2e6e,glow:0xa855f7},
+        {body:0x5f3a1e,armor:0x6e4d2e,glow:0xffd700},
+    ];
+
+    function applySkin(i){
+        const s=skins[i]||skins[0];
+        MAT.body.color.setHex(s.body);
+        MAT.armor.color.setHex(s.armor);
+        MAT.glow.color.setHex(s.glow); MAT.glow.emissive.setHex(s.glow);
+        footLight.color.setHex(s.glow);
+        rimLight.color.setHex(s.glow);
+    }
+    window.setSkin=function(i){
+        document.querySelectorAll('.skin-btn').forEach((b,j)=>b.classList.toggle('active',i===j));
+        applySkin(i);
+    };
+
+    // ── build character ──
+    const char=new THREE.Group();
+    char.position.y=0;
+
+    function box(w,h,d,mat,x=0,y=0,z=0){
+        const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+        m.position.set(x,y,z); m.castShadow=true; return m;
+    }
+    function cyl(rt,rb,h,segs,mat,x=0,y=0,z=0){
+        const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,segs),mat);
+        m.position.set(x,y,z); m.castShadow=true; return m;
+    }
+    function sph(r,mat,x=0,y=0,z=0){
+        const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,16),mat);
+        m.position.set(x,y,z); m.castShadow=true; return m;
+    }
+
+    // legs
+    char.add(box(.28,.9,.28,MAT.suit,-.2,-.95,0));
+    char.add(box(.28,.9,.28,MAT.suit, .2,-.95,0));
+    // boots
+    char.add(box(.3,.2,.38,MAT.armor,-.2,-1.5,.04));
+    char.add(box(.3,.2,.38,MAT.armor, .2,-1.5,.04));
+    // torso
+    char.add(box(.68,1,.5,MAT.body,0,0,0));
+    // chest armor
+    char.add(box(.64,.55,.14,MAT.armor,0,.15,.28));
+    // shoulder pads
+    char.add(box(.2,.3,.3,MAT.armor,-.48,.3,0));
+    char.add(box(.2,.3,.3,MAT.armor, .48,.3,0));
+    // arms upper
+    char.add(box(.2,.55,.2,MAT.suit,-.6,-.05,0));
+    char.add(box(.2,.55,.2,MAT.suit, .6,-.05,0));
+    // arms lower
+    char.add(box(.18,.45,.18,MAT.body,-.6,-.58,0));
+    char.add(box(.18,.45,.18,MAT.body, .6,-.58,0));
+    // gloves
+    char.add(box(.2,.2,.2,MAT.armor,-.6,-.87,0));
+    char.add(box(.2,.2,.2,MAT.armor, .6,-.87,0));
+    // neck
+    char.add(cyl(.12,.12,.2,8,MAT.skin,0,.6,0));
+    // head
+    char.add(box(.54,.54,.54,MAT.skin,0,.97,0));
+    // helmet
+    char.add(box(.6,.3,.62,MAT.armor,0,1.19,0));
+    char.add(box(.2,.16,.18,MAT.armor,0,1.25,.35)); // visor bump
+    // visor glow
+    char.add(box(.44,.09,.06,MAT.glow,0,1.15,.32));
+    // belt
+    char.add(box(.7,.12,.52,MAT.armor,0,-.52,0));
+    // utility pouches
+    char.add(box(.15,.2,.15,MAT.armor,-.3,-.5,.28));
+    char.add(box(.15,.2,.15,MAT.armor, .08,-.5,.28));
+
+    // weapon (rifle) — held in right hand area
+    const gun=new THREE.Group();
+    gun.add(box(.08,.08,.8,MAT.weapon,0,0,0));   // barrel
+    gun.add(box(.14,.28,.35,MAT.weapon,0,-.06,.15)); // body
+    gun.add(box(.06,.06,.22,MAT.weapon,0,0,-.32));   // stock
+    gun.add(box(.06,.14,.08,MAT.weapon,0,-.22,.1));  // grip
+    gun.add(box(.09,.06,.35,MAT.weapon,0,.07,-.05)); // rail
+    gun.position.set(.72,-.6,.2);
+    gun.rotation.set(0,.15,-.1);
+    char.add(gun);
+
+    scene.add(char);
+
+    // ── platform ring ──
+    const ring=new THREE.Mesh(
+        new THREE.RingGeometry(1.1,1.5,64),
+        new THREE.MeshBasicMaterial({color:0xf97316,transparent:true,opacity:.25,side:THREE.DoubleSide})
+    );
+    ring.rotation.x=-Math.PI/2;
+    ring.position.y=-1.65;
+    scene.add(ring);
+
+    const ring2=new THREE.Mesh(
+        new THREE.RingGeometry(.5,.75,64),
+        new THREE.MeshBasicMaterial({color:0x22d3ee,transparent:true,opacity:.2,side:THREE.DoubleSide})
+    );
+    ring2.rotation.x=-Math.PI/2;
+    ring2.position.y=-1.64;
+    scene.add(ring2);
+
+    // circle plane (shadow receiver)
+    const platform=new THREE.Mesh(
+        new THREE.CylinderGeometry(2,2,.02,64),
+        new THREE.MeshStandardMaterial({color:0x0d1428,roughness:1,metalness:0})
+    );
+    platform.position.y=-1.66;
+    platform.receiveShadow=true;
+    scene.add(platform);
+
+    // ── animate ──
+    let t=0;
+    let mouseX=0, mouseY=0;
+    document.addEventListener('mousemove',e=>{
+        mouseX=(e.clientX/innerWidth-.5)*2;
+        mouseY=(e.clientY/innerHeight-.5)*2;
+    });
+
+    function tick(){
+        requestAnimationFrame(tick);
+        t+=.012;
+
+        // breathing
+        char.position.y=Math.sin(t)*.025;
+        char.scale.y=1+Math.sin(t)*.01;
+
+        // slight tilt toward mouse
+        char.rotation.y=mouseX*.12 + Math.sin(t*.3)*.04;
+
+        // ring spin
+        ring.rotation.z+=.008;
+        ring2.rotation.z-=.012;
+
+        // glow pulse
+        footLight.intensity=1.6+Math.sin(t*2)*.6;
+        MAT.glow.emissiveIntensity=1+Math.sin(t*1.5)*.4;
+
+        renderer.render(scene,camera);
+    }
+
+    resize();
+    window.addEventListener('resize',resize);
+    tick();
+})();
+
+/* ═══════════════════════════════════════
+   DATA / USER
+═══════════════════════════════════════ */
+function loadUserInfo(){
+    const raw=localStorage.getItem('campus_user');
+    if(!raw){window.location.href='login.html';return;}
+    const user=JSON.parse(raw);
+
+    document.getElementById('userName').textContent=user.nickname||'玩家';
+    document.getElementById('charDisplayName').textContent=user.nickname||'玩家';
+    document.getElementById('userId').textContent='手机: '+(user.phone||'—');
+
+    const avEls=document.querySelectorAll('#userAvatar');
+    avEls.forEach(el=>{
+        if(user.avatar&&user.avatar.startsWith('data:')){
+            el.innerHTML=`<img src="${user.avatar}" alt="avatar">`;
+        } else {
+            el.textContent=user.avatar||'👤';
+        }
+    });
+
+    if(user.userId){
+        const ps=new PointsSystem();
+        ps.setCurrentUser(user.userId);
+        const st=ps.getCurrentStudent();
+        if(st&&st.name!==user.nickname){st.name=user.nickname;ps.savePointsData();}
+    }
+    loadPointsData();
+}
+
+function loadPointsData(){
+    const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+    if(!ud||!ud.userId) return;
+    const ps=new PointsSystem();
+    ps.setCurrentUser(ud.userId);
+    const st=ps.getCurrentStudent();
+    if(!st) return;
+
+    if(st.name!==ud.nickname){st.name=ud.nickname;ps.savePointsData();}
+
+    const total=st.totalEarned||st.points||0;
+    const cur=st.points||0;
+    const streak=st.dayStreak||1;
+    const inv=(st.inventory||[]).length;
+
+    document.getElementById('userPoints').textContent=total;
+    document.getElementById('navPts').textContent=total;
+    document.getElementById('totalPoints').textContent=total;
+    document.getElementById('dayStreak').textContent=streak;
+    document.getElementById('statStreak').textContent=streak;
+    document.getElementById('inventoryCount').textContent=inv;
+
+    updateAvatarPreview(st,ps);
+
+    ps.updateLeaderboard();
+    const lb=ps.getLeaderboard(3);
+    updateRankList(lb,ud.userId);
+    updateUserRank(ps,ud.userId);
+}
+
+function updateUserRank(ps,userId){
+    const lb=ps.getLeaderboard(100);
+    const st=ps.getCurrentStudent();
+    if(!st) return;
+    const idx=lb.findIndex(i=>i.totalPoints===st.totalEarned&&i.name===st.name);
+    const rankVal= idx!==-1 ? lb[idx].rank : (()=>{
+        const all=Object.values(ps.pointsData.students).sort((a,b)=>(b.totalEarned||0)-(a.totalEarned||0));
+        const r=all.findIndex(s=>s.id===userId)+1;
+        return r>0?r:'--';
+    })();
+    document.getElementById('userRank').textContent=rankVal;
+    document.getElementById('userRank2').textContent=rankVal;
+}
+
+function updateAvatarPreview(student,ps){
+    const el=document.getElementById('avatarPreview');
+    const items=ps.getRewardItems();
+    let main='👤',hat='',glasses='';
+    if(student.avatar?.hair&&student.avatar.hair!=='none'){
+        const h=items.find(i=>i.id===student.avatar.hair);
+        if(h) main=h.image;
+    }
+    if(student.avatar?.glasses&&student.avatar.glasses!=='none'){
+        const g=items.find(i=>i.id===student.avatar.glasses);
+        if(g) glasses=g.image;
+    }
+    if(student.avatar?.hat&&student.avatar.hat!=='none'){
+        const h=items.find(i=>i.id===student.avatar.hat);
+        if(h) hat=h.image;
+    }
+    el.innerHTML=`<div style="position:relative;display:inline-block;font-size:52px;">
+        ${hat?`<div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:.6em;">${hat}</div>`:''}
+        <div>${main}</div>
+        ${glasses?`<div style="position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:.5em;">${glasses}</div>`:''}
+    </div>`;
+}
+
+function updateRankList(lb,curUserId){
+    const el=document.getElementById('rankList');
+    const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+    if(!lb||!lb.length){el.innerHTML='<div style="color:var(--text-lo);font-size:12px;text-align:center;padding:10px;">暂无数据</div>';return;}
+    const cls=['','s','b'];
+    el.innerHTML=lb.map((item,i)=>`
+        <div class="rank-row">
+            <div class="rank-no ${cls[i]||''}">${item.rank}</div>
+            <div class="rank-info-col">
+                <div class="rank-nm">${item.name}</div>
+                <div class="rank-sc">💎 ${item.totalPoints||0} 分</div>
             </div>
-            <button class="map-cancel-btn" onclick="closeMapSelect()">取消</button>
-        </div>
-    </div>
+        </div>`).join('');
+}
 
-    <!-- 通用iframe模态框 -->
-    <div id="feature-modal" class="feature-modal hidden">
-        <div class="modal-header">
-            <div class="modal-title" id="modalTitle">功能</div>
-            <button class="modal-close-btn" onclick="closeFeatureModal()">✕</button>
-        </div>
-        <iframe id="feature-iframe" class="feature-iframe" frameborder="0"></iframe>
-    </div>
-    
-    <script src="js/points-system.js"></script>
-    <script src="js/api-client.js"></script>
-    <script>
-        // 加载用户信息
-        function loadUserInfo() {
-            const userData = localStorage.getItem('campus_user');
-            if (!userData) {
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            const user = JSON.parse(userData);
-            
-            // 显示用户信息
-            document.getElementById('userName').textContent = user.nickname;
-            document.getElementById('userId').textContent = `手机: ${user.phone}`;
-            
-            // 显示头像
-            const avatarElements = document.querySelectorAll('#userAvatar');
-            avatarElements.forEach(el => {
-                if (user.avatar && user.avatar.startsWith('data:')) {
-                    el.innerHTML = `<img src="${user.avatar}" alt="avatar">`;
-                } else {
-                    el.textContent = user.avatar || '👤';
-                }
+/* ═══════════════════════════════════════
+   TIME
+═══════════════════════════════════════ */
+function updateTime(){
+    const n=new Date();
+    const h=String(n.getHours()).padStart(2,'0');
+    const m=String(n.getMinutes()).padStart(2,'0');
+    document.getElementById('currentTime').textContent=h+':'+m;
+}
+setInterval(updateTime,1000); updateTime();
+
+/* ═══════════════════════════════════════
+   NAVIGATION / FEATURES
+═══════════════════════════════════════ */
+function openFeature(feature){
+    const map={
+        mall:   {url:'points-mall.html',    title:'🏪 积分商城'},
+        games:  {url:'campus-games.html',   title:'🎮 校园小游戏'},
+        forum:  {url:'campus-forum.html',   title:'💬 校园论坛'},
+        rank:   {url:'points-rank.html',    title:'🏆 排行榜'},
+        recharge:{url:'recharge.html',      title:'💰 充值中心'},
+        tasks:  {url:'points-tasks.html',   title:'📋 任务中心'},
+        friends:{url:'campus-friends.html', title:'👥 好友系统'}
+    };
+    const c=map[feature];
+    if(c) showFeatureModal(c.url,c.title);
+}
+
+function openAvatarEditor(){showFeatureModal('points-avatar.html','👤 虚拟形象');}
+
+function showFeatureModal(url,title){
+    document.getElementById('modalTitle').textContent=title;
+    document.getElementById('feature-iframe').src=url;
+    document.getElementById('feature-modal').classList.remove('hidden');
+}
+
+function closeFeatureModal(){
+    document.getElementById('feature-modal').classList.add('hidden');
+    document.getElementById('feature-iframe').src='';
+    loadPointsData();
+}
+
+window.openInGame=function(url,title){showFeatureModal(url,title);};
+
+/* ═══════════════════════════════════════
+   GAME START / LOGOUT
+═══════════════════════════════════════ */
+function startGame(){
+    document.getElementById('map-select-overlay').classList.remove('hidden');
+}
+function closeMapSelect(){
+    document.getElementById('map-select-overlay').classList.add('hidden');
+}
+function enterMap(type){
+    closeMapSelect();
+    if(type==='3d'){window.location.href='校园企业家，教学楼小副本/index.html';return;}
+    const started=localStorage.getItem('game_started');
+    if(!started){localStorage.setItem('game_started','true');window.location.href='梦核校园最新力作(2).html';}
+    else{window.location.href='index.html';}
+}
+
+function logout(){
+    if(confirm('确定要退出登录吗？所有数据将自动保存。')){
+        try{
+            const ps=new PointsSystem();
+            if(ps.currentUser) ps.savePointsData();
+        }catch(e){}
+        const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+        if(ud.userId){ud.lastLogoutTime=new Date().toISOString();localStorage.setItem('campus_user',JSON.stringify(ud));}
+        const msg=document.createElement('div');
+        msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,var(--orange),#ef4444);color:white;padding:24px 48px;border-radius:14px;font-size:17px;z-index:10001;font-weight:700;box-shadow:0 0 48px rgba(249,115,22,.6);';
+        msg.textContent='✅ 数据已保存，正在退出...';
+        document.body.appendChild(msg);
+        setTimeout(()=>{localStorage.removeItem('campus_user');window.location.href='login.html';},800);
+    }
+}
+
+/* ═══════════════════════════════════════
+   AUTO SAVE
+═══════════════════════════════════════ */
+function autoSave(){
+    try{
+        const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+        if(ud.userId){const ps=new PointsSystem();ps.setCurrentUser(ud.userId);ps.savePointsData();}
+    }catch(e){}
+}
+window.addEventListener('beforeunload',autoSave);
+setInterval(autoSave,30000);
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded',()=>{
+    loadUserInfo();
+
+    // Supabase sync
+    (async function syncUser(){
+        try{
+            const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+            if(!ud.userId) return;
+            await apiClient.createOrUpdateUser({
+                userId:ud.userId,
+                name:ud.nickname||ud.name||'玩家',
+                avatar:ud.avatar||'👤',
+                points:ud.points||0
             });
-            
-            // 同步用户名字到积分系统（确保排行榜显示正确的名字）
-            if (user.userId) {
-                const pointsSystem = new PointsSystem();
-                pointsSystem.setCurrentUser(user.userId);
-                const student = pointsSystem.getCurrentStudent();
-                if (student && student.name !== user.nickname) {
-                    // 更新积分系统中的名字
-                    student.name = user.nickname;
-                    pointsSystem.savePointsData();
-                    console.log(`✅ 已同步用户名字: ${user.nickname}`);
-                }
-            }
-            
-            // 加载积分系统数据
-            loadPointsData();
-        }
-        
-        // 加载积分数据
-        function loadPointsData() {
-            // 获取当前登录用户
-            const userData = JSON.parse(localStorage.getItem('campus_user'));
-            if (!userData || !userData.userId) {
-                console.error('❌ 未找到登录用户信息');
-                return;
-            }
-            
-            const pointsSystem = new PointsSystem();
-            pointsSystem.setCurrentUser(userData.userId);
-            
-            const student = pointsSystem.getCurrentStudent();
-            if (student) {
-                // 确保用户名字同步（排行榜显示正确的名字）
-                if (student.name !== userData.nickname) {
-                    student.name = userData.nickname;
-                    pointsSystem.savePointsData();
-                    console.log(`✅ 已更新用户名字: ${userData.nickname}`);
-                }
-                
-                // 统一显示总积分（totalEarned），这样所有地方都一致
-                const totalEarned = student.totalEarned || student.points || 0;
-                const currentPoints = student.points || 0;
-                
-                // 更新顶部积分显示（显示总积分，与排行榜一致）
-                document.getElementById('userPoints').textContent = totalEarned;
-                
-                // 更新左边总积分显示（累计获得积分）
-                document.getElementById('totalPoints').textContent = totalEarned;
-                
-                console.log(`📊 积分数据: 当前可用=${currentPoints}, 总获得=${totalEarned}`);
-                
-                // 显示虚拟形象
-                updateAvatarPreview(student, pointsSystem);
-                
-                // 更新排行榜（确保使用最新的总积分数据和正确的名字）
-                pointsSystem.updateLeaderboard();
-                const leaderboard = pointsSystem.getLeaderboard(3);
-                updateRankList(leaderboard, userData.userId);
-                
-                // 更新当前用户的排名
-                updateUserRank(pointsSystem, userData.userId);
-            } else {
-                console.error('❌ 未找到用户积分数据');
-            }
-        }
-        
-        // 更新当前用户排名
-        function updateUserRank(pointsSystem, userId) {
-            const leaderboard = pointsSystem.getLeaderboard(100); // 获取更多排名以查找当前用户
-            const currentStudent = pointsSystem.getCurrentStudent();
-            if (!currentStudent) return;
-            
-            // 查找当前用户在排行榜中的位置
-            const userRankIndex = leaderboard.findIndex(item => {
-                // 通过比较总积分和名称来匹配
-                return item.totalPoints === currentStudent.totalEarned && 
-                       item.name === currentStudent.name;
-            });
-            
-            if (userRankIndex !== -1) {
-                document.getElementById('userRank').textContent = leaderboard[userRankIndex].rank;
-            } else {
-                // 如果不在前100名，计算排名
-                const allStudents = Object.values(pointsSystem.pointsData.students);
-                const sortedStudents = allStudents.sort((a, b) => b.totalEarned - a.totalEarned);
-                const rank = sortedStudents.findIndex(s => s.id === userId) + 1;
-                if (rank > 0) {
-                    document.getElementById('userRank').textContent = rank;
-                } else {
-                    document.getElementById('userRank').textContent = '--';
-                }
-            }
-        }
-        
-        // 更新虚拟形象预览
-        function updateAvatarPreview(student, pointsSystem) {
-            const avatarEl = document.getElementById('avatarPreview');
-            const allItems = pointsSystem.getRewardItems();
-            
-            // 1. 基础形象：如果有发型装备，显示发型；否则显示默认头像
-            let avatarIcon = '👤';  // 默认
-            if (student.avatar.hair && student.avatar.hair !== 'none') {
-                const hairItem = allItems.find(i => i.id === student.avatar.hair);
-                if (hairItem) {
-                    avatarIcon = hairItem.image;
-                }
-            }
-            
-            // 2. 叠加眼镜
-            let glassesIcon = '';
-            if (student.avatar.glasses && student.avatar.glasses !== 'none') {
-                const glassesItem = allItems.find(i => i.id === student.avatar.glasses);
-                if (glassesItem) {
-                    glassesIcon = glassesItem.image;
-                }
-            }
-            
-            // 3. 叠加帽子
-            let hatIcon = '';
-            if (student.avatar.hat && student.avatar.hat !== 'none') {
-                const hatItem = allItems.find(i => i.id === student.avatar.hat);
-                if (hatItem) {
-                    hatIcon = hatItem.image;
-                }
-            }
-            
-            // 组合显示（简化版，主菜单用横向排列）
-            avatarEl.innerHTML = `
-                <div style="position: relative; display: inline-block; font-size: 60px;">
-                    ${hatIcon ? `<div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.6em;">${hatIcon}</div>` : ''}
-                    <div>${avatarIcon}</div>
-                    ${glassesIcon ? `<div style="position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 0.5em;">${glassesIcon}</div>` : ''}
-                </div>
-            `;
-        }
-        
-        // 更新排行榜
-        function updateRankList(leaderboard, currentUserId) {
-            const rankList = document.getElementById('rankList');
-            const medals = ['🥇', '🥈', '🥉'];
-            const colors = [
-                'linear-gradient(135deg, #ffd700, #ffed4e)',
-                'linear-gradient(135deg, #c0c0c0, #e8e8e8)',
-                'linear-gradient(135deg, #cd7f32, #daa520)'
-            ];
-            
-            if (!leaderboard || leaderboard.length === 0) {
-                rankList.innerHTML = '<div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 20px;">暂无排行数据</div>';
-                return;
-            }
-            
-            // 获取当前用户信息，确保名字正确
-            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-            const currentUserName = userData.nickname || '玩家';
-            
-            rankList.innerHTML = leaderboard.map((item, index) => {
-                // 确保使用总积分（totalEarned）进行排名显示
-                const displayPoints = item.totalPoints || item.totalEarned || 0;
-                
-                // 如果是当前用户，使用登录时的名字（确保名字正确）
-                let displayName = item.name;
-                if (currentUserId && item.name === currentUserName) {
-                    displayName = currentUserName;
-                }
-                
-                console.log(`📊 排行榜 ${index + 1}: ${displayName} - 总积分=${displayPoints}`);
-                
-                return `
-                <div class="rank-item">
-                    <div class="rank-number" style="background: ${colors[index]};">${item.rank}</div>
-                    <div class="rank-info">
-                        <div class="rank-name">${displayName}</div>
-                        <div class="rank-score">💎 ${displayPoints}分</div>
-                    </div>
-                </div>
-            `;
-            }).join('');
-        }
-        
-        // 更新时间
-        function updateTime() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            document.getElementById('currentTime').textContent = `${hours}:${minutes}`;
-        }
-        
-        setInterval(updateTime, 1000);
-        updateTime();
-        
-        // 创建粒子效果
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            if (!particlesContainer) return;
-            const particleCount = 30;
-            
-            for (let i = 0; i < particleCount; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDelay = Math.random() * 15 + 's';
-                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
-                particlesContainer.appendChild(particle);
-            }
-        }
-        
-        // 打开功能（在iframe中）
-        function openFeature(feature) {
-            const featureMap = {
-                'mall': { url: 'points-mall.html', title: '🏪 积分商城' },
-                'games': { url: 'campus-games.html', title: '🎮 校园小游戏' },
-                'forum': { url: 'campus-forum.html', title: '💬 校园论坛' },
-                'rank': { url: 'points-rank.html', title: '🏆 排行榜' },
-                'recharge': { url: 'recharge.html', title: '💰 充值中心' },
-                'tasks': { url: 'points-tasks.html', title: '📋 任务中心' },
-                'friends': { url: 'campus-friends.html', title: '👥 好友系统' }
-            };
-            
-            const config = featureMap[feature];
-            if (config) {
-                showFeatureModal(config.url, config.title);
-            }
-        }
-        
-        // 打开形象编辑器（在iframe中）
-        function openAvatarEditor() {
-            showFeatureModal('points-avatar.html', '👤 虚拟形象');
-        }
-        
-        // 显示功能模态框
-        function showFeatureModal(url, title) {
-            const modal = document.getElementById('feature-modal');
-            const iframe = document.getElementById('feature-iframe');
-            const modalTitle = document.getElementById('modalTitle');
-            
-            modalTitle.textContent = title;
-            iframe.src = url;
-            modal.classList.remove('hidden');
-        }
-        
-        // 关闭功能模态框
-        function closeFeatureModal() {
-            const modal = document.getElementById('feature-modal');
-            const iframe = document.getElementById('feature-iframe');
-            
-            modal.classList.add('hidden');
-            iframe.src = '';
-            
-            // 重新加载积分数据（可能在iframe中有更新）
-            loadPointsData();
-        }
-        
-        // 为iframe内部提供跳转功能
-        window.openInGame = function(url, title) {
-            showFeatureModal(url, title);
-        };
-        
-        // 开始游戏 → 弹出地图选择
-        function startGame() {
-            document.getElementById('map-select-overlay').classList.remove('hidden');
-        }
-
-        // 关闭地图选择弹窗
-        function closeMapSelect() {
-            document.getElementById('map-select-overlay').classList.add('hidden');
-        }
-
-        // 进入对应地图
-        function enterMap(type) {
-            closeMapSelect();
-            if (type === '3d') {
-                window.location.href = '校园企业家，教学楼小副本/index.html';
-                return;
-            }
-            // 2D 爱哲地图：原来的逻辑
-            const hasStartedBefore = localStorage.getItem('game_started');
-            if (!hasStartedBefore) {
-                localStorage.setItem('game_started', 'true');
-                window.location.href = '梦核校园最新力作(2).html';
-            } else {
-                window.location.href = 'index.html';
-            }
-        }
-        
-        // 退出登录（保存所有数据）
-        function logout() {
-            if (confirm('确定要退出登录吗？所有数据将自动保存。')) {
-                // 1. 确保积分系统数据已保存
-                try {
-                    const pointsSystem = new PointsSystem();
-                    if (pointsSystem.currentUser) {
-                        pointsSystem.savePointsData();
-                        console.log('✅ 积分数据已保存');
-                    }
-                } catch (e) {
-                    console.error('❌ 保存积分数据失败:', e);
-                }
-                
-                // 2. 保存退出时间
-                const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                if (userData.userId) {
-                    userData.lastLogoutTime = new Date().toISOString();
-                    localStorage.setItem('campus_user', JSON.stringify(userData));
-                }
-                
-                // 3. 显示保存成功提示
-                const saveMsg = document.createElement('div');
-                saveMsg.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: linear-gradient(135deg, #667eea, #764ba2);
-                    color: white;
-                    padding: 30px 50px;
-                    border-radius: 16px;
-                    font-size: 18px;
-                    z-index: 10001;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-                `;
-                saveMsg.textContent = '✅ 数据已保存，正在退出...';
-                document.body.appendChild(saveMsg);
-                
-                // 4. 延迟跳转（让用户看到保存提示）
-                setTimeout(() => {
-                    localStorage.removeItem('campus_user');
-                    window.location.href = 'login.html';
-                }, 800);
-            }
-        }
-        
-        // 自动保存机制
-        function autoSave() {
-            try {
-                const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                if (userData.userId) {
-                    const pointsSystem = new PointsSystem();
-                    pointsSystem.setCurrentUser(userData.userId);
-                    pointsSystem.savePointsData();
-                    console.log('💾 自动保存完成');
-                }
-            } catch (e) {
-                console.error('❌ 自动保存失败:', e);
-            }
-        }
-        
-        // 页面关闭前保存
-        window.addEventListener('beforeunload', () => {
-            autoSave();
-        });
-        
-        // 定期自动保存（每30秒）
-        setInterval(autoSave, 30000);
-        
-        // 星空滚动效果
-        function initStars() {
-            const canvas = document.getElementById('starsCanvas');
-            if (!canvas) return;
-            
-            const ctx = canvas.getContext('2d');
-            
-            // 设置画布尺寸
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-
-            // 星星数组
-            const stars = [];
-            const starCount = 300; // 星星数量
-
-            // 星星类
-            class Star {
-                constructor() {
-                    this.reset();
-                }
-
-                reset() {
-                    this.x = Math.random() * canvas.width; // 随机水平位置
-                    this.y = -Math.random() * canvas.height; // 从画布上方开始
-                    this.radius = Math.random() * 1 + 0.5; // 星星半径（0.5到1.5之间）
-                    this.velocity = Math.random() * 0.5 + 0.1; // 星星下落速度
-                    this.alpha = Math.random() * 0.6 + 0.4; // 星星亮度（透明度0.4到1之间）
-                    this.alphaDelta = Math.random() * 0.05 - 0.025; // 透明度变化量，用于闪烁效果
-                }
-
-                update() {
-                    this.y += this.velocity; // 星星向下移动
-                    if (this.y > canvas.height) this.reset(); // 如果星星超出画布，重置到上方
-
-                    // 闪烁效果
-                    this.alpha += this.alphaDelta;
-                    if (this.alpha < 0.4 || this.alpha > 1) this.alphaDelta *= -1;
-                }
-
-                draw() {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
-                    ctx.fill();
-                }
-            }
-
-            // 流星类
-            class Meteor {
-                constructor() {
-                    this.reset();
-                }
-
-                reset() {
-                    this.x = Math.random() * canvas.width;
-                    this.y = -Math.random() * canvas.height; // 流星从上方开始
-                    this.length = Math.random() * 50 + 20; // 流星长度
-                    this.angle = Math.random() * Math.PI / 4; // 流星角度
-                    this.speed = Math.random() * 5 + 5; // 流星速度
-                    this.alpha = Math.random() * 0.5 + 0.5; // 流星初始亮度
-                }
-
-                update() {
-                    this.x += Math.cos(this.angle) * this.speed;
-                    this.y += Math.sin(this.angle) * this.speed;
-                    this.alpha -= 0.01; // 透明度逐渐减少
-                    if (this.y > canvas.height || this.x > canvas.width || this.x < 0) {
-                        this.reset(); // 如果流星超出画布，重置
-                    }
-                }
-
-                draw() {
-                    ctx.beginPath();
-                    ctx.moveTo(this.x, this.y);
-                    ctx.lineTo(
-                        this.x - this.length * Math.cos(this.angle), 
-                        this.y - this.length * Math.sin(this.angle)
-                    );
-                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
-            }
-
-            // 初始化星星
-            for (let i = 0; i < starCount; i++) {
-                stars.push(new Star());
-            }
-
-            // 初始化流星
-            const meteors = [];
-            for (let i = 0; i < 2; i++) { // 流星数量
-                meteors.push(new Meteor());
-            }
-
-            // 动画循环
-            function animate() {
-                // 清除画布（完全透明，让底层渐变和光效显示）
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // 绘制星星
-                stars.forEach(star => {
-                    star.update();
-                    star.draw();
-                });
-
-                // 绘制流星
-                meteors.forEach(meteor => {
-                    meteor.update();
-                    meteor.draw();
-                });
-                
-                requestAnimationFrame(animate);
-            }
-
-            animate();
-        }
-        
-        // 检查服务器配置
-        function checkServerConfig() {
-            const configServer = localStorage.getItem('api_server_url');
-            if (!configServer) {
-                // 如果不是本地环境，提示配置服务器
-                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    console.log('💡 提示：检测到非本地环境，建议配置云端服务器');
-                    console.log('💡 打开 server-config.html 配置服务器地址');
-                }
-            } else {
-                console.log('🌐 使用云端服务器:', configServer);
-            }
-        }
-        
-        // 页面加载时初始化
-        window.addEventListener('DOMContentLoaded', () => {
-            loadUserInfo();
-            initStars();
-            checkServerConfig();
-            console.log('✅ 自动保存已启动（每30秒）');
-            console.log('✨ 星空效果已启动');
-
-            // 自动将当前用户同步到 Supabase（让其他用户可以搜索到你）
-            (async function syncUser() {
-                try {
-                    const ud = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                    if (!ud.userId) return;
-                    await apiClient.createOrUpdateUser({
-                        userId: ud.userId,
-                        name  : ud.nickname || ud.name || '玩家',
-                        avatar: ud.avatar || '👤',
-                        points: ud.points || 0
-                    });
-                    console.log('✅ 用户已同步到 Supabase，可被搜索');
-                } catch(e) {
-                    console.warn('⚠️ 用户同步失败（不影响游戏）:', e.message);
-                }
-            })();
-        });
-    </script>
+            console.log('✅ 用户已同步到 Supabase');
+        }catch(e){console.warn('⚠️ 用户同步失败:',e.message);}
+    })();
+});
+</script>
 </body>
 </html>
-
