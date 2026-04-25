@@ -8,6 +8,7 @@
     "icon": "node scripts/generate-icon.js",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
     "build:portable": "electron-builder --win portable"
   },
   "build": {
@@ -32,28 +33,27 @@
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
       ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": [
-        "zh_CN"
-      ],
+      "installerLanguages": ["zh_CN"],
       "language": "2052",
       "shortcutName": "爱哲安民未来学校"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.education",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ]
+    },
+    "dmg": {
+      "title": "爱哲安民未来学校",
+      "window": { "width": 540, "height": 380 }
     }
   },
   "devDependencies": {
