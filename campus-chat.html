@@ -240,8 +240,6 @@
     </div>
 </div>
 
-<!-- Socket.io 客户端（CDN） -->
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
 <script src="js/api-client.js"></script>
 <script>
 // ─── 参数 & 用户 ───────────────────────────────────────────
@@ -263,111 +261,12 @@ const connDot         = document.getElementById('connDot');
 const connText        = document.getElementById('connText');
 const friendStatusDot = document.getElementById('friendStatusDot');
 const friendStatusTxt = document.getElementById('friendStatusText');
-const typingIndicator = document.getElementById('typingIndicator');
 
 // ─── 状态 ─────────────────────────────────────────────────
-let socket          = null;
-let isLive          = false;   // Socket.io 连接正常
-let pollingTimer    = null;
-let typingOutTimer  = null;
-let renderedIds     = new Set(); // 已渲染消息ID，防止重复
-
-// ─── 工具：获取 Socket.io 服务器 URL ─────────────────────
-function getSocketURL() {
-    const api = apiClient.baseURL; // e.g. https://xxx.onrender.com/api
-    if (api === '/api') return window.location.origin;
-    return api.endsWith('/api') ? api.slice(0, -4) : api;
-}
-
-// ─── Socket.io 初始化 ─────────────────────────────────────
-function initSocket() {
-    const serverURL = getSocketURL();
-    console.log('🔌 Socket.io 连接:', serverURL);
-
-    socket = io(serverURL, {
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: 5,
-        reconnectionDelay   : 1500,
-        timeout             : 12000
-    });
-
-    socket.on('connect', () => {
-        console.log('✅ Socket.io 已连接');
-        isLive = true;
-        setConnStatus('live', '实时');
-        socket.emit('user:join', currentUserId);
-        // 查询好友在线状态
-        socket.emit('users:status', [friendId]);
-        // 停止轮询
-        if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
-    });
-
-    socket.on('disconnect', () => {
-        console.warn('⚠️ Socket.io 断开，切换到轮询');
-        isLive = false;
-        setConnStatus('poll', '轮询');
-        startPolling();
-    });
-
-    socket.on('connect_error', (err) => {
-        console.warn('Socket.io 连接失败:', err.message);
-        isLive = false;
-        setConnStatus('offline', '离线模式');
-        startPolling();
-    });
-
-    // 收到好友发来的新消息
-    socket.on('message:receive', (msg) => {
-        if (msg.fromUserId === friendId) {
-            if (!renderedIds.has(String(msg._id))) {
-                appendMessage(msg);
-            }
-        }
-        // 如果是别的好友发来的，可在 tab title 提示
-    });
-
-    // 自己发送确认
-    socket.on('message:sent', (msg) => {
-        // 移除乐观占位（如有）
-        const placeholder = messagesArea.querySelector('[data-placeholder]');
-        if (placeholder) placeholder.remove();
-        // 追加正式消息（去重）
-        if (!renderedIds.has(String(msg._id))) {
-            appendMessage(msg, true);
-        }
-        unlockSend();
-        messageInput.value = '';
-        messageInput.focus();
-    });
-
-    socket.on('message:error', ({ error }) => {
-        // 移除乐观占位
-        const placeholder = messagesArea.querySelector('[data-placeholder]');
-        if (placeholder) placeholder.remove();
-        showToast(error || '发送失败，请重试');
-        unlockSend();
-    });
-
-    // 好友在线/下线事件
-    socket.on('user:online',  ({ userId }) => { if (userId === friendId) setFriendOnline(true);  });
-    socket.on('user:offline', ({ userId }) => { if (userId === friendId) setFriendOnline(false); });
-
-    // 好友初始状态（users:status 回调）
-    socket.on('users:status', (statuses) => {
-        if (statuses[friendId] !== undefined) setFriendOnline(statuses[friendId]);
-    });
-
-    // 输入状态
-    socket.on('typing:start', ({ fromUserId }) => {
-        if (fromUserId === friendId) {
-            typingIndicator.style.display = 'block';
-            scrollBottom();
-        }
-    });
-    socket.on('typing:stop', ({ fromUserId }) => {
-        if (fromUserId === friendId) typingIndicator.style.display = 'none';
-    });
-}
+let renderedIds  = new Set();
+let realtimeCh   = null;
+let heartbeatTimer = null;
+let onlineTimer  = null;
 
 // ─── 连接状态 UI ───────────────────────────────────────────
 function setConnStatus(state, label) {
@@ -403,56 +302,87 @@ function renderMessages(messages) {
 }
 
 function appendMessage(msg, isOwnOverride) {
-    const id = String(msg._id || '');
+    const id = String(msg._id || msg.id || '');
     if (id && renderedIds.has(id)) return;
     if (id) renderedIds.add(id);
 
-    // 移除空状态
     const empty = messagesArea.querySelector('.empty-state, .loading-state');
     if (empty) empty.remove();
 
-    const isOwn = isOwnOverride !== undefined ? isOwnOverride : msg.fromUserId === currentUserId;
+    const isOwn = isOwnOverride !== undefined ? isOwnOverride : (msg.fromUserId || msg.from_user_id) === currentUserId;
     const div   = document.createElement('div');
     div.className = `message ${isOwn ? 'own' : ''}`;
     if (id) div.dataset.msgId = id;
 
-    const time = new Date(msg.createdAt || Date.now()).toLocaleTimeString('zh-CN', {
-        hour:'2-digit', minute:'2-digit'
-    });
+    const time = new Date(msg.createdAt || msg.created_at || Date.now())
+        .toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
+    const avt = isOwn ? currentUserAvt : (msg.fromUserAvatar || msg.from_user_avatar || friendAvt || '👤');
+    const txt  = msg.content || '';
 
     div.innerHTML = `
-        <div class="message-avatar">${isOwn ? currentUserAvt : (msg.fromUserAvatar || friendAvt || '👤')}</div>
+        <div class="message-avatar">${avt}</div>
         <div class="message-content">
-            <div class="message-text">${escapeHtml(msg.content)}</div>
+            <div class="message-text">${escapeHtml(txt)}</div>
             <div class="message-time">${time}</div>
         </div>`;
-
-    // 插入到 typingIndicator 之前
-    const typing = document.getElementById('typingIndicator');
-    if (typing && typing.parentNode === messagesArea) {
-        messagesArea.insertBefore(div, typing);
-    } else {
-        messagesArea.appendChild(div);
-    }
+    messagesArea.appendChild(div);
     scrollBottom();
 }
 
-// ─── 加载历史消息（REST API） ─────────────────────────────
+// ─── 加载历史消息 ─────────────────────────────────────────
 async function loadMessages() {
     try {
         const res = await apiClient.getMessages(currentUserId, friendId);
         if (res && res.success) renderMessages(res.data || []);
     } catch (err) {
         if (!renderedIds.size) {
-            messagesArea.innerHTML = `<div class="empty-state">${err.message || '加载失败，请检查服务器配置'}</div>`;
+            messagesArea.innerHTML = `<div class="empty-state">加载失败：${err.message}</div>`;
         }
     }
 }
 
-// ─── 轮询（Socket.io 不可用时的回退） ────────────────────
-function startPolling() {
-    if (pollingTimer) return;
-    pollingTimer = setInterval(loadMessages, 5000);
+// ─── Supabase 实时订阅（接收新消息）─────────────────────
+async function initRealtime() {
+    try {
+        const db = await apiClient.getDB();
+        realtimeCh = db
+            .channel(`chat_${currentUserId}`)
+            .on('postgres_changes', {
+                event : 'INSERT',
+                schema: 'public',
+                table : 'messages',
+                filter: `to_user_id=eq.${currentUserId}`
+            }, (payload) => {
+                const msg = payload.new;
+                // 只显示来自当前好友的消息
+                if (msg.from_user_id === friendId) {
+                    appendMessage(msg, false);
+                }
+            })
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    setConnStatus('live', '实时');
+                } else if (status === 'CHANNEL_ERROR') {
+                    setConnStatus('poll', '轮询');
+                }
+            });
+    } catch (e) {
+        console.warn('实时订阅失败，使用轮询:', e);
+        setConnStatus('poll', '轮询');
+        setInterval(loadMessages, 5000);
+    }
+}
+
+// ─── 心跳：保持在线状态 ───────────────────────────────────
+function startHeartbeat() {
+    apiClient.updateLastSeen(currentUserId);
+    heartbeatTimer = setInterval(() => apiClient.updateLastSeen(currentUserId), 15000);
+}
+
+// ─── 检查好友在线状态 ────────────────────────────────────
+async function checkFriendOnline() {
+    const result = await apiClient.checkOnlineStatus([friendId]);
+    setFriendOnline(!!result[friendId]);
 }
 
 // ─── 发送消息 ────────────────────────────────────────────
@@ -461,72 +391,48 @@ async function sendMessage() {
     if (!content || sendBtn.disabled) return;
 
     lockSend();
-    stopTyping();
+    messageInput.value = '';
 
-    if (socket && isLive) {
-        // 乐观 UI：先显示占位消息
-        const placeholder = document.createElement('div');
-        placeholder.className = 'message own';
-        placeholder.dataset.placeholder = '1';
-        placeholder.innerHTML = `
-            <div class="message-avatar">${currentUserAvt}</div>
-            <div class="message-content">
-                <div class="message-text">${escapeHtml(content)}</div>
-                <div class="message-time" style="color:rgba(255,255,255,.3)">发送中...</div>
-            </div>`;
-        messagesArea.appendChild(placeholder);
-        scrollBottom();
+    // 乐观显示（自己发送的消息立即显示）
+    const tempId = 'temp_' + Date.now();
+    appendMessage({
+        _id: tempId,
+        fromUserId: currentUserId,
+        fromUserAvatar: currentUserAvt,
+        content,
+        createdAt: new Date().toISOString()
+    }, true);
 
-        socket.emit('message:send', {
-            fromUserId   : currentUserId,
-            toUserId     : friendId,
-            content,
-            fromUserName : currentUserName,
-            fromUserAvatar: currentUserAvt
-        });
-        // 确认由 message:sent 事件处理，会 unlockSend + 清空输入
-    } else {
-        // 回退到 REST
-        try {
-            const res = await apiClient.sendMessage(currentUserId, friendId, content);
-            if (res && res.success) {
-                messageInput.value = '';
-                await loadMessages();
-            } else throw new Error(res?.message || '发送失败');
-        } catch (e) {
-            showToast(e.message || '发送失败');
-        } finally {
-            unlockSend();
-        }
+    try {
+        const res = await apiClient.sendMessage(currentUserId, friendId, content);
+        if (res && res.success) {
+            // 移除临时消息，显示真实消息（带真实ID去重）
+            const tempEl = messagesArea.querySelector(`[data-msg-id="${tempId}"]`);
+            if (tempEl) {
+                renderedIds.delete(tempId);
+                tempEl.remove();
+            }
+            appendMessage(res.data, true);
+        } else throw new Error(res?.message || '发送失败');
+    } catch (e) {
+        showToast(e.message || '发送失败');
+        // 移除临时消息
+        const tempEl = messagesArea.querySelector(`[data-msg-id="${tempId}"]`);
+        if (tempEl) { renderedIds.delete(tempId); tempEl.remove(); }
+    } finally {
+        unlockSend();
+        messageInput.focus();
     }
 }
 
-function lockSend()   { sendBtn.disabled = true; sendBtn.textContent = '发送中...'; }
+function lockSend()   { sendBtn.disabled = true;  sendBtn.textContent = '发送中...'; }
 function unlockSend() { sendBtn.disabled = false; sendBtn.textContent = '发送'; }
 
-// ─── 输入事件 ────────────────────────────────────────────
-function onTyping() {
-    if (socket && isLive && socket.userId) {
-        socket.emit('typing:start', { toUserId: friendId });
-        clearTimeout(typingOutTimer);
-        typingOutTimer = setTimeout(stopTyping, 1800);
-    }
-}
-function stopTyping() {
-    clearTimeout(typingOutTimer);
-    if (socket && isLive && socket.userId) {
-        socket.emit('typing:stop', { toUserId: friendId });
-    }
-}
-
 // ─── 工具 ────────────────────────────────────────────────
-function scrollBottom() {
-    messagesArea.scrollTop = messagesArea.scrollHeight;
-}
+function scrollBottom() { messagesArea.scrollTop = messagesArea.scrollHeight; }
 function escapeHtml(t) {
     const d = document.createElement('div');
-    d.textContent = t;
-    return d.innerHTML;
+    d.textContent = t; return d.innerHTML;
 }
 function showToast(msg) {
     const div = document.createElement('div');
@@ -548,30 +454,33 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('friendName').textContent   = friendName;
     document.getElementById('friendAvatar').textContent = friendAvt;
 
-    // 确保当前用户已同步到数据库
+    setConnStatus('poll', '加载中');
+
+    // 确保当前用户存在于数据库
     try {
-        await apiClient.getUser(currentUserId);
+        const r = await apiClient.getUser(currentUserId);
+        if (!r.success) throw new Error('not found');
     } catch {
         await apiClient.createOrUpdateUser({
             userId: currentUserId,
             name  : currentUserName,
-            phone : userData.phone,
-            class : userData.class || '初一(1)班',
             avatar: currentUserAvt
         }).catch(() => {});
     }
 
-    // 先加载历史记录
-    setConnStatus('poll', '加载中');
+    // 加载历史消息
     await loadMessages();
 
-    // 初始化 Socket.io
-    setConnStatus('poll', '连接中');
-    initSocket();
+    // 初始化实时订阅
+    await initRealtime();
+
+    // 心跳 & 好友在线状态
+    startHeartbeat();
+    await checkFriendOnline();
+    onlineTimer = setInterval(checkFriendOnline, 30000);
 
     // 输入监听
     messageInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
-    messageInput.addEventListener('input', onTyping);
 });
 </script>
 </body>

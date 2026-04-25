@@ -562,7 +562,6 @@
         </div>
     </div>
     
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
     <script src="js/api-client.js"></script>
     <script>
         // 获取当前用户信息
@@ -691,17 +690,14 @@
             fetchOnlineStatus(ids);
         }
 
-        // 查询在线状态（REST 回退，Socket.io 实时更新另算）
+        // 查询在线状态（通过 last_seen 心跳判断）
         async function fetchOnlineStatus(userIds) {
             if (!userIds.length) return;
             try {
-                const res = await fetch(`${apiClient.baseURL.replace('/api','')}/api/online?ids=${userIds.join(',')}`);
-                const json = await res.json();
-                if (json.success) {
-                    Object.entries(json.data).forEach(([uid, online]) => {
-                        updateFriendDot(uid, online);
-                    });
-                }
+                const result = await apiClient.checkOnlineStatus(userIds);
+                Object.entries(result).forEach(([uid, online]) => {
+                    updateFriendDot(uid, online);
+                });
             } catch (e) {
                 // 静默失败
             }
@@ -1023,23 +1019,10 @@
             }
         }
 
-        // ── Socket.io：实时接收好友上下线事件 ──────────────
-        (function initFriendsSocket() {
-            if (typeof io === 'undefined') return;
-            try {
-                const serverURL = apiClient.getSocketURL
-                    ? apiClient.getSocketURL()
-                    : apiClient.baseURL.replace('/api','');
-                const sock = io(serverURL, {
-                    transports: ['websocket','polling'],
-                    reconnectionAttempts: 3
-                });
-                sock.on('connect', () => {
-                    sock.emit('user:join', currentUserId);
-                });
-                sock.on('user:online',  ({ userId }) => updateFriendDot(userId, true));
-                sock.on('user:offline', ({ userId }) => updateFriendDot(userId, false));
-            } catch (e) { /* 静默 */ }
+        // ── 心跳：让自己保持在线状态 ────────────────────────
+        (function startHeartbeat() {
+            apiClient.updateLastSeen(currentUserId);
+            setInterval(() => apiClient.updateLastSeen(currentUserId), 15000);
         })();
         
         function goBack() {

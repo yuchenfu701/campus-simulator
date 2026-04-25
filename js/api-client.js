@@ -1,351 +1,431 @@
 /**
- * API客户端 - 统一管理所有API调用
+ * API客户端 - 使用 Supabase 作为后端（永久免费，无需信用卡）
  */
 
+const SUPABASE_URL = 'https://qfoaoaggyfhkkvoxyxrb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_L7NXVjxZwzJgIV4FGu5MUA_PPLbkNUY';
+
+// ── 动态加载 Supabase SDK ────────────────────────────────────
+let _db = null;
+const _dbReady = new Promise((resolve) => {
+  function init() {
+    _db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    resolve(_db);
+  }
+  if (window.supabase) {
+    init();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    s.onload = init;
+    s.onerror = () => console.error('❌ Supabase SDK 加载失败');
+    document.head.appendChild(s);
+  }
+});
+
 class APIClient {
-  constructor() {
-    // ⚡ 默认云端服务器地址（用户无需任何配置，打开即用）
-    // 如需更换服务器，只改这一行即可
-    const DEFAULT_CLOUD = 'https://campussimulatorapi-6n8pusd7.b4a.run/api';
 
-    const configServer = localStorage.getItem('api_server_url');
-    const isElectron   = navigator.userAgent.includes('Electron');
-    const isLocalhost  = window.location.hostname === 'localhost' ||
-                         window.location.hostname === '127.0.0.1';
-
-    if (configServer) {
-      // 用户在设置里手动填了地址 → 优先使用
-      this.baseURL = configServer.endsWith('/api') ? configServer : `${configServer}/api`;
-      console.log('🌐 使用手动配置的服务器:', this.baseURL);
-    } else if (isLocalhost && !isElectron) {
-      // 本地开发环境 → 用本地服务器
-      this.baseURL = 'http://localhost:3000/api';
-      console.log('💻 使用本地服务器:', this.baseURL);
-    } else {
-      // 网页版 / 软件版 → 自动使用云端服务器，无需用户操作
-      this.baseURL = DEFAULT_CLOUD;
-      console.log('☁️ 自动使用云端服务器:', this.baseURL);
-    }
-  }
-  
-  /**
-   * 设置API服务器地址（用于切换到云端服务器）
-   */
-  setServerURL(url) {
-    if (url && url.trim()) {
-      const cleanURL = url.trim().replace(/\/+$/, ''); // 移除末尾的斜杠
-      this.baseURL = cleanURL.endsWith('/api') ? cleanURL : `${cleanURL}/api`;
-      localStorage.setItem('api_server_url', this.baseURL);
-      console.log('✅ API服务器地址已更新:', this.baseURL);
-    } else {
-      localStorage.removeItem('api_server_url');
-      this.baseURL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:3000/api'
-        : '/api';
-      console.log('✅ 已重置为默认服务器地址:', this.baseURL);
-    }
-  }
-  
-  /**
-   * 获取当前服务器地址
-   */
-  getServerURL() {
-    return this.baseURL;
+  // 获取 Supabase 客户端（异步，等待 SDK 加载）
+  async getDB() {
+    if (_db) return _db;
+    return await _dbReady;
   }
 
-  /**
-   * 获取 Socket.io 连接地址（去掉 /api 后缀）
-   */
-  getSocketURL() {
-    const api = this.baseURL;
-    if (api === '/api') return window.location.origin;
-    return api.endsWith('/api') ? api.slice(0, -4) : api;
-  }
-
-  /**
-   * 通用请求方法
-   */
-  async request(url, options = {}) {
-    try {
-      // 检查是否使用file://协议（Electron 桌面版除外）
-      const isElectron = navigator.userAgent.includes('Electron');
-      if (window.location.protocol === 'file:' && !isElectron) {
-        const errorMsg = `❌ 检测到使用文件协议打开页面！\n\n` +
-          `请使用HTTP服务器打开页面，而不是直接双击HTML文件。\n\n` +
-          `解决方法：\n` +
-          `1. 使用VS Code的Live Server插件\n` +
-          `2. 或使用Python简单服务器：python -m http.server 8000\n` +
-          `3. 或访问：http://localhost:8000/main-menu.html\n\n` +
-          `当前API地址：${this.baseURL}`;
-        console.error(errorMsg);
-        throw new Error('请使用HTTP服务器打开页面，不要直接双击HTML文件');
-      }
-
-      const response = await fetch(`${this.baseURL}${url}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        },
-        ...options
-      });
-
-      // 检查响应类型
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        // 如果返回的不是JSON，可能是HTML错误页面
-        const text = await response.text();
-        console.error('❌ 服务器返回了非JSON响应:', text.substring(0, 200));
-        throw new Error(`服务器返回了错误页面（${response.status}），请检查API路径是否正确`);
-      }
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || `请求失败 (${response.status})`);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('API请求错误:', error);
-      
-      // 详细的错误诊断
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        const diagnosticInfo = this.getDiagnosticInfo();
-        console.error('🔍 诊断信息:', diagnosticInfo);
-        
-        // 检查是否在静态托管平台（Netlify、GitHub Pages等）
-        const isStaticHosting = window.location.hostname.includes('netlify.app') || 
-                               window.location.hostname.includes('github.io') ||
-                               window.location.hostname.includes('gitee.io') ||
-                               window.location.hostname.includes('vercel.app');
-        
-        if (isStaticHosting && this.baseURL === '/api') {
-          // 在静态托管平台上，如果没有配置后端服务器，这是正常的
-          console.warn('⚠️ 检测到在静态托管平台上运行，但未配置后端服务器');
-          console.warn('💡 在线功能（论坛、好友等）需要后端服务器支持');
-          console.warn('💡 访问 server-config.html 配置云端服务器地址');
-          console.warn('💡 或者这些功能可以暂时不使用（游戏主功能不受影响）');
-          
-          // 返回一个友好的错误，而不是抛出异常
-          return Promise.reject(new Error('此功能需要后端服务器支持。请访问 server-config.html 配置服务器地址，或使用本地服务器。'));
-        }
-        
-        let errorMessage = '无法连接到服务器。\n\n';
-        errorMessage += `当前API地址：${this.baseURL}\n`;
-        errorMessage += `页面协议：${window.location.protocol}\n\n`;
-        errorMessage += '请检查：\n';
-        errorMessage += '1. 后端服务器是否已启动（运行"启动服务器.bat"）\n';
-        errorMessage += '2. 服务器是否在 http://localhost:3000 运行\n';
-        errorMessage += '3. 浏览器控制台是否有更多错误信息\n';
-        errorMessage += '4. 尝试访问：http://localhost:3000/api/health\n';
-        errorMessage += '5. 如果部署在静态托管平台，请配置云端服务器地址\n\n';
-        
-        if (window.location.protocol === 'file:') {
-          errorMessage += '⚠️ 重要：检测到使用文件协议！\n';
-          errorMessage += '请使用HTTP服务器打开页面，不要直接双击HTML文件。\n';
-        }
-        
-        throw new Error(errorMessage);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * 获取诊断信息
-   */
-  getDiagnosticInfo() {
-    return {
-      baseURL: this.baseURL,
-      protocol: window.location.protocol,
-      hostname: window.location.hostname,
-      port: window.location.port,
-      fullURL: window.location.href
-    };
-  }
-
-  /**
-   * 测试服务器连接
-   */
+  // ── 兼容旧代码的属性 ──────────────────────────────────────
+  get baseURL() { return SUPABASE_URL; }
+  getServerURL() { return SUPABASE_URL; }
+  getSocketURL() { return null; }
+  setServerURL() {}
   async testConnection() {
     try {
-      const response = await fetch(`${this.baseURL}/health`);
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, data };
-      } else {
-        return { success: false, error: `服务器返回错误：${response.status}` };
-      }
-    } catch (error) {
-      return { success: false, error: error.message };
+      const db = await this.getDB();
+      const { error } = await db.from('users').select('user_id').limit(1);
+      return error ? { success: false, error: error.message } : { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   }
 
   // ==================== 用户相关API ====================
-  
-  /**
-   * 获取用户信息
-   */
+
   async getUser(userId) {
-    return this.request(`/users/${userId}`);
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('users')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    if (error && error.code === 'PGRST116') return { success: false, message: '用户不存在' };
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapUser(data) };
   }
 
-  /**
-   * 创建或更新用户
-   */
   async createOrUpdateUser(userData) {
-    return this.request('/users', {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    });
+    const db = await this.getDB();
+    const row = {
+      user_id      : userData.userId,
+      name         : userData.name || userData.nickname || '',
+      avatar       : userData.avatar || '',
+      virtual_avatar: userData.virtualAvatar || {},
+      points       : userData.points || 0,
+      inventory    : userData.inventory || [],
+      friends      : userData.friends || [],
+      last_seen    : new Date().toISOString(),
+      updated_at   : new Date().toISOString()
+    };
+    const { data, error } = await db
+      .from('users')
+      .upsert(row, { onConflict: 'user_id' })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapUser(data) };
   }
 
-  /**
-   * 更新积分
-   */
-  async updatePoints(userId, amount, reason, teacher) {
-    return this.request(`/users/${userId}/points`, {
-      method: 'POST',
-      body: JSON.stringify({ amount, reason, teacher })
-    });
+  async updatePoints(userId, amount) {
+    const db = await this.getDB();
+    const { data: cur } = await db.from('users').select('points').eq('user_id', userId).single();
+    const newPoints = (cur?.points || 0) + amount;
+    const { data, error } = await db
+      .from('users')
+      .update({ points: newPoints, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapUser(data) };
   }
 
-  /**
-   * 更新虚拟形象
-   */
   async updateAvatar(userId, virtualAvatar) {
-    return this.request(`/users/${userId}/avatar`, {
-      method: 'POST',
-      body: JSON.stringify({ virtualAvatar })
-    });
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('users')
+      .update({ virtual_avatar: virtualAvatar, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapUser(data) };
   }
 
-  /**
-   * 添加物品到背包
-   */
   async addToInventory(userId, itemId, itemName, itemType) {
-    return this.request(`/users/${userId}/inventory`, {
-      method: 'POST',
-      body: JSON.stringify({ itemId, itemName, itemType })
-    });
+    const db = await this.getDB();
+    const { data: cur } = await db.from('users').select('inventory').eq('user_id', userId).single();
+    const inventory = cur?.inventory || [];
+    if (!inventory.some(i => i.itemId === itemId)) {
+      inventory.push({ itemId, itemName, itemType, acquiredAt: new Date().toISOString() });
+    }
+    const { data, error } = await db
+      .from('users')
+      .update({ inventory, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapUser(data) };
   }
 
-  /**
-   * 搜索用户（用于添加好友）
-   */
   async searchUsers(keyword) {
-    return this.request(`/users/search/${encodeURIComponent(keyword)}`);
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('users')
+      .select('user_id, name, avatar, points, friends')
+      .or(`name.ilike.%${keyword}%,user_id.ilike.%${keyword}%`)
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return { success: true, data: (data || []).map(r => this._mapUser(r)) };
+  }
+
+  // ── 在线心跳 ─────────────────────────────────────────────
+  async updateLastSeen(userId) {
+    try {
+      const db = await this.getDB();
+      await db.from('users')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('user_id', userId);
+    } catch (e) {}
+  }
+
+  async checkOnlineStatus(userIds) {
+    if (!userIds.length) return {};
+    const db = await this.getDB();
+    const { data } = await db
+      .from('users')
+      .select('user_id, last_seen')
+      .in('user_id', userIds);
+    const result = {};
+    const threshold = Date.now() - 45000; // 45秒内视为在线
+    (data || []).forEach(u => {
+      result[u.user_id] = u.last_seen
+        ? new Date(u.last_seen).getTime() > threshold
+        : false;
+    });
+    return result;
   }
 
   // ==================== 帖子相关API ====================
-  
-  /**
-   * 获取所有帖子
-   */
+
   async getPosts() {
-    return this.request('/posts');
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return { success: true, data: (data || []).map(r => this._mapPost(r)) };
   }
 
-  /**
-   * 创建帖子
-   */
   async createPost(authorId, content, authorName, authorAvatar) {
-    return this.request('/posts', {
-      method: 'POST',
-      body: JSON.stringify({ authorId, content, authorName, authorAvatar })
-    });
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('posts')
+      .insert({ author_id: authorId, author_name: authorName || authorId,
+                author_avatar: authorAvatar || '', content })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapPost(data) };
   }
 
-  /**
-   * 点赞帖子
-   */
   async likePost(postId, userId, userName) {
-    return this.request(`/posts/${postId}/like`, {
-      method: 'POST',
-      body: JSON.stringify({ userId, userName })
-    });
+    const db = await this.getDB();
+    const { data: post } = await db.from('posts').select('likes').eq('id', postId).single();
+    const likes = post?.likes || [];
+    const idx = likes.findIndex(l => l.userId === userId);
+    if (idx >= 0) { likes.splice(idx, 1); } else { likes.push({ userId, userName }); }
+    const { data, error } = await db
+      .from('posts').update({ likes }).eq('id', postId).select().single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapPost(data) };
   }
 
-  /**
-   * 评论帖子
-   */
   async commentPost(postId, userId, userName, content) {
-    return this.request(`/posts/${postId}/comment`, {
-      method: 'POST',
-      body: JSON.stringify({ userId, userName, content })
-    });
+    const db = await this.getDB();
+    const { data: post } = await db.from('posts').select('comments').eq('id', postId).single();
+    const comments = post?.comments || [];
+    comments.push({ userId, userName, content, createdAt: new Date().toISOString() });
+    const { data, error } = await db
+      .from('posts').update({ comments }).eq('id', postId).select().single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapPost(data) };
   }
 
   // ==================== 好友相关API ====================
-  
-  /**
-   * 获取好友列表
-   */
+
   async getFriends(userId) {
-    return this.request(`/friends/${userId}`);
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('users').select('friends').eq('user_id', userId).single();
+    if (error) return { success: true, data: [] };
+    return { success: true, data: data?.friends || [] };
   }
 
-  /**
-   * 发送好友请求
-   */
   async sendFriendRequest(fromUserId, toUserId) {
-    return this.request('/friends/request', {
-      method: 'POST',
-      body: JSON.stringify({ fromUserId, toUserId })
-    });
+    const db = await this.getDB();
+    // 检查是否已存在
+    const { data: ex } = await db.from('friend_requests')
+      .select('id').eq('from_user_id', fromUserId).eq('to_user_id', toUserId)
+      .eq('status', 'pending').single();
+    if (ex) return { success: false, message: '已发送过好友请求' };
+
+    // 检查是否已经是好友
+    const { data: me } = await db.from('users').select('friends').eq('user_id', fromUserId).single();
+    if ((me?.friends || []).some(f => f.userId === toUserId)) {
+      return { success: false, message: '已经是好友了' };
+    }
+
+    // 获取发送者信息
+    const { data: sender } = await db.from('users').select('name, avatar').eq('user_id', fromUserId).single();
+    const { data, error } = await db.from('friend_requests')
+      .insert({
+        from_user_id   : fromUserId,
+        to_user_id     : toUserId,
+        from_user_name : sender?.name || fromUserId,
+        from_user_avatar: sender?.avatar || ''
+      })
+      .select().single();
+    if (error) throw new Error(error.message);
+    return { success: true, data };
   }
 
-  /**
-   * 处理好友请求
-   */
   async handleFriendRequest(userId, requestId, action) {
-    return this.request(`/friends/request/${requestId}`, {
-      method: 'POST',
-      body: JSON.stringify({ userId, action })
-    });
+    const db = await this.getDB();
+    const { data: req, error: re } = await db
+      .from('friend_requests').select('*').eq('id', requestId).single();
+    if (re || !req) return { success: false, message: '请求不存在' };
+
+    await db.from('friend_requests')
+      .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
+      .eq('id', requestId);
+
+    if (action === 'accept') {
+      await this._addFriend(req.from_user_id, req.to_user_id);
+      await this._addFriend(req.to_user_id, req.from_user_id);
+    }
+    return { success: true };
   }
 
-  /**
-   * 获取好友请求列表
-   */
+  async _addFriend(userId, friendId) {
+    const db = await this.getDB();
+    const [{ data: me }, { data: friend }] = await Promise.all([
+      db.from('users').select('friends').eq('user_id', userId).single(),
+      db.from('users').select('name, avatar').eq('user_id', friendId).single()
+    ]);
+    const friends = me?.friends || [];
+    if (!friends.some(f => f.userId === friendId)) {
+      friends.push({ userId: friendId, name: friend?.name || friendId, avatar: friend?.avatar || '' });
+      await db.from('users').update({ friends }).eq('user_id', userId);
+    }
+  }
+
   async getFriendRequests(userId) {
-    return this.request(`/friends/${userId}/requests`);
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('friend_requests')
+      .select('*')
+      .eq('to_user_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return {
+      success: true,
+      data: (data || []).map(r => ({
+        _id           : r.id,
+        fromUserId    : r.from_user_id,
+        fromUserName  : r.from_user_name || r.from_user_id,
+        fromUserAvatar: r.from_user_avatar || '',
+        status        : r.status,
+        createdAt     : r.created_at
+      }))
+    };
   }
 
   // ==================== 消息相关API ====================
-  
-  /**
-   * 获取与某个好友的聊天记录
-   */
+
   async getMessages(userId, friendId, limit = 50) {
-    return this.request(`/messages/${userId}/${friendId}?limit=${limit}`);
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('messages')
+      .select('*')
+      .or(
+        `and(from_user_id.eq.${userId},to_user_id.eq.${friendId}),` +
+        `and(from_user_id.eq.${friendId},to_user_id.eq.${userId})`
+      )
+      .order('created_at', { ascending: true })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return { success: true, data: (data || []).map(r => this._mapMessage(r)) };
   }
 
-  /**
-   * 发送消息
-   */
   async sendMessage(fromUserId, toUserId, content) {
-    return this.request('/messages', {
-      method: 'POST',
-      body: JSON.stringify({ fromUserId, toUserId, content })
-    });
+    const db = await this.getDB();
+    const { data: sender } = await db
+      .from('users').select('name, avatar').eq('user_id', fromUserId).single();
+    const { data, error } = await db
+      .from('messages')
+      .insert({
+        from_user_id   : fromUserId,
+        from_user_name : sender?.name || fromUserId,
+        from_user_avatar: sender?.avatar || '',
+        to_user_id     : toUserId,
+        content
+      })
+      .select().single();
+    if (error) throw new Error(error.message);
+    return { success: true, data: this._mapMessage(data) };
   }
 
-  /**
-   * 获取未读消息数量
-   */
   async getUnreadCount(userId) {
-    return this.request(`/messages/${userId}/unread/count`);
+    const db = await this.getDB();
+    const { count, error } = await db
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('to_user_id', userId)
+      .eq('read', false);
+    if (error) return { success: true, data: { count: 0 } };
+    return { success: true, data: { count: count || 0 } };
   }
 
-  /**
-   * 获取所有会话列表
-   */
   async getConversations(userId) {
-    return this.request(`/messages/${userId}/conversations`);
+    const db = await this.getDB();
+    const { data, error } = await db
+      .from('messages')
+      .select('*')
+      .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const convMap = new Map();
+    for (const msg of (data || [])) {
+      const partnerId = msg.from_user_id === userId ? msg.to_user_id : msg.from_user_id;
+      if (!convMap.has(partnerId)) {
+        convMap.set(partnerId, {
+          partnerId,
+          partnerName  : msg.from_user_id === userId ? msg.to_user_id : msg.from_user_name,
+          partnerAvatar: msg.from_user_id === userId ? '' : msg.from_user_avatar,
+          lastMessage  : msg.content,
+          lastTime     : msg.created_at,
+          unread       : 0
+        });
+      }
+      if (msg.to_user_id === userId && !msg.read) {
+        convMap.get(partnerId).unread++;
+      }
+    }
+    return { success: true, data: Array.from(convMap.values()) };
+  }
+
+  // ==================== 数据映射（私有）====================
+
+  _mapUser(r) {
+    if (!r) return null;
+    return {
+      userId      : r.user_id,
+      name        : r.name,
+      avatar      : r.avatar,
+      virtualAvatar: r.virtual_avatar,
+      points      : r.points,
+      inventory   : r.inventory || [],
+      friends     : r.friends   || [],
+      lastSeen    : r.last_seen,
+      createdAt   : r.created_at,
+      updatedAt   : r.updated_at
+    };
+  }
+
+  _mapPost(r) {
+    if (!r) return null;
+    const likes    = r.likes    || [];
+    const comments = r.comments || [];
+    return {
+      _id         : r.id,
+      authorId    : r.author_id,
+      authorName  : r.author_name,
+      authorAvatar: r.author_avatar,
+      content     : r.content,
+      likes,
+      comments,
+      likeCount   : likes.length,
+      commentCount: comments.length,
+      createdAt   : r.created_at
+    };
+  }
+
+  _mapMessage(r) {
+    if (!r) return null;
+    return {
+      _id           : r.id,
+      fromUserId    : r.from_user_id,
+      fromUserName  : r.from_user_name,
+      fromUserAvatar: r.from_user_avatar,
+      toUserId      : r.to_user_id,
+      content       : r.content,
+      read          : r.read,
+      createdAt     : r.created_at
+    };
   }
 }
 
 // 创建全局实例
 const apiClient = new APIClient();
-
