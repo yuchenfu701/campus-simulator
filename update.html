@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>发现新版本</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box;
+    font-family:'PingFang SC','Microsoft YaHei',sans-serif; }
+
+body {
+    width:100vw; height:100vh; overflow:hidden;
+    background:transparent;
+    display:flex; align-items:center; justify-content:center;
+}
+
+.card {
+    width:480px;
+    background:linear-gradient(145deg,#0f172a,#1e1b4b);
+    border-radius:24px;
+    border:1px solid rgba(139,92,246,.4);
+    box-shadow:0 32px 80px rgba(0,0,0,.7),
+               0 0 0 1px rgba(139,92,246,.15),
+               inset 0 1px 0 rgba(255,255,255,.06);
+    overflow:hidden;
+    position:relative;
+}
+
+/* 顶部彩色光效 */
+.card::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);
+    background-size:200%;
+    animation:shimmer 2s linear infinite;
+}
+@keyframes shimmer {
+    0%{background-position:0%}100%{background-position:200%}
+}
+
+/* 粒子背景 */
+.particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.particle {
+    position:absolute; border-radius:50%;
+    background:rgba(139,92,246,.3);
+    animation:float linear infinite;
+}
+@keyframes float {
+    0%{transform:translateY(120%) scale(0); opacity:0}
+    10%{opacity:1}
+    90%{opacity:.3}
+    100%{transform:translateY(-20px) scale(1.2); opacity:0}
+}
+
+.content { position:relative; z-index:1; padding:36px 32px 32px; }
+
+/* 图标 */
+.icon-wrap {
+    width:72px; height:72px; border-radius:20px; margin:0 auto 20px;
+    background:linear-gradient(135deg,#8b5cf6,#6366f1);
+    display:flex; align-items:center; justify-content:center;
+    font-size:36px;
+    box-shadow:0 8px 32px rgba(139,92,246,.5);
+    animation:pulse-icon 2s ease-in-out infinite;
+}
+@keyframes pulse-icon {
+    0%,100%{box-shadow:0 8px 32px rgba(139,92,246,.5)}
+    50%{box-shadow:0 8px 48px rgba(139,92,246,.8)}
+}
+
+.title { text-align:center; color:white; font-size:22px; font-weight:700; margin-bottom:6px; }
+.subtitle { text-align:center; color:rgba(255,255,255,.5); font-size:13px; margin-bottom:24px; }
+
+/* 版本信息 */
+.version-row {
+    display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:20px;
+}
+.ver-box {
+    text-align:center; padding:10px 20px;
+    background:rgba(255,255,255,.06); border-radius:12px;
+    border:1px solid rgba(255,255,255,.08);
+}
+.ver-label { font-size:11px; color:rgba(255,255,255,.4); margin-bottom:4px; }
+.ver-num   { font-size:18px; font-weight:700; color:white; }
+.ver-num.new { color:#a78bfa; }
+.arrow { color:rgba(255,255,255,.3); font-size:20px; }
+
+/* 更新说明 */
+.notes {
+    background:rgba(255,255,255,.04); border-radius:12px;
+    padding:14px 16px; margin-bottom:22px;
+    border:1px solid rgba(255,255,255,.06);
+    max-height:80px; overflow-y:auto;
+    color:rgba(255,255,255,.65); font-size:13px; line-height:1.7;
+}
+
+/* 进度条区域 */
+.progress-area { display:none; margin-bottom:22px; }
+.progress-label { display:flex; justify-content:space-between;
+    color:rgba(255,255,255,.5); font-size:12px; margin-bottom:8px; }
+.progress-track {
+    height:8px; border-radius:4px;
+    background:rgba(255,255,255,.1); overflow:hidden;
+}
+.progress-fill {
+    height:100%; border-radius:4px; width:0%;
+    background:linear-gradient(90deg,#8b5cf6,#6366f1,#3b82f6);
+    background-size:200%;
+    animation:shimmer 1.5s linear infinite;
+    transition:width .3s ease;
+}
+.status-text { text-align:center; color:#a78bfa; font-size:12px; margin-top:8px; }
+
+/* 按钮 */
+.btns { display:flex; gap:10px; }
+.btn {
+    flex:1; padding:14px; border-radius:12px; border:none;
+    font-size:15px; font-weight:600; cursor:pointer;
+    transition:all .25s;
+}
+.btn-update {
+    background:linear-gradient(135deg,#8b5cf6,#6366f1);
+    color:white;
+    box-shadow:0 8px 24px rgba(139,92,246,.4);
+}
+.btn-update:hover { transform:translateY(-2px); box-shadow:0 12px 32px rgba(139,92,246,.6); }
+.btn-update:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-skip {
+    background:rgba(255,255,255,.08);
+    color:rgba(255,255,255,.6);
+    border:1px solid rgba(255,255,255,.12);
+}
+.btn-skip:hover { background:rgba(255,255,255,.14); color:white; }
+
+/* 完成状态 */
+.done-area { display:none; text-align:center; padding:10px 0; }
+.done-icon { font-size:48px; margin-bottom:12px; animation:bounce .5s ease; }
+@keyframes bounce {
+    0%{transform:scale(.5)} 60%{transform:scale(1.1)} 100%{transform:scale(1)}
+}
+.done-text { color:white; font-size:16px; font-weight:600; margin-bottom:6px; }
+.done-sub  { color:rgba(255,255,255,.5); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="card">
+    <!-- 粒子 -->
+    <div class="particles" id="particles"></div>
+
+    <div class="content">
+        <div class="icon-wrap">🚀</div>
+        <div class="title">发现新版本</div>
+        <div class="subtitle" id="subtitle">爱哲安民未来学校有新版本可用</div>
+
+        <div class="version-row">
+            <div class="ver-box">
+                <div class="ver-label">当前版本</div>
+                <div class="ver-num" id="curVer">2.0.0</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="ver-box">
+                <div class="ver-label">新版本</div>
+                <div class="ver-num new" id="newVer">—</div>
+            </div>
+        </div>
+
+        <div class="notes" id="notes">加载中...</div>
+
+        <div class="progress-area" id="progressArea">
+            <div class="progress-label">
+                <span>正在下载...</span>
+                <span id="pct">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="fill"></div>
+            </div>
+            <div class="status-text" id="statusText">准备中</div>
+        </div>
+
+        <div class="done-area" id="doneArea">
+            <div class="done-icon">✅</div>
+            <div class="done-text">下载完成！</div>
+            <div class="done-sub">点击"立即安装"后软件将关闭并启动安装程序</div>
+        </div>
+
+        <div class="btns" id="btns">
+            <button class="btn btn-skip"   id="skipBtn"   onclick="skip()">稍后再说</button>
+            <button class="btn btn-update" id="updateBtn" onclick="startUpdate()">立即更新</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let downloadUrl = '';
+let savePath    = '';
+
+// 生成粒子
+(function() {
+    const wrap = document.getElementById('particles');
+    for (let i = 0; i < 12; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = 4 + Math.random() * 8;
+        p.style.cssText = `
+            width:${size}px; height:${size}px;
+            left:${Math.random()*100}%;
+            animation-duration:${3+Math.random()*4}s;
+            animation-delay:${Math.random()*4}s;
+        `;
+        wrap.appendChild(p);
+    }
+})();
+
+// 接收版本信息
+if (window.updater) {
+    window.updater.onUpdateInfo((info) => {
+        document.getElementById('curVer').textContent  = info.currentVersion;
+        document.getElementById('newVer').textContent  = info.newVersion;
+        document.getElementById('notes').textContent   = info.releaseNotes;
+        downloadUrl = info.downloadUrl;
+    });
+
+    window.updater.onProgress((prog) => {
+        document.getElementById('progressArea').style.display = 'block';
+        document.getElementById('fill').style.width  = prog.percent + '%';
+        document.getElementById('pct').textContent   = prog.percent + '%';
+        document.getElementById('statusText').textContent =
+            `已下载 ${(prog.downloaded/1024/1024).toFixed(1)} MB / ${(prog.total/1024/1024).toFixed(1)} MB`;
+
+        if (prog.percent >= 100) {
+            showDone();
+        }
+    });
+}
+
+async function startUpdate() {
+    if (!downloadUrl) return;
+    document.getElementById('updateBtn').disabled = true;
+    document.getElementById('updateBtn').textContent = '下载中...';
+    document.getElementById('skipBtn').style.display = 'none';
+    document.getElementById('progressArea').style.display = 'block';
+    document.getElementById('statusText').textContent = '连接服务器...';
+
+    try {
+        const result = await window.updater.downloadUpdate(downloadUrl);
+        if (result.opened) {
+            // 在浏览器打开了下载页
+            document.getElementById('statusText').textContent = '已在浏览器打开下载页，请手动安装';
+            document.getElementById('fill').style.width = '100%';
+            document.getElementById('pct').textContent = '100%';
+            showDone(true);
+        } else if (result.done) {
+            savePath = result.savePath;
+            showDone(false);
+        }
+    } catch (e) {
+        document.getElementById('statusText').textContent = '下载失败: ' + e.message;
+        document.getElementById('updateBtn').disabled = false;
+        document.getElementById('updateBtn').textContent = '重试';
+    }
+}
+
+function showDone(browserOpened) {
+    document.getElementById('progressArea').style.display = 'none';
+    document.getElementById('doneArea').style.display = 'block';
+    document.getElementById('btns').innerHTML = browserOpened
+        ? `<button class="btn btn-skip" onclick="skip()">关闭</button>`
+        : `<button class="btn btn-skip" onclick="skip()">稍后安装</button>
+           <button class="btn btn-update" onclick="install()">立即安装</button>`;
+}
+
+function install() {
+    if (savePath && window.updater) {
+        window.updater.openInstaller(savePath);
+    }
+}
+
+function skip() {
+    if (window.updater) window.updater.closeUpdate();
+}
+</script>
+</body>
+</html>

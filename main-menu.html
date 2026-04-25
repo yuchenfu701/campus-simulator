@@ -1044,6 +1044,7 @@
     </div>
     
     <script src="js/points-system.js"></script>
+    <script src="js/api-client.js"></script>
     <script>
         // 加载用户信息
         function loadUserInfo() {
@@ -1565,6 +1566,23 @@
             checkServerConfig();
             console.log('✅ 自动保存已启动（每30秒）');
             console.log('✨ 星空效果已启动');
+
+            // 自动将当前用户同步到 Supabase（让其他用户可以搜索到你）
+            (async function syncUser() {
+                try {
+                    const ud = JSON.parse(localStorage.getItem('campus_user') || '{}');
+                    if (!ud.userId) return;
+                    await apiClient.createOrUpdateUser({
+                        userId: ud.userId,
+                        name  : ud.nickname || ud.name || '玩家',
+                        avatar: ud.avatar || '👤',
+                        points: ud.points || 0
+                    });
+                    console.log('✅ 用户已同步到 Supabase，可被搜索');
+                } catch(e) {
+                    console.warn('⚠️ 用户同步失败（不影响游戏）:', e.message);
+                }
+            })();
         });
     </script>
 </body>
