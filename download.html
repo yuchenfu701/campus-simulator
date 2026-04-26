@@ -222,13 +222,14 @@
 
         <!-- macOS -->
         <div class="platform-card card-mac" id="card-mac" onclick="selectPlatform('mac')">
-            <div class="corner-badge cb-soon">即将推出</div>
+            <div class="corner-badge" id="mac-badge" style="display:none;"></div>
             <div class="platform-icon"></div>
             <div class="platform-name">macOS</div>
             <div class="platform-sys">macOS 12 Monterey 及以上<br>支持 Intel &amp; Apple Silicon</div>
             <div class="platform-badge badge-desktop">💻 桌面模式</div>
-            <button class="platform-dl-btn btn-disabled" onclick="event.stopPropagation();showComingSoon('mac')">
-                🔨 构建中，敬请期待
+            <button class="platform-dl-btn btn-disabled" id="mac-dl-btn"
+                    onclick="event.stopPropagation();downloadMac()">
+                ⏳ 检测中…
             </button>
         </div>
 
@@ -337,15 +338,37 @@ const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases/lates
     }
 })();
 
-// ── VERSION ─────────────────────────────────────────────
+// ── VERSION + MAC DETECTION ──────────────────────────────
 (async function loadVer(){
     try{
         const r = await fetch(RELEASES_API);
         const j = await r.json();
         document.getElementById('ver-num').textContent = j.tag_name || 'v2.0.0';
         window._latestRelease = j;
+        // check if dmg exists in this release
+        const dmg = (j.assets||[]).find(a=>a.name.endsWith('.dmg'));
+        const btn  = document.getElementById('mac-dl-btn');
+        const badge= document.getElementById('mac-badge');
+        if(dmg){
+            btn.textContent = '⬇ 下载 .dmg 安装包';
+            btn.classList.remove('btn-disabled');
+            badge.textContent = '最新版';
+            badge.className   = 'corner-badge cb-new';
+            badge.style.display = '';
+        } else {
+            btn.textContent = '🔨 构建中，敬请期待';
+            btn.classList.add('btn-disabled');
+            badge.textContent = '即将推出';
+            badge.className   = 'corner-badge cb-soon';
+            badge.style.display = '';
+        }
     }catch(e){
         document.getElementById('ver-num').textContent = 'v2.0.0';
+        const btn = document.getElementById('mac-dl-btn');
+        btn.textContent = '🔨 构建中，敬请期待';
+        btn.classList.add('btn-disabled');
+        const badge = document.getElementById('mac-badge');
+        badge.textContent='即将推出'; badge.className='corner-badge cb-soon'; badge.style.display='';
     }
 })();
 
@@ -430,8 +453,23 @@ function showIOSGuide(){
     if(guide.style.display==='block') guide.scrollIntoView({behavior:'smooth'});
 }
 
+// ── DOWNLOAD macOS ───────────────────────────────────────
+async function downloadMac(){
+    selectPlatform('mac');
+    let url;
+    try{
+        const r = window._latestRelease || await fetch(RELEASES_API).then(r=>r.json());
+        const asset = (r.assets||[]).find(a=>a.name.endsWith('.dmg'));
+        if(!asset){ showComingSoon('mac'); return; }
+        url = asset.browser_download_url;
+    }catch(e){
+        showComingSoon('mac'); return;
+    }
+    window.open(url, '_blank');
+}
+
 function showComingSoon(platform){
-    alert(`${platform==='mac'?'macOS':'该平台'} 版本正在开发中，敬请期待！\n\n目前可先使用网页版：\nhttps://yuchenfu701.github.io/campus-simulator/`);
+    alert(`macOS 版本正在 GitHub Actions 自动构建中，完成后按钮会自动变为可下载状态，请稍候！\n\n目前可先使用网页版：\nhttps://yuchenfu701.github.io/campus-simulator/`);
 }
 
 // ── PROGRESS HELPERS ─────────────────────────────────────
