@@ -4,6 +4,11 @@ const fs   = require('fs');
 const https = require('https');
 const os    = require('os');
 
+// 修复 GPU 缓存路径含中文导致的黑屏问题
+app.disableHardwareAcceleration();
+// 将用户数据目录指向可写的英文路径
+app.setPath('userData', path.join(os.homedir(), 'AppData', 'Local', 'CampusSimulator'));
+
 const iconPath   = path.join(__dirname, 'build', 'icon.ico');
 const iconExists = fs.existsSync(iconPath);
 
