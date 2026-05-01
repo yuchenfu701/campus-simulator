@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const https = require('https');
@@ -133,17 +133,29 @@ function isNewer(latest, current) {
 
 // ── IPC：下载更新 ────────────────────────────────────────────
 ipcMain.handle('download-update', async (event, downloadUrl) => {
+    // 如果是 GitHub release 页面链接（非直接下载），在浏览器打开
+    if (!downloadUrl.endsWith('.exe')) {
+        shell.openExternal(downloadUrl);
+        return { opened: true };
+    }
+
+    const fileName = downloadUrl.split('/').pop() || '爱哲安民未来学校-新版.exe';
+
+    // 弹出"选择保存位置"对话框
+    const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(mainWindow, {
+        title: '选择下载位置',
+        defaultPath: path.join(app.getPath('downloads'), fileName),
+        buttonLabel: '保存到此处',
+        filters: [{ name: 'Windows 安装程序', extensions: ['exe'] }]
+    });
+
+    if (canceled || !chosenPath) {
+        return { canceled: true };
+    }
+
+    const savePath = chosenPath;
+
     return new Promise((resolve, reject) => {
-        const fileName = downloadUrl.split('/').pop() || '爱哲安民未来学校-新版.exe';
-        const savePath = path.join(os.tmpdir(), fileName);
-
-        // 如果是 GitHub release 页面链接（非直接下载），在浏览器打开
-        if (!downloadUrl.endsWith('.exe')) {
-            shell.openExternal(downloadUrl);
-            resolve({ opened: true });
-            return;
-        }
-
         const file = fs.createWriteStream(savePath);
         let downloaded = 0;
         let totalSize  = 0;
@@ -179,6 +191,7 @@ ipcMain.handle('download-update', async (event, downloadUrl) => {
         doDownload(downloadUrl);
     });
 });
+
 
 ipcMain.handle('open-installer', (event, savePath) => {
     shell.openPath(savePath);

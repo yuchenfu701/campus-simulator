@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/37812/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/094f202f-53ce-4f8b-af67-232c69698014/d9de51ea-b2e4-4f45-9ced-93bf6188cf0e/skills/pptx/**)",
+      "Bash(python scripts/extract_text.py \"C:\\\\Users\\\\37812\\\\Desktop\\\\蒙牛\\\\7K7K队创新提案.pptx\")",
+      "Bash(python -c \"from pptx import Presentation; print\\('pptx ok'\\)\")",
+      "Bash(python -c \"import defusedxml; print\\('defusedxml ok'\\)\")",
+      "Bash(python -)",
+      "Bash(rm -f .git/index.lock)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  }
+}
