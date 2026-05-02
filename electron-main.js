@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const https = require('https');
@@ -217,6 +217,10 @@ app.on('second-instance', () => {
 
 app.on('ready', () => {
     Menu.setApplicationMenu(null);
+    // 清除 Service Worker 缓存，防止 SW 拦截 Electron 文件请求导致页面全黑
+    session.defaultSession.clearStorageData({
+        storages: ['serviceworkers', 'cachestorage']
+    }).catch(() => {});
     createWindow();
     // 启动 5 秒后检查更新（避免影响启动速度）
     setTimeout(checkForUpdates, 5000);
