@@ -710,28 +710,63 @@
             if (txt) txt.textContent = online ? '🟢 在线' : '⚫ 离线';
         }
         
+        // 本地已知用户搜索（服务器不可用时的备用）
+        function searchLocalUsers(keyword) {
+            try {
+                const kw = keyword.toLowerCase();
+                const known = JSON.parse(localStorage.getItem('campus_known_users') || '[]');
+                return known.filter(u =>
+                    u.userId !== currentUserId &&
+                    ((u.name || '').toLowerCase().includes(kw) ||
+                     (u.userId || '').toLowerCase().includes(kw) ||
+                     (u.phone || '').includes(keyword))
+                ).map(u => ({ userId: u.userId, name: u.name, avatar: u.avatar, phone: u.phone || '', points: 0 }));
+            } catch(e) { return []; }
+        }
+
         // 搜索用户
         async function searchUsers() {
             const keyword = document.getElementById('searchInput').value.trim();
-            
+
             if (!keyword) {
                 alert('请输入搜索关键词');
                 return;
             }
-            
+
             const container = document.getElementById('searchResults');
             container.innerHTML = '<div class="empty-state">搜索中...</div>';
-            
+
+            let results = [];
+            let usedLocal = false;
             try {
-                const response = await apiClient.searchUsers(keyword);
-                if (response.success && response.data.length > 0) {
-                    renderSearchResults(response.data);
+                const response = await Promise.race([
+                    apiClient.searchUsers(keyword),
+                    new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+                ]);
+                if (response.success && response.data && response.data.length > 0) {
+                    results = response.data;
                 } else {
-                    container.innerHTML = '<div class="empty-state">未找到相关用户</div>';
+                    results = searchLocalUsers(keyword);
+                    usedLocal = true;
                 }
             } catch (error) {
-                console.error('搜索失败:', error);
-                container.innerHTML = '<div class="empty-state">搜索失败，请检查网络连接</div>';
+                console.warn('服务器搜索失败，使用本地:', error.message);
+                results = searchLocalUsers(keyword);
+                usedLocal = true;
+            }
+
+            if (results.length > 0) {
+                renderSearchResults(results);
+                if (usedLocal) {
+                    const note = document.createElement('div');
+                    note.style.cssText = 'text-align:center;color:rgba(255,255,255,.4);font-size:11px;padding:6px;';
+                    note.textContent = '📴 离线模式 · 仅显示本设备曾登录的用户';
+                    container.prepend(note);
+                }
+            } else {
+                container.innerHTML = '<div class="empty-state">' +
+                    (usedLocal ? '未找到用户（对方需在此设备登录过才可本地搜索）' : '未找到相关用户') +
+                    '</div>';
             }
         }
         

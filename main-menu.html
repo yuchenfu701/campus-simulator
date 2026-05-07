@@ -969,8 +969,7 @@ window.setSkin=function(i){
 <!-- 角色渲染（VRM装备时显示VRM，否则程序生成默认人物） -->
 <script type="module">
 import * as THREE from './js/three.module.min.js';
-import { GLTFLoader } from './js/GLTFLoader.js';
-import { VRMLoaderPlugin, VRMUtils } from './js/three-vrm.module.js';
+// VRM相关模块仅在装备VRM时动态导入，避免模块加载失败导致整个script中断
 
 const canvas = document.getElementById('charCanvas');
 if(!canvas) throw new Error('charCanvas not found');
@@ -1091,37 +1090,49 @@ let proceduralChar = null;
 window._vrmMode = false;
 const clock = new THREE.Clock();
 
-const equippedVrmFile = localStorage.getItem('equipped_vrm_file');
-if(equippedVrmFile){
-    window._vrmMode = true;
-    document.querySelector('.skin-row').style.display='none'; // hide skin buttons in VRM mode
-    const loader = new GLTFLoader();
-    loader.register(p => new VRMLoaderPlugin(p));
-    loader.load(equippedVrmFile, gltf => {
-        vrm = gltf.userData.vrm;
-        VRMUtils.removeUnnecessaryVertices(gltf.scene);
-        VRMUtils.combineSkeletons(gltf.scene);
-        vrm.scene.rotation.y = Math.PI;
-        vrm.scene.position.set(0, 0, 0);
-        scene.add(vrm.scene);
-        console.log('✅ VRM 加载成功');
-    }, p => {
-        if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
-    }, err => {
-        console.warn('VRM加载失败，切换到程序生成人物:', err.message);
-        window._vrmMode = false;
-        const si = parseInt(localStorage.getItem('equipped_skin_index')||'0');
-        proceduralChar = buildChar(si);
-        window._proceduralChar = proceduralChar;
-        scene.add(proceduralChar);
-    });
-} else {
+function spawnProcedural(){
     const si = parseInt(localStorage.getItem('equipped_skin_index')||'0');
     proceduralChar = buildChar(si);
     window._proceduralChar = proceduralChar;
     scene.add(proceduralChar);
-    // highlight active skin button
     document.querySelectorAll('.skin-btn').forEach((b,i)=>b.classList.toggle('active',i===si));
+}
+
+const equippedVrmFile = localStorage.getItem('equipped_vrm_file');
+if(equippedVrmFile){
+    window._vrmMode = true;
+    const skinRowEl = document.getElementById('skinRow');
+    if(skinRowEl) skinRowEl.style.display='none';
+    // Dynamic import — only attempt when VRM is actually equipped
+    import('./js/GLTFLoader.js').then(({GLTFLoader}) =>
+        import('./js/three-vrm.module.js').then(({VRMLoaderPlugin, VRMUtils}) => {
+            const loader = new GLTFLoader();
+            loader.register(p => new VRMLoaderPlugin(p));
+            loader.load(equippedVrmFile, gltf => {
+                vrm = gltf.userData.vrm;
+                VRMUtils.removeUnnecessaryVertices(gltf.scene);
+                VRMUtils.combineSkeletons(gltf.scene);
+                vrm.scene.rotation.y = Math.PI;
+                vrm.scene.position.set(0, 0, 0);
+                scene.add(vrm.scene);
+                console.log('✅ VRM 加载成功');
+            }, p => {
+                if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
+            }, err => {
+                console.warn('VRM加载失败，切换程序生成人物:', err.message);
+                window._vrmMode = false;
+                if(skinRowEl) skinRowEl.style.display='';
+                spawnProcedural();
+            });
+        })
+    ).catch(err => {
+        console.warn('VRM模块加载失败，切换程序生成人物:', err.message);
+        window._vrmMode = false;
+        if(skinRowEl) skinRowEl.style.display='';
+        spawnProcedural();
+    });
+} else {
+    spawnProcedural();
 }
 
 /* ── 多人组队：在场景中并排显示好友人物 ── */
@@ -1511,6 +1522,19 @@ setInterval(autoSave,30000);
 window.addEventListener('DOMContentLoaded',()=>{
     loadUserInfo();
     renderPartyMemberCards();
+
+    // 把自己写入本地已知用户注册表（供好友搜索离线使用）
+    (function registerLocalUser(){
+        try{
+            const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+            if(!ud.userId) return;
+            const known=JSON.parse(localStorage.getItem('campus_known_users')||'[]');
+            const idx=known.findIndex(u=>u.userId===ud.userId);
+            const entry={userId:ud.userId,name:ud.nickname||ud.name||'玩家',avatar:ud.avatar||'👤',phone:ud.phone||'',lastSeen:new Date().toISOString()};
+            if(idx>=0) known[idx]=entry; else known.push(entry);
+            localStorage.setItem('campus_known_users',JSON.stringify(known));
+        }catch(e){}
+    })();
 
     // Supabase sync
     (async function syncUser(){

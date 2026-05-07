@@ -372,32 +372,58 @@
             await loadPosts();
         });
         
-        // 加载帖子列表
+        /* ── localStorage 帖子存储（服务器不可用时的备用方案） ── */
+        function getLocalPosts(){
+            try{return JSON.parse(localStorage.getItem('campus_forum_posts')||'[]');}catch(e){return [];}
+        }
+        function saveLocalPost(post){
+            const posts=getLocalPosts();
+            posts.unshift(post);
+            // 最多保留200条
+            if(posts.length>200) posts.splice(200);
+            localStorage.setItem('campus_forum_posts',JSON.stringify(posts));
+        }
+        function updateLocalPost(postId, updater){
+            const posts=getLocalPosts();
+            const idx=posts.findIndex(p=>p._id===postId);
+            if(idx>=0){updater(posts[idx]);localStorage.setItem('campus_forum_posts',JSON.stringify(posts));}
+        }
+
+        // 加载帖子列表（优先服务器，失败则用 localStorage）
         async function loadPosts() {
             const container = document.getElementById('postsContainer');
             container.innerHTML = '<div class="loading">加载中...</div>';
-            
+
+            let usedLocal = false;
+            let posts = [];
+
             try {
-                const response = await apiClient.getPosts();
-                if (response.success && response.data.length > 0) {
-                    renderPosts(response.data);
+                const response = await Promise.race([
+                    apiClient.getPosts(),
+                    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
+                ]);
+                if (response.success && response.data && response.data.length > 0) {
+                    posts = response.data;
                 } else {
-                    container.innerHTML = '<div class="empty-state">暂无帖子，快来发布第一条吧！</div>';
+                    posts = getLocalPosts();
+                    usedLocal = true;
                 }
             } catch (error) {
-                console.error('加载帖子失败:', error);
-                
-                // 详细的错误提示
-                let errorHTML = '<div class="error-state">';
-                errorHTML += '<h3>❌ 加载失败</h3>';
-                errorHTML += '<p>' + error.message.replace(/\n/g, '<br>') + '</p>';
-                
-                // 添加诊断按钮
-                errorHTML += '<button onclick="testServerConnection()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍 测试服务器连接</button>';
-                errorHTML += '<div id="testResult" style="margin-top: 10px;"></div>';
-                errorHTML += '</div>';
-                
-                container.innerHTML = errorHTML;
+                console.warn('服务器加载帖子失败，使用本地存储:', error.message);
+                posts = getLocalPosts();
+                usedLocal = true;
+            }
+
+            if(posts.length > 0){
+                renderPosts(posts);
+                if(usedLocal){
+                    const note=document.createElement('div');
+                    note.style.cssText='text-align:center;color:rgba(255,255,255,.4);font-size:11px;padding:8px;';
+                    note.textContent='📴 离线模式 · 仅显示本设备帖子';
+                    document.getElementById('postsContainer').prepend(note);
+                }
+            } else {
+                container.innerHTML = '<div class="empty-state">暂无帖子，快来发布第一条吧！</div>';
             }
         }
         
@@ -476,45 +502,32 @@
                 return;
             }
             
+            const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            let posted = false;
             try {
-                // 先确保用户在数据库中存在
-                try {
-                    await apiClient.getUser(currentUserId);
-                } catch (error) {
-                    // 用户不存在，尝试创建用户
-                    console.log('用户不存在，尝试创建用户...');
-                    const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                    await apiClient.createOrUpdateUser({
-                        userId: currentUserId,
-                        name: currentUserName,
-                        phone: userData.phone || `temp_${currentUserId}`,
-                        class: userData.class || '初一(1)班',
-                        avatar: userData.avatar || ''
-                    });
-                }
-                
-                // 发布帖子（传递用户信息，方便后端自动创建用户）
-                const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-                const response = await apiClient.createPost(
-                    currentUserId, 
-                    content,
-                    currentUserName,
-                    userData.avatar || ''
-                );
-                if (response.success) {
-                alert('✅ 帖子发布成功！');
-                    closePostModal();
-                    await loadPosts(); // 重新加载帖子列表
-                } else {
-                    alert('发布失败：' + response.message);
-                }
+                const response = await Promise.race([
+                    apiClient.createPost(currentUserId, content, currentUserName, userData.avatar || ''),
+                    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
+                ]);
+                if (response.success) posted = true;
             } catch (error) {
-                if (error.message === 'API_UNAVAILABLE') {
-                    alert('⚠️ 服务器不可用，请检查后端服务是否启动');
-                } else {
-                    alert('发布失败：' + error.message);
-                }
+                console.warn('服务器发帖失败，保存到本地:', error.message);
             }
+            if(!posted){
+                // 保存到 localStorage
+                saveLocalPost({
+                    _id: 'local_'+Date.now(),
+                    content,
+                    authorId: currentUserId,
+                    authorName: currentUserName,
+                    authorAvatar: userData.avatar || '👤',
+                    createdAt: new Date().toISOString(),
+                    likes: [], comments: [], likeCount: 0, commentCount: 0
+                });
+            }
+            alert('✅ 帖子发布成功！');
+            closePostModal();
+            await loadPosts();
         }
         
         // 点赞/取消点赞
