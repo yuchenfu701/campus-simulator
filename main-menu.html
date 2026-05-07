@@ -1098,42 +1098,50 @@ function spawnProcedural(){
     document.querySelectorAll('.skin-btn').forEach((b,i)=>b.classList.toggle('active',i===si));
 }
 
-const equippedVrmFile = localStorage.getItem('equipped_vrm_file');
-if(equippedVrmFile){
-    window._vrmMode = true;
+function reloadCharacter(){
+    // 清除现有角色
+    if(vrm){ scene.remove(vrm.scene); vrm=null; }
+    if(proceduralChar){ scene.remove(proceduralChar); proceduralChar=null; }
+    window._vrmMode = false;
     const skinRowEl = document.getElementById('skinRow');
-    if(skinRowEl) skinRowEl.style.display='none';
-    // Dynamic import — only attempt when VRM is actually equipped
-    import('./js/GLTFLoader.js').then(({GLTFLoader}) =>
-        import('./js/three-vrm.module.js').then(({VRMLoaderPlugin, VRMUtils}) => {
-            const loader = new GLTFLoader();
-            loader.register(p => new VRMLoaderPlugin(p));
-            loader.load(equippedVrmFile, gltf => {
-                vrm = gltf.userData.vrm;
-                VRMUtils.removeUnnecessaryVertices(gltf.scene);
-                VRMUtils.combineSkeletons(gltf.scene);
-                vrm.scene.rotation.y = Math.PI;
-                vrm.scene.position.set(0, 0, 0);
-                scene.add(vrm.scene);
-                console.log('✅ VRM 加载成功');
-            }, p => {
-                if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
-            }, err => {
-                console.warn('VRM加载失败，切换程序生成人物:', err.message);
-                window._vrmMode = false;
-                if(skinRowEl) skinRowEl.style.display='';
-                spawnProcedural();
-            });
-        })
-    ).catch(err => {
-        console.warn('VRM模块加载失败，切换程序生成人物:', err.message);
-        window._vrmMode = false;
+    const vrmFile = localStorage.getItem('equipped_vrm_file');
+    if(vrmFile){
+        window._vrmMode = true;
+        if(skinRowEl) skinRowEl.style.display='none';
+        import('./js/GLTFLoader.js').then(({GLTFLoader}) =>
+            import('./js/three-vrm.module.js').then(({VRMLoaderPlugin, VRMUtils}) => {
+                const loader = new GLTFLoader();
+                loader.register(p => new VRMLoaderPlugin(p));
+                loader.load(vrmFile, gltf => {
+                    vrm = gltf.userData.vrm;
+                    try{ VRMUtils.removeUnnecessaryVertices(gltf.scene); }catch(e){}
+                    try{ VRMUtils.combineSkeletons(gltf.scene); }catch(e){}
+                    vrm.scene.rotation.y = Math.PI;
+                    vrm.scene.position.set(0, 0, 0);
+                    scene.add(vrm.scene);
+                    console.log('✅ VRM 加载成功');
+                }, p => {
+                    if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
+                }, err => {
+                    console.warn('VRM加载失败，切换程序生成人物:', err.message||err);
+                    window._vrmMode = false;
+                    if(skinRowEl) skinRowEl.style.display='';
+                    spawnProcedural();
+                });
+            })
+        ).catch(err => {
+            console.warn('VRM模块加载失败，切换程序生成人物:', err.message||err);
+            window._vrmMode = false;
+            if(skinRowEl) skinRowEl.style.display='';
+            spawnProcedural();
+        });
+    } else {
         if(skinRowEl) skinRowEl.style.display='';
         spawnProcedural();
-    });
-} else {
-    spawnProcedural();
+    }
 }
+
+reloadCharacter();
 
 /* ── 多人组队：在场景中并排显示好友人物 ── */
 window._partyChars = [];
@@ -1330,6 +1338,7 @@ function closeFeatureModal(){
     document.getElementById('feature-modal').classList.add('hidden');
     document.getElementById('feature-iframe').src='';
     loadPointsData();
+    reloadCharacter();
 }
 
 window.openInGame=function(url,title){showFeatureModal(url,title);};
