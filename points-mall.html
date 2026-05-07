@@ -800,8 +800,8 @@ function selectItem(id){
     btn.className='preview-btn buy';btn.textContent=`💎 ${item.price} 购买`;
   }
 
-  // mobile: open modal directly
-  if(window.innerWidth<900) openBuyModal(item);
+  // mobile: open modal only if not yet owned (avoid re-opening after purchase/equip)
+  if(window.innerWidth<900 && !isOwned(item.id)) openBuyModal(item);
 }
 
 function previewAction(){
