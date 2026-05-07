@@ -601,6 +601,7 @@ class PointsSystem {
             student.exchangeHistory = [];
         }
         
+        if (!this.pointsData.achievements) this.pointsData.achievements = [];
         this.pointsData.achievements.forEach(achievement => {
             // 如果已获得该成就，跳过
             if (student.achievements.includes(achievement.id)) return;

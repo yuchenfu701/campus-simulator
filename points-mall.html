@@ -847,12 +847,11 @@ function confirmBuy(){
   const item=selectedItem;
   const owned=isOwned(item.id);
   if(!owned){
-    if(item.price>0) spendPoints(item.price,'购买:'+item.name);
+    try{ if(item.price>0) spendPoints(item.price,'购买:'+item.name); }catch(e){ console.error('spendPoints error',e); }
     const o=getOwned();o[item.id]=true;setOwned(o);
   }
   closeModal();
   refreshPts();
-  // auto-equip on purchase
   equipItem(item);
 }
 
