@@ -293,6 +293,91 @@
             box-shadow:0 0 18px rgba(249,115,22,.6);
         }
 
+        /* ─── PARTY MEMBER CARDS (center area) ─── */
+        .party-members-row{
+            position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+            display:flex;gap:10px;pointer-events:all;z-index:20;
+        }
+        .party-member-card{
+            display:flex;flex-direction:column;align-items:center;gap:4px;
+            background:rgba(10,15,30,.85);border:1px solid rgba(249,115,22,.3);
+            border-radius:12px;padding:8px 10px;backdrop-filter:blur(12px);
+            min-width:72px;
+        }
+        .party-member-avatar{font-size:26px;line-height:1;}
+        .party-member-name{font-size:10px;font-weight:700;color:var(--text-mid);max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .party-member-kick{font-size:10px;color:rgba(239,68,68,.7);cursor:pointer;margin-top:2px;}
+        .party-member-kick:hover{color:#ef4444;}
+
+        /* ─── PARTY PANEL ─── */
+        .party-panel{
+            position:fixed;inset:0;z-index:500;
+            background:rgba(0,0,0,.7);backdrop-filter:blur(12px);
+            display:none;align-items:flex-end;justify-content:center;
+        }
+        .party-panel.open{display:flex;animation:slideUp .25s ease;}
+        @keyframes slideUp{from{opacity:0;transform:translateY(30px);}to{opacity:1;transform:translateY(0);}}
+        .party-box{
+            width:100%;max-width:500px;
+            background:linear-gradient(145deg,#0a0f1e,#0f1729);
+            border:1px solid rgba(249,115,22,.35);
+            border-radius:24px 24px 0 0;
+            padding:24px 20px 32px;
+        }
+        .party-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+        .party-title{font-size:18px;font-weight:800;color:var(--text-hi);}
+        .party-close{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.08);
+            border:1px solid rgba(255,255,255,.12);cursor:pointer;
+            display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-mid);}
+        .party-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+        .party-slot{
+            background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.15);
+            border-radius:14px;padding:16px 8px;text-align:center;cursor:pointer;
+            transition:all .2s;
+        }
+        .party-slot.filled{border-style:solid;border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.06);}
+        .party-slot:hover:not(.filled){background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.25);}
+        .slot-avatar{font-size:30px;margin-bottom:6px;}
+        .slot-name{font-size:11px;font-weight:700;color:var(--text-mid);margin-bottom:4px;}
+        .slot-action{font-size:10px;color:var(--text-lo);}
+        .slot-filled-action{font-size:10px;color:rgba(239,68,68,.7);cursor:pointer;margin-top:4px;}
+        .slot-filled-action:hover{color:#ef4444;}
+        .party-start-btn{
+            width:100%;padding:14px;border:none;border-radius:14px;
+            font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;
+            background:linear-gradient(135deg,var(--orange),#ef4444);color:#fff;
+            box-shadow:0 4px 20px rgba(249,115,22,.4);transition:opacity .2s,transform .1s;
+        }
+        .party-start-btn:hover{opacity:.9;transform:translateY(-1px);}
+        .party-start-btn:active{transform:scale(.97);}
+
+        /* ─── FRIEND PICKER ─── */
+        .friend-picker{
+            position:fixed;inset:0;z-index:600;
+            background:rgba(0,0,0,.8);backdrop-filter:blur(16px);
+            display:none;align-items:center;justify-content:center;
+        }
+        .friend-picker.open{display:flex;}
+        .fp-box{
+            background:linear-gradient(145deg,#080d1e,#0f1729);
+            border:1px solid rgba(249,115,22,.35);border-radius:20px;
+            padding:24px;width:90%;max-width:360px;max-height:70vh;overflow-y:auto;
+        }
+        .fp-title{font-size:16px;font-weight:800;margin-bottom:16px;
+            display:flex;justify-content:space-between;align-items:center;}
+        .fp-close{cursor:pointer;font-size:18px;color:var(--text-mid);}
+        .fp-friend{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;
+            cursor:pointer;transition:background .2s;margin-bottom:8px;}
+        .fp-friend:hover{background:rgba(249,115,22,.1);}
+        .fp-avatar{width:40px;height:40px;border-radius:10px;background:rgba(249,115,22,.15);
+            border:1px solid rgba(249,115,22,.3);display:flex;align-items:center;justify-content:center;font-size:22px;}
+        .fp-info{flex:1;}
+        .fp-name{font-size:13px;font-weight:700;}
+        .fp-uid{font-size:11px;color:var(--text-lo);}
+        .fp-add-btn{padding:6px 12px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+            background:rgba(249,115,22,.2);border:1px solid rgba(249,115,22,.4);color:var(--orange);}
+        .fp-empty{text-align:center;padding:30px;color:var(--text-lo);font-size:13px;}
+
         /* ─── RIGHT PANEL ─── */
         .right-panel{
             display:flex;flex-direction:column;gap:12px;
@@ -671,7 +756,9 @@
             <div class="char-name" id="charDisplayName">玩家</div>
             <div class="char-class">CAMPUS OPERATOR</div>
         </div>
-        <div class="skin-row">
+        <!-- party member cards rendered here -->
+        <div class="party-members-row" id="partyMembersRow"></div>
+        <div class="skin-row" id="skinRow">
             <div class="skin-btn active" onclick="setSkin(0)" title="夏季校服">👕</div>
             <div class="skin-btn" onclick="setSkin(1)" title="冬季校服">🧥</div>
             <div class="skin-btn" onclick="setSkin(2)" title="运动服">🏃</div>
@@ -737,6 +824,7 @@
     <!-- ═══ BOTTOM BAR ═══ -->
     <div class="bottom-bar">
         <button class="btn-logout" onclick="logout()">🚪 退出登录</button>
+        <button class="btn-main" style="background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:#c084fc;" onclick="openPartyPanel()">👥 组队</button>
         <button class="btn-main btn-enter" onclick="startGame()">▶ 进入游戏</button>
     </div>
 
@@ -777,6 +865,31 @@
         </div>
         <button class="map-cancel-btn" onclick="closeMapSelect()">取消</button>
     </div>
+</div>
+
+<!-- ─── PARTY PANEL ─── -->
+<div class="party-panel" id="partyPanel" onclick="if(event.target===this)closePartyPanel()">
+  <div class="party-box">
+    <div class="party-header">
+      <div class="party-title">👥 组队房间</div>
+      <div class="party-close" onclick="closePartyPanel()">✕</div>
+    </div>
+    <div class="party-slots" id="partySlots">
+      <!-- filled by JS -->
+    </div>
+    <button class="party-start-btn" onclick="partyStartGame()">▶ 一起进入游戏</button>
+  </div>
+</div>
+
+<!-- ─── FRIEND PICKER ─── -->
+<div class="friend-picker" id="friendPicker" onclick="if(event.target===this)closeFriendPicker()">
+  <div class="fp-box">
+    <div class="fp-title">
+      <span>选择好友</span>
+      <span class="fp-close" onclick="closeFriendPicker()">✕</span>
+    </div>
+    <div id="friendPickerList"></div>
+  </div>
 </div>
 
 <!-- ─── FEATURE MODAL ─── -->
@@ -844,10 +957,16 @@
     animBg();
 })();
 
-window.setSkin=function(i){}; // VRM模式皮肤预留
+window.setSkin=function(i){
+    if(window._vrmMode) return;
+    if(window._proceduralChar){ window._scene&&window._scene.remove(window._proceduralChar); }
+    window._proceduralChar=window._buildChar(i);
+    window._scene&&window._scene.add(window._proceduralChar);
+    document.querySelectorAll('.skin-btn').forEach((b,idx)=>b.classList.toggle('active',idx===i));
+};
 </script>
 
-<!-- VRM 角色（ES模块） -->
+<!-- 角色渲染（VRM装备时显示VRM，否则程序生成默认人物） -->
 <script type="module">
 import * as THREE from './js/three.module.min.js';
 import { GLTFLoader } from './js/GLTFLoader.js';
@@ -864,13 +983,13 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 
 const scene = new THREE.Scene();
+window._scene = scene;
 scene.fog = new THREE.FogExp2(0x070b17, .05);
 
 const camera = new THREE.PerspectiveCamera(35, 1, .1, 100);
 camera.position.set(0, 1.4, 3.5);
 camera.lookAt(0, 1.0, 0);
 
-// 灯光
 scene.add(new THREE.AmbientLight(0xfff5e0, 3));
 const main = new THREE.DirectionalLight(0xffffff, 4);
 main.position.set(2,6,4); main.castShadow=true; scene.add(main);
@@ -881,12 +1000,11 @@ fill.position.set(3,1,2); scene.add(fill);
 const foot = new THREE.PointLight(0x818cf8, 3, 5);
 foot.position.set(0,.1,0); scene.add(foot);
 
-// 平台
 const ring = new THREE.Mesh(
     new THREE.RingGeometry(1.1,1.4,64),
     new THREE.MeshBasicMaterial({color:0x818cf8,transparent:true,opacity:.3,side:THREE.DoubleSide})
 );
-ring.rotation.x=-Math.PI/2; ring.position.y=0; scene.add(ring);
+ring.rotation.x=-Math.PI/2; scene.add(ring);
 const ring2 = new THREE.Mesh(
     new THREE.RingGeometry(.55,.72,64),
     new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.25,side:THREE.DoubleSide})
@@ -908,41 +1026,143 @@ function resize(){
 resize();
 window.addEventListener('resize', resize);
 
-// VRM 加载
+/* ── 程序生成人物 ── */
+const SKINS_DEF=[
+  {shirt:0xfafafa,pants:0x1e2d5a,jacket:0xfafafa,tie:0xdc2626,hair:0x1a0a00},
+  {shirt:0xdbeafe,pants:0x1e2d5a,jacket:0x1e3a8a,tie:0xfbbf24,hair:0x1a0a00},
+  {shirt:0xdc2626,pants:0x1e2d5a,jacket:0xb91c1c,tie:0xffffff,hair:0x1a0a00},
+  {shirt:0xffffff,pants:0x111827,jacket:0x1f2937,tie:0xfbbf24,hair:0x2d1b00},
+  {shirt:0xfce7f3,pants:0x831843,jacket:0xfb7185,tie:0xffffff,hair:0x7c3aed},
+  {shirt:0x1e1b4b,pants:0x0f172a,jacket:0x312e81,tie:0x818cf8,hair:0x0f172a},
+  {shirt:0xffffff,pants:0x1a1a2e,jacket:0x16213e,tie:0xffd700,hair:0x111827},
+];
+
+function buildChar(skinIdx, xOffset=0){
+  const sk = SKINS_DEF[skinIdx] || SKINS_DEF[0];
+  const g = new THREE.Group();
+  const mat = c => new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1});
+  // head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.14,16,16), mat(0xffe0c0));
+  head.position.set(0,1.68,0); g.add(head);
+  // hair cap
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(.145,16,8,0,Math.PI*2,0,Math.PI*.52), mat(sk.hair));
+  hairCap.position.set(0,1.73,0); g.add(hairCap);
+  // neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.08,8), mat(0xffe0c0));
+  neck.position.set(0,1.54,0); g.add(neck);
+  // torso (jacket)
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.17,.19,.56,8), mat(sk.jacket));
+  torso.position.set(0,1.19,0); g.add(torso);
+  // shirt front strip
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(.1,.5,.22), mat(sk.shirt));
+  shirt.position.set(0,1.19,.03); g.add(shirt);
+  // tie
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(.045,.4,.05), mat(sk.tie));
+  tie.position.set(0,1.19,.14); g.add(tie);
+  // upper arms
+  const lArm = new THREE.Mesh(new THREE.CylinderGeometry(.048,.044,.28,8), mat(sk.jacket));
+  lArm.position.set(-.26,1.2,0); lArm.rotation.z=.35; g.add(lArm);
+  const rArm = lArm.clone(); rArm.position.set(.26,1.2,0); rArm.rotation.z=-.35; g.add(rArm);
+  // forearms
+  const lFa = new THREE.Mesh(new THREE.CylinderGeometry(.04,.035,.25,8), mat(0xffe0c0));
+  lFa.position.set(-.34,.95,0); lFa.rotation.z=.22; g.add(lFa);
+  const rFa = lFa.clone(); rFa.position.set(.34,.95,0); rFa.rotation.z=-.22; g.add(rFa);
+  // upper legs
+  const lLeg = new THREE.Mesh(new THREE.CylinderGeometry(.075,.065,.52,8), mat(sk.pants));
+  lLeg.position.set(-.1,.64,0); g.add(lLeg);
+  const rLeg = lLeg.clone(); rLeg.position.set(.1,.64,0); g.add(rLeg);
+  // calves
+  const lCalf = new THREE.Mesh(new THREE.CylinderGeometry(.06,.05,.44,8), mat(sk.pants));
+  lCalf.position.set(-.1,.26,0); g.add(lCalf);
+  const rCalf = lCalf.clone(); rCalf.position.set(.1,.26,0); g.add(rCalf);
+  // shoes
+  const lShoe = new THREE.Mesh(new THREE.BoxGeometry(.1,.06,.15), mat(0x1a1a1a));
+  lShoe.position.set(-.1,.02,.03); g.add(lShoe);
+  const rShoe = lShoe.clone(); rShoe.position.set(.1,.02,.03); g.add(rShoe);
+
+  g.position.x = xOffset;
+  return g;
+}
+window._buildChar = buildChar;
+
+/* ── 加载决策：VRM 或 程序生成 ── */
 let vrm = null;
+let proceduralChar = null;
+window._vrmMode = false;
 const clock = new THREE.Clock();
-const loader = new GLTFLoader();
-loader.register(p => new VRMLoaderPlugin(p));
 
-loader.load('models/player.vrm', gltf => {
-    vrm = gltf.userData.vrm;
-    VRMUtils.removeUnnecessaryVertices(gltf.scene);
-    VRMUtils.combineSkeletons(gltf.scene);
-    vrm.scene.rotation.y = Math.PI;
-    vrm.scene.position.set(0, 0, 0);
-    scene.add(vrm.scene);
-    console.log('✅ VRM 加载成功');
-}, p => {
-    if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
-}, err => {
-    console.warn('VRM加载失败:', err.message);
-});
+const equippedVrmFile = localStorage.getItem('equipped_vrm_file');
+if(equippedVrmFile){
+    window._vrmMode = true;
+    document.querySelector('.skin-row').style.display='none'; // hide skin buttons in VRM mode
+    const loader = new GLTFLoader();
+    loader.register(p => new VRMLoaderPlugin(p));
+    loader.load(equippedVrmFile, gltf => {
+        vrm = gltf.userData.vrm;
+        VRMUtils.removeUnnecessaryVertices(gltf.scene);
+        VRMUtils.combineSkeletons(gltf.scene);
+        vrm.scene.rotation.y = Math.PI;
+        vrm.scene.position.set(0, 0, 0);
+        scene.add(vrm.scene);
+        console.log('✅ VRM 加载成功');
+    }, p => {
+        if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
+    }, err => {
+        console.warn('VRM加载失败，切换到程序生成人物:', err.message);
+        window._vrmMode = false;
+        const si = parseInt(localStorage.getItem('equipped_skin_index')||'0');
+        proceduralChar = buildChar(si);
+        window._proceduralChar = proceduralChar;
+        scene.add(proceduralChar);
+    });
+} else {
+    const si = parseInt(localStorage.getItem('equipped_skin_index')||'0');
+    proceduralChar = buildChar(si);
+    window._proceduralChar = proceduralChar;
+    scene.add(proceduralChar);
+    // highlight active skin button
+    document.querySelectorAll('.skin-btn').forEach((b,i)=>b.classList.toggle('active',i===si));
+}
 
-// 动画循环
+/* ── 多人组队：在场景中并排显示好友人物 ── */
+window._partyChars = [];
+window.refreshPartyChars = function(){
+    window._partyChars.forEach(c=>scene.remove(c));
+    window._partyChars=[];
+    const party=JSON.parse(localStorage.getItem('campus_party')||'{"members":[]}');
+    const members=party.members||[];
+    // positions: single=[0], two=[-0.9,0.9], three=[-1.4,0,1.4]
+    const positions={1:[0],2:[-0.95,0.95],3:[-1.45,0,1.45]};
+    const total=1+members.length;
+    const pos=positions[Math.min(total,3)]||[0];
+    // reposition main character
+    if(vrm) vrm.scene.position.x=pos[0]||0;
+    if(proceduralChar) proceduralChar.position.x=pos[0]||0;
+    // add party member chars
+    members.slice(0,2).forEach((m,i)=>{
+        const c=buildChar(m.skinIdx||0, pos[i+1]||0);
+        scene.add(c); window._partyChars.push(c);
+    });
+    // adjust camera for group
+    if(total>=3) camera.position.set(0,1.4,5.2);
+    else if(total===2) camera.position.set(0,1.4,4.3);
+    else camera.position.set(0,1.4,3.5);
+    camera.lookAt(0,1.0,0);
+};
+
+/* ── 动画 ── */
 let t=0, mx=0, my=0;
-document.addEventListener('mousemove', e=>{
-    mx=(e.clientX/innerWidth-.5)*2;
-    my=(e.clientY/innerHeight-.5)*2;
-});
+document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
 (function tick(){
     requestAnimationFrame(tick);
-    const delta = clock.getDelta();
-    t += .01;
-    if(vrm){ vrm.update(delta); vrm.scene.rotation.y = Math.PI + mx*.15 + Math.sin(t*.25)*.03; vrm.scene.position.y = Math.sin(t)*.015; }
-    ring.rotation.z += .006;
-    ring2.rotation.z -= .009;
-    foot.intensity = 2.5 + Math.sin(t*1.8)*.6;
-    renderer.render(scene, camera);
+    const delta=clock.getDelta();
+    t+=.01;
+    if(vrm){ vrm.update(delta); vrm.scene.rotation.y=Math.PI+mx*.15+Math.sin(t*.25)*.03; vrm.scene.position.y=Math.sin(t)*.015; }
+    if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }
+    window._partyChars.forEach((c,i)=>{ c.rotation.y=Math.sin(t*.3+(i+1)*1.2)*.06; c.position.y=Math.sin(t+(i+1)*.8)*.012; });
+    ring.rotation.z+=.006; ring2.rotation.z-=.009;
+    foot.intensity=2.5+Math.sin(t*1.8)*.6;
+    renderer.render(scene,camera);
 })();
 </script>
 <script>
@@ -1114,6 +1334,8 @@ function closeMapSelect(){
 }
 function enterMap(type){
     closeMapSelect();
+    // Ensure party_size is set (default 1 if not in party mode)
+    if(!localStorage.getItem('party_size')) localStorage.setItem('party_size','1');
     if(type==='3d'){window.location.href='校园企业家，教学楼小副本/index.html';return;}
     const started=localStorage.getItem('game_started');
     if(!started){localStorage.setItem('game_started','true');window.location.href='梦核校园最新力作(2).html';}
@@ -1137,6 +1359,141 @@ function logout(){
 }
 
 /* ═══════════════════════════════════════
+   PARTY SYSTEM
+═══════════════════════════════════════ */
+function getParty(){return JSON.parse(localStorage.getItem('campus_party')||'{"members":[]}');}
+function saveParty(p){localStorage.setItem('campus_party',JSON.stringify(p));}
+
+function openPartyPanel(){
+    renderPartySlots();
+    document.getElementById('partyPanel').classList.add('open');
+}
+function closePartyPanel(){document.getElementById('partyPanel').classList.remove('open');}
+
+function renderPartySlots(){
+    const party=getParty();
+    const members=party.members||[];
+    const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+    const slots=document.getElementById('partySlots');
+    slots.innerHTML='';
+
+    // Slot 0 = self (always filled)
+    const selfSlot=document.createElement('div');
+    selfSlot.className='party-slot filled';
+    selfSlot.innerHTML=`
+        <div class="slot-avatar">${ud.avatar||'👤'}</div>
+        <div class="slot-name">${(ud.nickname||'我').substring(0,6)}</div>
+        <div class="slot-action" style="color:var(--orange);font-size:10px;">队长</div>`;
+    slots.appendChild(selfSlot);
+
+    // Slots 1-2 = party members or empty
+    for(let i=0;i<2;i++){
+        const m=members[i];
+        const slot=document.createElement('div');
+        if(m){
+            slot.className='party-slot filled';
+            slot.innerHTML=`
+                <div class="slot-avatar">${m.avatar||'🧑'}</div>
+                <div class="slot-name">${(m.name||'好友').substring(0,6)}</div>
+                <div class="slot-filled-action" onclick="kickPartyMember(${i})">✕ 移除</div>`;
+        } else {
+            slot.className='party-slot';
+            slot.innerHTML=`
+                <div class="slot-avatar">➕</div>
+                <div class="slot-name">邀请好友</div>
+                <div class="slot-action">点击选择</div>`;
+            slot.onclick=()=>openFriendPicker();
+        }
+        slots.appendChild(slot);
+    }
+
+    // Update 3D scene party characters
+    if(window.refreshPartyChars) window.refreshPartyChars();
+    renderPartyMemberCards();
+}
+
+function kickPartyMember(idx){
+    const party=getParty();
+    party.members.splice(idx,1);
+    saveParty(party);
+    renderPartySlots();
+}
+
+function renderPartyMemberCards(){
+    const party=getParty();
+    const row=document.getElementById('partyMembersRow');
+    if(!row) return;
+    row.innerHTML='';
+    (party.members||[]).forEach((m,i)=>{
+        const card=document.createElement('div');
+        card.className='party-member-card';
+        card.innerHTML=`
+            <div class="party-member-avatar">${m.avatar||'🧑'}</div>
+            <div class="party-member-name">${m.name||'好友'}</div>
+            <div class="party-member-kick" onclick="kickPartyMember(${i})">✕ 移除</div>`;
+        row.appendChild(card);
+    });
+}
+
+function openFriendPicker(){
+    const list=document.getElementById('friendPickerList');
+    // Load friends from campus_friends or show a name entry fallback
+    let friends=[];
+    try{
+        const raw=localStorage.getItem('campus_friends');
+        if(raw) friends=JSON.parse(raw);
+    }catch(e){}
+
+    const party=getParty();
+    const partyIds=(party.members||[]).map(m=>m.userId);
+
+    if(!friends.length){
+        list.innerHTML=`<div class="fp-empty">暂无好友<br><br>
+            <input id="fpManualName" placeholder="输入好友昵称" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-size:14px;text-align:center;" />
+            <button style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:10px;background:rgba(249,115,22,.25);color:var(--orange);font-weight:700;cursor:pointer;font-family:inherit;" onclick="addManualFriend()">邀请加入</button>
+        </div>`;
+    } else {
+        list.innerHTML='';
+        friends.filter(f=>!partyIds.includes(f.userId)).forEach(f=>{
+            const div=document.createElement('div');
+            div.className='fp-friend';
+            div.innerHTML=`
+                <div class="fp-avatar">${f.avatar||'👤'}</div>
+                <div class="fp-info"><div class="fp-name">${f.name||f.nickname||'好友'}</div><div class="fp-uid">ID: ${f.userId||'—'}</div></div>
+                <button class="fp-add-btn" onclick='addFriendToParty(${JSON.stringify(f)})'>+ 邀请</button>`;
+            list.appendChild(div);
+        });
+        if(!list.children.length) list.innerHTML='<div class="fp-empty">好友已全部在队伍中</div>';
+    }
+    document.getElementById('friendPicker').classList.add('open');
+}
+function closeFriendPicker(){document.getElementById('friendPicker').classList.remove('open');}
+
+function addManualFriend(){
+    const name=(document.getElementById('fpManualName')||{}).value||'';
+    if(!name.trim()){return;}
+    addFriendToParty({userId:'guest_'+Date.now(),name:name.trim(),avatar:'🧑',skinIdx:0});
+}
+
+function addFriendToParty(f){
+    const party=getParty();
+    if((party.members||[]).length>=2){alert('队伍已满（最多3人）');return;}
+    party.members=party.members||[];
+    party.members.push({userId:f.userId||f.id,name:f.name||f.nickname||'好友',avatar:f.avatar||'🧑',skinIdx:f.skinIdx||0});
+    saveParty(party);
+    closeFriendPicker();
+    renderPartySlots();
+}
+
+function partyStartGame(){
+    closePartyPanel();
+    const party=getParty();
+    const size=1+(party.members||[]).length;
+    localStorage.setItem('party_size',String(size));
+    document.getElementById('map-select-overlay').classList.remove('hidden');
+}
+
+/* ═══════════════════════════════════════
    AUTO SAVE
 ═══════════════════════════════════════ */
 function autoSave(){
@@ -1153,6 +1510,7 @@ setInterval(autoSave,30000);
 ═══════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded',()=>{
     loadUserInfo();
+    renderPartyMemberCards();
 
     // Supabase sync
     (async function syncUser(){

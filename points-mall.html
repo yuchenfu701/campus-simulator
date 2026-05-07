@@ -524,6 +524,8 @@ const COSMETICS=[
    desc:'虚空之子，深紫星辰战袍',tags:['传说','宇宙']},
   {id:'skin_6',name:'金色荣耀',cat:'skin',si:6,price:800,r:'legend',
    desc:'终极传说，金黑配色至尊装备',tags:['传说','限量'],isNew:true},
+  {id:'skin_vrm_lieqi',name:'猎奇套装',cat:'skin',vrmFile:'models/player.vrm',price:150,r:'epic',
+   desc:'3D写实VRM人物模型，史诗品质，真实全身角色扮演套装，主界面与3D游戏同步显示',tags:['VRM','3D','写实'],isNew:true},
   // ── WEAPONS ──
   {id:'wpn_pen',name:'钢笔宝剑',cat:'weapon',wt:'pen',price:60,r:'rare',
    desc:'文武双全——墨水也是剑气',tags:['武器','文具']},
@@ -565,11 +567,12 @@ function getEquipped(){return JSON.parse(localStorage.getItem('campus_equipped')
 function setEquipped(slot,id){
   const eq=getEquipped();eq[slot]=id;
   localStorage.setItem('campus_equipped',JSON.stringify(eq));
-  // also write skinIndex so main-menu can read it
   const item=COSMETICS.find(c=>c.id===id);
   if(item&&item.si!==undefined) localStorage.setItem('equipped_skin_index',item.si);
   if(item&&item.bg) localStorage.setItem('equipped_bg',item.bg);
   if(item&&item.mt) localStorage.setItem('equipped_model',item.mt);
+  if(item&&item.vrmFile) localStorage.setItem('equipped_vrm_file',item.vrmFile);
+  else if(item&&item.cat==='skin') localStorage.removeItem('equipped_vrm_file');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -667,6 +670,7 @@ function makeFeaturedBanner(item){
 }
 
 function getItemArtSVG(item){
+  if(item.vrmFile) return `<svg viewBox="0 0 80 136" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="vg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#6366f1"/></linearGradient></defs><ellipse cx="40" cy="20" rx="13" ry="15" fill="#ffe0c0"/><rect x="28" y="33" width="24" height="32" rx="4" fill="url(#vg)"/><rect x="18" y="34" width="10" height="26" rx="4" fill="url(#vg)"/><rect x="52" y="34" width="10" height="26" rx="4" fill="url(#vg)"/><rect x="27" y="65" width="11" height="36" rx="4" fill="#1e1b4b"/><rect x="42" y="65" width="11" height="36" rx="4" fill="#1e1b4b"/><text x="40" y="118" text-anchor="middle" font-size="9" fill="#c084fc" font-weight="bold">VRM</text></svg>`;
   if(item.cat==='skin')   return skinSVG(SKINS_DEF[item.si]||SKINS_DEF[0]);
   if(item.cat==='weapon') return weaponSVG(item.wt);
   if(item.cat==='bg')     return bgSVG(item.bg);

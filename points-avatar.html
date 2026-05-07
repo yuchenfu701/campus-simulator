@@ -1,552 +1,378 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的形象 - 校园积乐园</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, 
-                #0f172a 0%, 
-                #1e293b 25%, 
-                #312e81 50%, 
-                #1e293b 75%, 
-                #0f172a 100%);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
-            min-height: 100vh;
-            padding: 20px;
-            padding-bottom: 80px;
-            position: relative;
-        }
-        
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
-        }
-        
-        .header {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 24px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            position: relative;
-            z-index: 1;
-        }
-        
-        .page-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: white;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* 形象展示区 */
-        .avatar-display {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 24px;
-            padding: 32px;
-            margin-bottom: 24px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            position: relative;
-            z-index: 1;
-        }
-        
-        .avatar-preview {
-            width: 180px;
-            height: 220px;
-            margin: 0 auto 20px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: visible;
-            border: 2px solid rgba(102, 126, 234, 0.2);
-        }
-        
-        .avatar-title {
-            font-size: 15px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 12px;
-        }
-        
-        .avatar-desc {
-            font-size: 20px;
-            font-weight: 700;
-            color: white;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* 装扮选择 */
-        .customize-section {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            position: relative;
-            z-index: 1;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-        
-        .items-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 12px;
-        }
-        
-        .item-option {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.3s;
-        }
-        
-        .item-option:hover {
-            transform: scale(1.08) translateY(-4px);
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
-            border-color: rgba(139, 92, 246, 0.4);
-        }
-        
-        .item-option.selected {
-            border-color: #8b5cf6;
-            background: rgba(139, 92, 246, 0.2);
-            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-        
-        .item-option.locked {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .option-icon {
-            font-size: 36px;
-            margin-bottom: 6px;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-        }
-        
-        .option-name {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.8);
-            font-weight: 500;
-        }
-        
-        /* 形象叠加显示 */
-        .avatar-layers {
-            position: relative;
-            width: 150px;
-            height: 200px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .avatar-layer {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        /* 基础人物（含发型）- 居中 */
-        .layer-base { 
-            z-index: 2;
-            font-size: 80px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        
-        /* 发型层 - 不再使用，保留用于兼容 */
-        .layer-hair { 
-            display: none;
-        }
-        
-        /* 眼镜 - 叠加在眼睛位置（装饰物） */
-        .layer-glasses { 
-            z-index: 3;
-            font-size: 40px;
-            top: 42%;  /* 调整到眼睛位置，从52%改为42% */
-            left: 50%;
-            transform: translate(-50%, -50%);
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-        
-        /* 帽子 - 叠加在头顶（装饰物） */
-        .layer-hat { 
-            z-index: 4;
-            font-size: 45px;
-            top: 12%;  /* 调整到头顶位置，从15%改为12% */
-            left: 50%;
-            transform: translate(-50%, -50%);
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-        
-        /* 底部导航 */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
-            z-index: 100; /* 确保在最上层 */
-            pointer-events: auto; /* 确保可以点击 */
-        }
-        
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            padding: 5px 15px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            user-select: none; /* 防止文本选择 */
-            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
-            pointer-events: auto; /* 确保可以点击 */
-        }
-        
-        .nav-item:hover {
-            background: #f3f4f6;
-        }
-        
-        .nav-item:active {
-            transform: scale(0.95); /* 点击反馈 */
-        }
-        
-        .nav-item.active {
-            color: #667eea;
-        }
-        
-        .nav-icon {
-            font-size: 24px;
-        }
-        
-        .nav-label {
-            font-size: 12px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的套装 · 爱哲校园</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;}
+:root{
+  --bg:#060a14;--panel:rgba(8,14,28,.92);
+  --orange:#f97316;--cyan:#22d3ee;--purple:#8b5cf6;
+  --border:rgba(249,115,22,.2);
+  --hi:rgba(255,255,255,.95);--mid:rgba(255,255,255,.65);--lo:rgba(255,255,255,.35);
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--hi);overflow-x:hidden;}
+
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.scanlines{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:200;
+  background:rgba(4,8,20,.96);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(24px);padding:12px 16px;}
+.header-top{display:flex;align-items:center;gap:12px;margin-bottom:0;}
+.h-back{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:18px;flex-shrink:0;}
+.h-title{font-size:18px;font-weight:800;flex:1;}
+
+/* CURRENT EQUIPPED BANNER */
+.equipped-banner{
+  position:relative;z-index:10;margin:16px;
+  background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(99,102,241,.1));
+  border:1px solid rgba(139,92,246,.4);border-radius:20px;
+  padding:20px;display:flex;align-items:center;gap:16px;
+  overflow:hidden;
+}
+.equipped-banner::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 80% 50%,rgba(139,92,246,.12),transparent 60%);pointer-events:none;}
+.eq-art{width:80px;height:110px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  filter:drop-shadow(0 0 14px rgba(139,92,246,.5));}
+.eq-art svg{width:100%;height:100%;}
+.eq-info{flex:1;}
+.eq-label{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--purple);margin-bottom:6px;}
+.eq-name{font-size:20px;font-weight:900;margin-bottom:4px;}
+.eq-desc{font-size:12px;color:var(--mid);line-height:1.5;margin-bottom:10px;}
+.eq-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);
+  font-size:11px;font-weight:700;color:#c084fc;}
+
+/* SECTION */
+.section-wrap{position:relative;z-index:10;padding:0 16px 120px;}
+.section-title{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:20px 0 12px;
+}
+.section-title-text{
+  display:flex;align-items:center;gap:8px;
+  font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mid);
+}
+.section-title-text::after{display:none;}
+.sec-line{flex:1;height:1px;background:rgba(255,255,255,.08);margin-left:10px;}
+.go-mall-btn{
+  padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;
+  background:rgba(249,115,22,.15);border:1px solid var(--border);color:var(--orange);
+  cursor:pointer;white-space:nowrap;
+}
+
+/* SUIT GRID */
+.suit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+@media(max-width:420px){.suit-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* SUIT CARD */
+.suit-card{
+  position:relative;border-radius:16px;overflow:hidden;cursor:pointer;
+  background:rgba(10,15,30,.8);border:1px solid rgba(255,255,255,.1);
+  transition:transform .2s,box-shadow .2s,border-color .2s;
+  display:flex;flex-direction:column;
+}
+.suit-card:hover{transform:translateY(-4px);}
+.suit-card.equipped{border-color:var(--orange);box-shadow:0 0 20px rgba(249,115,22,.35);}
+.suit-card.locked{opacity:.55;cursor:not-allowed;}
+.suit-card.r-epic{border-color:rgba(168,85,247,.4);}
+.suit-card.r-legend{border-color:rgba(245,158,11,.5);animation:legendPulse 2.5s ease-in-out infinite;}
+.suit-card.r-rare{border-color:rgba(59,130,246,.4);}
+.suit-card.equipped.r-epic,.suit-card.equipped.r-legend,.suit-card.equipped.r-rare{border-color:var(--orange);}
+@keyframes legendPulse{0%,100%{box-shadow:0 0 10px rgba(245,158,11,.15);}50%{box-shadow:0 0 24px rgba(245,158,11,.4);}}
+
+.card-art{height:140px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.card-art-bg{position:absolute;inset:0;}
+.r-common .card-art-bg{background:linear-gradient(160deg,#1e293b,#0f172a);}
+.r-rare .card-art-bg{background:linear-gradient(160deg,#1e3a5f,#0c1a2e);}
+.r-epic .card-art-bg{background:linear-gradient(160deg,#2d1b69,#150b30);}
+.r-legend .card-art-bg{background:linear-gradient(160deg,#451a03,#292524,#1c1917);}
+.card-art svg{position:relative;z-index:2;width:70px;height:115px;}
+.art-glow{position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:70px;height:35px;border-radius:50%;filter:blur(16px);z-index:1;}
+
+.card-info{padding:10px;flex:1;display:flex;flex-direction:column;gap:3px;}
+.card-rarity-txt{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+.r-common .card-rarity-txt{color:#9ca3af;}
+.r-rare .card-rarity-txt{color:#60a5fa;}
+.r-epic .card-rarity-txt{color:#c084fc;}
+.r-legend .card-rarity-txt{background:linear-gradient(135deg,#f59e0b,#fb923c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.card-name-txt{font-size:13px;font-weight:700;}
+
+.card-badge{
+  position:absolute;top:8px;left:8px;z-index:10;
+  font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;
+}
+.badge-equipped{background:rgba(249,115,22,.3);color:#fb923c;border:1px solid rgba(249,115,22,.5);}
+.badge-locked{background:rgba(100,116,139,.25);color:#94a3b8;border:1px solid rgba(100,116,139,.3);}
+.badge-vrm{background:rgba(139,92,246,.3);color:#c084fc;border:1px solid rgba(139,92,246,.4);}
+
+/* EQUIP BTN on card */
+.card-equip-btn{
+  display:block;width:calc(100% - 20px);margin:0 10px 10px;
+  padding:8px;border:none;border-radius:10px;
+  font-size:12px;font-weight:700;cursor:pointer;
+  background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;
+  transition:opacity .2s;
+}
+.card-equip-btn:active{opacity:.8;}
+.card-equip-btn.is-equipped{background:rgba(249,115,22,.2);border:1px solid rgba(249,115,22,.5);color:#fb923c;cursor:default;}
+.card-equip-btn.is-locked{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--lo);cursor:pointer;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:300;
+  background:rgba(4,8,20,.97);border-top:1px solid var(--border);
+  backdrop-filter:blur(24px);
+  display:flex;justify-content:space-around;
+  padding:8px 0 env(safe-area-inset-bottom,8px);}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 14px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--lo);}
+.bnav-item:hover,.bnav-item.active{color:var(--orange);background:rgba(249,115,22,.08);}
+.bnav-icon{font-size:20px;}
+.bnav-label{font-size:10px;font-weight:700;}
+
+/* TOAST */
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;
+  background:rgba(14,20,40,.97);border:1px solid rgba(249,115,22,.4);
+  color:var(--hi);padding:14px 24px;border-radius:14px;
+  font-size:14px;font-weight:700;display:none;pointer-events:none;
+  box-shadow:0 0 40px rgba(249,115,22,.2);min-width:160px;text-align:center;}
+.toast.show{display:block;animation:popIn .3s;}
+@keyframes popIn{from{transform:translate(-50%,-50%) scale(.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+</style>
 </head>
 <body>
-    <div class="header">
-        <div class="page-title">👤 我的形象</div>
+<canvas id="bg-canvas"></canvas>
+<div class="scanlines"></div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="h-back" onclick="goBack()">←</div>
+    <div class="h-title">👔 我的套装</div>
+  </div>
+</div>
+
+<!-- CURRENT EQUIPPED -->
+<div class="equipped-banner" id="equippedBanner">
+  <div class="eq-art" id="equippedArt"></div>
+  <div class="eq-info">
+    <div class="eq-label">✅ 当前装备</div>
+    <div class="eq-name" id="equippedName">夏日制服</div>
+    <div class="eq-desc" id="equippedDesc">清爽夏日，白衬衫配藏青裤，永久免费</div>
+    <div class="eq-badge" id="equippedRarity">普通</div>
+  </div>
+</div>
+
+<div class="section-wrap">
+  <!-- OWNED SUITS -->
+  <div class="section-title">
+    <div class="section-title-text">🎽 已拥有套装 <div class="sec-line"></div></div>
+    <div class="go-mall-btn" onclick="goToPage('mall')">+ 去商城</div>
+  </div>
+  <div class="suit-grid" id="ownedGrid"></div>
+
+  <!-- LOCKED SUITS -->
+  <div class="section-title" id="lockedSection" style="margin-top:28px;">
+    <div class="section-title-text">🔒 未解锁套装 <div class="sec-line"></div></div>
+  </div>
+  <div class="suit-grid" id="lockedGrid"></div>
+</div>
+
+<div class="bottom-nav">
+  <div class="bnav-item" onclick="goToPage('mall')"><div class="bnav-icon">🏪</div><div class="bnav-label">商城</div></div>
+  <div class="bnav-item" onclick="goToPage('inventory')"><div class="bnav-icon">🎒</div><div class="bnav-label">背包</div></div>
+  <div class="bnav-item active"><div class="bnav-icon">👔</div><div class="bnav-label">套装</div></div>
+  <div class="bnav-item" onclick="goToPage('rank')"><div class="bnav-icon">🏆</div><div class="bnav-label">排行榜</div></div>
+  <div class="bnav-item" onclick="goToPage('tasks')"><div class="bnav-icon">📋</div><div class="bnav-label">任务</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── SKIN DATA (mirrors points-mall.html) ── */
+const SKINS_DEF=[
+  {shirt:0xfafafa,pants:0x1e2d5a,jacket:0xfafafa,tie:0xdc2626,hair:0x1a0a00},
+  {shirt:0xdbeafe,pants:0x1e2d5a,jacket:0x1e3a8a,tie:0xfbbf24,hair:0x1a0a00},
+  {shirt:0xdc2626,pants:0x1e2d5a,jacket:0xb91c1c,tie:0xffffff,hair:0x1a0a00},
+  {shirt:0xffffff,pants:0x111827,jacket:0x1f2937,tie:0xfbbf24,hair:0x2d1b00},
+  {shirt:0xfce7f3,pants:0x831843,jacket:0xfb7185,tie:0xffffff,hair:0x7c3aed},
+  {shirt:0x1e1b4b,pants:0x0f172a,jacket:0x312e81,tie:0x818cf8,hair:0x0f172a},
+  {shirt:0xffffff,pants:0x1a1a2e,jacket:0x16213e,tie:0xffd700,hair:0x111827},
+];
+
+function hex(n){return '#'+n.toString(16).padStart(6,'0');}
+function skinSVG(s){
+  const {shirt,pants,jacket,tie,hair}=s;
+  return `<svg viewBox="0 0 80 136" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="40" cy="20" rx="13" ry="15" fill="#ffe0c0"/>
+    <path d="M27 14 Q40 5 53 14" fill="${hex(hair)}" stroke="${hex(hair)}" stroke-width="4" stroke-linecap="round"/>
+    <rect x="35" y="34" width="10" height="8" fill="#ffe0c0"/>
+    <path d="M22 66 Q20 50 24 38 Q30 32 40 31 Q50 32 56 38 Q60 50 58 66 Z" fill="${hex(jacket)}"/>
+    <path d="M35 34 L35 66 Q40 70 45 66 L45 34 Z" fill="${hex(shirt)}"/>
+    <rect x="37" y="34" width="6" height="30" fill="${hex(tie)}"/>
+    <path d="M22 40 L12 65 Q11 68 14 69 L24 46" fill="${hex(jacket)}"/>
+    <path d="M58 40 L68 65 Q69 68 66 69 L56 46" fill="${hex(jacket)}"/>
+    <path d="M26 66 L24 102 Q24 106 28 106 L36 106 L38 66 Z" fill="${hex(pants)}"/>
+    <path d="M54 66 L56 102 Q56 106 52 106 L44 106 L42 66 Z" fill="${hex(pants)}"/>
+    <ellipse cx="32" cy="107" rx="7" ry="4" fill="#1a1a2e"/>
+    <ellipse cx="48" cy="107" rx="7" ry="4" fill="#1a1a2e"/>
+  </svg>`;
+}
+function vrmSVG(){
+  return `<svg viewBox="0 0 80 136" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="vg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#6366f1"/></linearGradient></defs>
+    <ellipse cx="40" cy="20" rx="13" ry="15" fill="#ffe0c0"/>
+    <path d="M27 14 Q40 4 53 14" fill="#312e81" stroke="#312e81" stroke-width="5" stroke-linecap="round"/>
+    <rect x="35" y="34" width="10" height="8" fill="#ffe0c0"/>
+    <path d="M22 66 Q20 50 24 38 Q30 32 40 31 Q50 32 56 38 Q60 50 58 66 Z" fill="url(#vg2)"/>
+    <path d="M35 34 L35 66 Q40 70 45 66 L45 34 Z" fill="#c4b5fd"/>
+    <path d="M22 40 L12 65 Q11 68 14 69 L24 46" fill="url(#vg2)"/>
+    <path d="M58 40 L68 65 Q69 68 66 69 L56 46" fill="url(#vg2)"/>
+    <path d="M26 66 L24 102 Q24 106 28 106 L36 106 L38 66 Z" fill="#1e1b4b"/>
+    <path d="M54 66 L56 102 Q56 106 52 106 L44 106 L42 66 Z" fill="#1e1b4b"/>
+    <ellipse cx="32" cy="107" rx="7" ry="4" fill="#0f0a1e"/>
+    <ellipse cx="48" cy="107" rx="7" ry="4" fill="#0f0a1e"/>
+    <text x="40" y="124" text-anchor="middle" font-size="8" fill="#c084fc" font-weight="bold">VRM 3D</text>
+  </svg>`;
+}
+
+const SUITS=[
+  {id:'skin_0',  name:'夏日制服',r:'common',price:0,   desc:'清爽夏日，白衬衫配藏青裤，永久免费',si:0,isDefault:true},
+  {id:'skin_1',  name:'冬季大衣',r:'rare',  price:50,  desc:'深冬暖意，深蓝校服配金色领带',si:1},
+  {id:'skin_2',  name:'运动健将',r:'rare',  price:80,  desc:'活力四射，红色运动全套出战',si:2},
+  {id:'skin_3',  name:'精英正装',r:'epic',  price:150, desc:'盛装出席，深色正装配金领带',si:3},
+  {id:'skin_4',  name:'樱花限定',r:'legend',price:300, desc:'限定·春季限量，粉色绡纱校服',si:4},
+  {id:'skin_5',  name:'星夜幻影',r:'legend',price:500, desc:'虚空之子，深紫星辰战袍',si:5},
+  {id:'skin_6',  name:'金色荣耀',r:'legend',price:800, desc:'终极传说，金黑配色至尊装备',si:6},
+  {id:'skin_vrm_lieqi',name:'猎奇套装',r:'epic',price:150,desc:'3D写实VRM人物模型，史诗品质，真实全身角色扮演套装',vrmFile:'models/player.vrm'},
+];
+const RARITY_NAMES={common:'普通',rare:'稀有',epic:'史诗',legend:'传说'};
+const RARITY_COLORS={common:'#9ca3af',rare:'#60a5fa',epic:'#c084fc',legend:'#f59e0b'};
+
+function getOwned(){return JSON.parse(localStorage.getItem('campus_cosmetics')||'{}');}
+function getEquippedSkin(){return (JSON.parse(localStorage.getItem('campus_equipped')||'{}')).skin||'skin_0';}
+function isOwned(id){return id==='skin_0'||!!getOwned()[id];}
+
+function equip(id){
+  const suit=SUITS.find(s=>s.id===id);
+  if(!suit||!isOwned(id)) return;
+  const eq=JSON.parse(localStorage.getItem('campus_equipped')||'{}');
+  eq.skin=id;
+  localStorage.setItem('campus_equipped',JSON.stringify(eq));
+  if(suit.si!==undefined) localStorage.setItem('equipped_skin_index',suit.si);
+  if(suit.vrmFile) localStorage.setItem('equipped_vrm_file',suit.vrmFile);
+  else localStorage.removeItem('equipped_vrm_file');
+  showToast('⚡ '+suit.name+' 已装备！');
+  render();
+}
+
+function render(){
+  const equippedId=getEquippedSkin();
+  const equippedSuit=SUITS.find(s=>s.id===equippedId)||SUITS[0];
+
+  // update banner
+  document.getElementById('equippedArt').innerHTML=equippedSuit.vrmFile?vrmSVG():skinSVG(SKINS_DEF[equippedSuit.si||0]);
+  document.getElementById('equippedName').textContent=equippedSuit.name;
+  document.getElementById('equippedDesc').textContent=equippedSuit.desc;
+  const rEl=document.getElementById('equippedRarity');
+  rEl.textContent=RARITY_NAMES[equippedSuit.r];
+  rEl.style.background=RARITY_COLORS[equippedSuit.r]+'22';
+  rEl.style.color=RARITY_COLORS[equippedSuit.r];
+  rEl.style.border=`1px solid ${RARITY_COLORS[equippedSuit.r]}44`;
+
+  const owned=[];const locked=[];
+  SUITS.forEach(s=>{isOwned(s.id)?owned.push(s):locked.push(s);});
+
+  document.getElementById('ownedGrid').innerHTML='';
+  document.getElementById('lockedGrid').innerHTML='';
+  owned.forEach(s=>document.getElementById('ownedGrid').appendChild(makeCard(s,equippedId,false)));
+  locked.forEach(s=>document.getElementById('lockedGrid').appendChild(makeCard(s,equippedId,true)));
+  document.getElementById('lockedSection').style.display=locked.length?'flex':'none';
+}
+
+function makeCard(suit,equippedId,isLocked){
+  const div=document.createElement('div');
+  const isEq=suit.id===equippedId;
+  div.className=`suit-card r-${suit.r}${isEq?' equipped':''}${isLocked?' locked':''}`;
+  if(!isLocked) div.onclick=()=>equip(suit.id);
+  else div.onclick=()=>goToPage('mall');
+
+  const art=suit.vrmFile?vrmSVG():skinSVG(SKINS_DEF[suit.si||0]);
+  const glowColor={common:'#6b7280',rare:'#3b82f6',epic:'#a855f7',legend:'#f59e0b'}[suit.r];
+
+  let badge='';
+  if(isEq)     badge=`<div class="card-badge badge-equipped">已装备</div>`;
+  else if(suit.vrmFile&&!isLocked) badge=`<div class="card-badge badge-vrm">VRM 3D</div>`;
+  else if(isLocked) badge=`<div class="card-badge badge-locked">🔒 ${suit.price}积分</div>`;
+
+  const btnTxt=isEq?'✅ 已装备':isLocked?'去商城购买':'⚡ 装备';
+  const btnCls=isEq?'is-equipped':isLocked?'is-locked':'';
+
+  div.innerHTML=`
+    ${badge}
+    <div class="card-art">
+      <div class="card-art-bg"></div>
+      <svg style="width:70px;height:115px;position:relative;z-index:2;">${art.replace(/<svg[^>]*>/,'').replace('</svg>','')}</svg>
+      <div class="art-glow" style="background:${glowColor};opacity:.5;"></div>
     </div>
-    
-    <!-- 形象展示 -->
-    <div class="avatar-display">
-        <div class="avatar-title">我的虚拟形象</div>
-        <div class="avatar-preview" id="avatarPreview">
-            <div class="avatar-layers">
-                <div class="avatar-layer layer-base" id="layerBase">👤</div>
-                <div class="avatar-layer layer-hair" id="layerHair"></div>
-                <div class="avatar-layer layer-glasses" id="layerGlasses"></div>
-                <div class="avatar-layer layer-hat" id="layerHat"></div>
-            </div>
-        </div>
-        <div class="avatar-desc" id="avatarDesc">默认形象</div>
+    <div class="card-info">
+      <div class="card-rarity-txt">${RARITY_NAMES[suit.r]}</div>
+      <div class="card-name-txt">${suit.name}</div>
     </div>
-    
-    <!-- 发型选择 -->
-    <div class="customize-section">
-        <div class="section-title">💇 发型</div>
-        <div class="items-grid" id="hairItems"></div>
-    </div>
-    
-    <!-- 眼镜选择 -->
-    <div class="customize-section">
-        <div class="section-title">👓 眼镜</div>
-        <div class="items-grid" id="glassesItems"></div>
-    </div>
-    
-    <!-- 帽子选择 -->
-    <div class="customize-section">
-        <div class="section-title">🧢 帽子</div>
-        <div class="items-grid" id="hatItems"></div>
-    </div>
-    
-    <!-- 底部导航 -->
-    <div class="bottom-nav">
-        <div class="nav-item" onclick="goToPage('mall')">
-            <div class="nav-icon">🏪</div>
-            <div class="nav-label">商城</div>
-        </div>
-        <div class="nav-item" onclick="goToPage('inventory')">
-            <div class="nav-icon">🎒</div>
-            <div class="nav-label">背包</div>
-        </div>
-        <div class="nav-item active" onclick="goToPage('avatar')">
-            <div class="nav-icon">👤</div>
-            <div class="nav-label">形象</div>
-        </div>
-        <div class="nav-item" onclick="goToPage('rank')">
-            <div class="nav-icon">🏆</div>
-            <div class="nav-label">排行榜</div>
-        </div>
-        <div class="nav-item" onclick="goToPage('tasks')">
-            <div class="nav-icon">📋</div>
-            <div class="nav-label">任务</div>
-        </div>
-    </div>
-    
-    <script src="js/points-system.js"></script>
-    <script>
-        // 获取当前登录用户
-        const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-        const userId = userData.userId || 'student_001';  // 兼容旧数据
-        
-        const pointsSystem = new PointsSystem();
-        pointsSystem.setCurrentUser(userId);
-        
-        window.addEventListener('DOMContentLoaded', () => {
-            renderCustomizeOptions();
-            updateAvatarPreview();
-        });
-        
-        function renderCustomizeOptions() {
-            const student = pointsSystem.getCurrentStudent();
-            const allItems = pointsSystem.getRewardItems();
-            
-            // 发型
-            renderCategory('hair', allItems, student);
-            // 眼镜
-            renderCategory('glasses', allItems, student);
-            // 帽子
-            renderCategory('hat', allItems, student);
-        }
-        
-        function renderCategory(type, allItems, student) {
-            const items = allItems.filter(item => item.type === type);
-            const container = document.getElementById(`${type}Items`);
-            
-            // 添加"无"选项
-            container.innerHTML = `
-                <div class="item-option ${student.avatar[type] === 'none' ? 'selected' : ''}" 
-                     onclick="equipItem('none', '${type}')">
-                    <div class="option-icon">❌</div>
-                    <div class="option-name">无</div>
-                </div>
-            `;
-            
-            items.forEach(item => {
-                const hasItem = student.inventory.some(i => i.itemId === item.id);
-                const isEquipped = student.avatar[type] === item.id;
-                
-                const option = document.createElement('div');
-                option.className = `item-option ${isEquipped ? 'selected' : ''} ${!hasItem ? 'locked' : ''}`;
-                
-                if (hasItem) {
-                    option.onclick = () => equipItem(item.id, type);
-                } else {
-                    option.onclick = () => alert('尚未拥有该物品，请前往商城兑换');
-                }
-                
-                option.innerHTML = `
-                    <div class="option-icon">${hasItem ? item.image : '🔒'}</div>
-                    <div class="option-name">${item.name}</div>
-                `;
-                
-                container.appendChild(option);
-            });
-        }
-        
-        function equipItem(itemId, type) {
-            const student = pointsSystem.getCurrentStudent();
-            student.avatar[type] = itemId;
-            pointsSystem.savePointsData();
-            
-            renderCustomizeOptions();
-            updateAvatarPreview();
-        }
-        
-        function updateAvatarPreview() {
-            const student = pointsSystem.getCurrentStudent();
-            const allItems = pointsSystem.getRewardItems();
-            
-            let description = [];
-            
-            // 1. 处理发型（替换基础头像）
-            const baseLayer = document.getElementById('layerBase');
-            if (student.avatar.hair && student.avatar.hair !== 'none') {
-                const hairItem = allItems.find(i => i.id === student.avatar.hair);
-                if (hairItem) {
-                    baseLayer.textContent = hairItem.image;  // 用发型替换基础头像
-                    description.push(hairItem.name);
-                }
-            } else {
-                baseLayer.textContent = '👤';  // 默认头像
-            }
-            
-            // 2. 清空发型层（发型不再使用这个层）
-            document.getElementById('layerHair').textContent = '';
-            
-            // 3. 处理眼镜（叠加在基础头像上）
-            const glassesLayer = document.getElementById('layerGlasses');
-            if (student.avatar.glasses && student.avatar.glasses !== 'none') {
-                const glassesItem = allItems.find(i => i.id === student.avatar.glasses);
-                if (glassesItem) {
-                    glassesLayer.textContent = glassesItem.image;
-                    description.push(glassesItem.name);
-                }
-            } else {
-                glassesLayer.textContent = '';
-            }
-            
-            // 4. 处理帽子（叠加在头顶）
-            const hatLayer = document.getElementById('layerHat');
-            if (student.avatar.hat && student.avatar.hat !== 'none') {
-                const hatItem = allItems.find(i => i.id === student.avatar.hat);
-                if (hatItem) {
-                    hatLayer.textContent = hatItem.image;
-                    description.push(hatItem.name);
-                }
-            } else {
-                hatLayer.textContent = '';
-            }
-            
-            document.getElementById('avatarDesc').textContent = 
-                description.length > 0 ? description.join(' + ') : '默认形象';
-        }
-        
-        // 自动保存机制
-        function autoSaveAvatar() {
-            try {
-                if (pointsSystem && userId) {
-                    pointsSystem.savePointsData();
-                    console.log('💾 虚拟形象数据已自动保存');
-                }
-            } catch (e) {
-                console.error('❌ 自动保存失败:', e);
-            }
-        }
-        
-        // 页面关闭前保存
-        window.addEventListener('beforeunload', autoSaveAvatar);
-        
-        // 定期自动保存（每30秒）
-        setInterval(autoSaveAvatar, 30000);
-        
-        console.log('✅ 虚拟形象自动保存已启动');
-        
-        // 页面跳转（在游戏内打开）
-        function goToPage(page) {
-            console.log('🔄 尝试跳转到页面:', page);
-            
-            const pages = {
-                'mall': 'points-mall.html',
-                'inventory': 'points-inventory.html',
-                'avatar': 'points-avatar.html',
-                'rank': 'points-rank.html',
-                'tasks': 'points-tasks.html'
-            };
-            
-            const titles = {
-                'mall': '💎 积分商城',
-                'inventory': '🎒 我的背包',
-                'avatar': '👤 虚拟形象',
-                'rank': '🏆 排行榜',
-                'tasks': '📋 任务中心'
-            };
-            
-            // 检查页面是否存在
-            if (!pages[page]) {
-                console.error('❌ 未知的页面:', page);
-                alert('❌ 页面不存在');
-                return;
-            }
-            
-            // 如果当前页面就是目标页面，不跳转
-            const currentPage = window.location.pathname.split('/').pop();
-            if (pages[page] === currentPage) {
-                console.log('ℹ️ 已在目标页面');
-                return;
-            }
-            
-            // 如果在iframe中，尝试调用父窗口的openInGame函数
-            if (window.parent && window.parent !== window) {
-                console.log('📦 检测到iframe环境');
-                try {
-                    if (typeof window.parent.openInGame === 'function') {
-                        console.log('✅ 调用父窗口的openInGame函数');
-                        window.parent.openInGame(pages[page], titles[page]);
-                        return;
-                    } else {
-                        console.warn('⚠️ 父窗口没有openInGame函数，尝试直接跳转');
-                    }
-                } catch (e) {
-                    console.error('❌ 调用父窗口函数失败:', e);
-                    console.log('🔄 降级为直接跳转');
-                }
-            }
-            
-            // 直接跳转（不在iframe中或父窗口函数不可用）
-            console.log('🔄 直接跳转到:', pages[page]);
-            try {
-                // 使用replace而不是href，避免历史记录堆积导致第二次切换失败
-                window.location.replace(pages[page]);
-            } catch (e) {
-                console.error('❌ 页面跳转失败:', e);
-                alert('❌ 页面跳转失败，请刷新重试');
-            }
-        }
-    </script>
+    <button class="card-equip-btn ${btnCls}" onclick="event.stopPropagation();${isLocked?'goToPage(\'mall\')':isEq?'':('equip(\''+suit.id+'\')')}">${btnTxt}</button>
+  `;
+  return div;
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  if(window._toast) clearTimeout(window._toast);
+  t.textContent=msg;t.classList.add('show');t.style.display='block';
+  window._toast=setTimeout(()=>{t.classList.remove('show');t.style.display='none';},2500);
+}
+
+function goToPage(page){
+  const pages={mall:'points-mall.html',inventory:'points-inventory.html',avatar:'points-avatar.html',rank:'points-rank.html',tasks:'points-tasks.html'};
+  if(window.parent&&window.parent!==window){
+    try{if(typeof window.parent.openInGame==='function'){window.parent.openInGame(pages[page],page);return;}}catch(e){}
+  }
+  window.location.replace(pages[page]||'points-mall.html');
+}
+
+function goBack(){
+  if(window.parent&&window.parent!==window){
+    try{if(typeof window.parent.closeModal==='function'){window.parent.closeModal('feature-modal');return;}}catch(e){}
+  }
+  window.history.length>1?window.history.back():window.location.replace('main-menu.html');
+}
+
+render();
+
+/* ANIMATED BACKGROUND */
+(function(){
+  const c=document.getElementById('bg-canvas');
+  const ctx=c.getContext('2d');
+  let W,H,stars=[];
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;
+    stars=Array.from({length:50},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.3,a:Math.random()}));}
+  resize();window.addEventListener('resize',resize);
+  (function draw(){
+    requestAnimationFrame(draw);
+    ctx.clearRect(0,0,W,H);
+    const g=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,Math.max(W,H)*.7);
+    g.addColorStop(0,'#0a0e1a');g.addColorStop(1,'#060a14');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    stars.forEach(s=>{s.a+=.006;if(s.a>1)s.a-=1;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.sin(s.a*Math.PI)*.5})`;ctx.fill();});
+  })();
+})();
+</script>
 </body>
 </html>
-
