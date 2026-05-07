@@ -989,14 +989,15 @@ const camera = new THREE.PerspectiveCamera(35, 1, .1, 100);
 camera.position.set(0, 1.4, 3.5);
 camera.lookAt(0, 1.0, 0);
 
-scene.add(new THREE.AmbientLight(0xfff5e0, 3));
-const main = new THREE.DirectionalLight(0xffffff, 4);
+const ambientLight = new THREE.AmbientLight(0xfff5e0, 1.2);
+scene.add(ambientLight);
+const main = new THREE.DirectionalLight(0xffffff, 1.8);
 main.position.set(2,6,4); main.castShadow=true; scene.add(main);
-const rim = new THREE.DirectionalLight(0x8b5cf6, 2);
+const rim = new THREE.DirectionalLight(0x8b5cf6, 0.8);
 rim.position.set(-3,3,-2); scene.add(rim);
-const fill = new THREE.DirectionalLight(0x93c5fd, 1.5);
+const fill = new THREE.DirectionalLight(0x93c5fd, 0.6);
 fill.position.set(3,1,2); scene.add(fill);
-const foot = new THREE.PointLight(0x818cf8, 3, 5);
+const foot = new THREE.PointLight(0x818cf8, 1.2, 5);
 foot.position.set(0,.1,0); scene.add(foot);
 
 const ring = new THREE.Mesh(
@@ -1116,7 +1117,7 @@ function reloadCharacter(){
                     vrm = gltf.userData.vrm;
                     try{ VRMUtils.removeUnnecessaryVertices(gltf.scene); }catch(e){}
                     try{ VRMUtils.combineSkeletons(gltf.scene); }catch(e){}
-                    vrm.scene.rotation.y = Math.PI;
+                    vrm.scene.rotation.y = 0;
                     vrm.scene.position.set(0, 0, 0);
                     scene.add(vrm.scene);
                     console.log('✅ VRM 加载成功');
@@ -1176,7 +1177,7 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
     requestAnimationFrame(tick);
     const delta=clock.getDelta();
     t+=.01;
-    if(vrm){ vrm.update(delta); vrm.scene.rotation.y=Math.PI+mx*.15+Math.sin(t*.25)*.03; vrm.scene.position.y=Math.sin(t)*.015; }
+    if(vrm){ vrm.update(delta); vrm.scene.rotation.y=mx*.15+Math.sin(t*.25)*.03; vrm.scene.position.y=Math.sin(t)*.015; }
     if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }
     window._partyChars.forEach((c,i)=>{ c.rotation.y=Math.sin(t*.3+(i+1)*1.2)*.06; c.position.y=Math.sin(t+(i+1)*.8)*.012; });
     ring.rotation.z+=.006; ring2.rotation.z-=.009;
