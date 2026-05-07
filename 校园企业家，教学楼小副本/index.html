@@ -5612,17 +5612,28 @@
             const spawnOff = spawnOffsets[Math.min(partySize,3)] || [0,0];
             const startX = 0 + spawnOff[0];
             const startZ = 7 + spawnOff[1];
-            
+
+            // 读取主菜单装备（皮肤/VRM）
+            const equippedVrmFile = localStorage.getItem('equipped_vrm_file');
+            const skinIndex = parseInt(localStorage.getItem('equipped_skin_index') || '0');
+            const SKINS_DEF = [
+                {shirt:0xfafafa,pants:0x1e2d5a},{shirt:0xdbeafe,pants:0x1e2d5a},
+                {shirt:0xdc2626,pants:0x1e2d5a},{shirt:0xffffff,pants:0x111827},
+                {shirt:0xfce7f3,pants:0x831843},{shirt:0x1e1b4b,pants:0x0f172a},
+                {shirt:0xffffff,pants:0x1a1a2e},
+            ];
+            const sk = SKINS_DEF[skinIndex] || SKINS_DEF[0];
+
             // 先创建备用简单士兵模型
             function createSimpleSoldier() {
                 console.log('🔄 创建简单士兵模型...');
-                
+
                 const soldierGroup = new THREE.Group();
-                
-                // 创建材质
-                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4A5D23 }); // 军绿色
+
+                // 创建材质（使用玩家选择的皮肤颜色）
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: sk.shirt });
                 const skinMaterial = new THREE.MeshLambertMaterial({ color: 0xFFD7C4 }); // 肤色
-                const bootMaterial = new THREE.MeshLambertMaterial({ color: 0x2F2F2F }); // 黑色靴子
+                const bootMaterial = new THREE.MeshLambertMaterial({ color: sk.pants });
                 
                 // 身体
                 const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.35, 0.8, 8);
@@ -5726,12 +5737,38 @@
                 console.log('✅ 士兵已初始化，位置:', soldier.position);
             }
             
+            // 优先加载玩家在主菜单装备的VRM模型
+            if (equippedVrmFile && typeof THREE.GLTFLoader !== 'undefined') {
+                const loader = new THREE.GLTFLoader();
+                // 从子目录加载时修正路径（models/player.vrm → ../models/player.vrm）
+                const vrmUrl = equippedVrmFile.startsWith('http') ? equippedVrmFile : '../' + equippedVrmFile;
+                console.log('🔄 尝试加载玩家VRM模型:', vrmUrl);
+                const timeoutId = setTimeout(() => {
+                    console.log('⏰ VRM加载超时，使用简单模型');
+                    initializeSoldier(createSimpleSoldier());
+                }, 10000);
+                loader.load(vrmUrl, function(gltf) {
+                    clearTimeout(timeoutId);
+                    console.log('✅ VRM模型加载成功');
+                    const vrmModel = gltf.scene;
+                    vrmModel.scale.set(0.5, 0.5, 0.5);
+                    vrmModel.position.set(startX, 0, startZ);
+                    vrmModel.traverse(c => { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+                    initializeSoldier(vrmModel);
+                }, null, function(err) {
+                    clearTimeout(timeoutId);
+                    console.warn('VRM加载失败，使用简单模型');
+                    initializeSoldier(createSimpleSoldier());
+                });
+                return;
+            }
+
             // 尝试加载在线模型
             if (typeof THREE.GLTFLoader !== 'undefined') {
                 const loader = new THREE.GLTFLoader();
-                
+
                 console.log('🔄 尝试加载在线士兵模型...');
-                
+
                 // 设置较短的超时时间
                 const timeoutId = setTimeout(() => {
                     console.log('⏰ 加载超时，使用简单模型');
