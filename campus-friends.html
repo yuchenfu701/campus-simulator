@@ -737,37 +737,31 @@
             container.innerHTML = '<div class="empty-state">搜索中...</div>';
 
             let results = [];
-            let usedLocal = false;
+            let cloudError = false;
             try {
                 const response = await Promise.race([
                     apiClient.searchUsers(keyword),
-                    new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+                    new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000))
                 ]);
                 if (response.success) {
                     results = response.data || [];
-                    // 云端搜索成功（即使结果为空也不回退本地，避免显示"本地搜索"提示）
                 } else {
-                    results = searchLocalUsers(keyword);
-                    usedLocal = true;
+                    throw new Error('API返回失败');
                 }
             } catch (error) {
-                console.warn('服务器搜索失败，使用本地:', error.message);
-                results = searchLocalUsers(keyword);
-                usedLocal = true;
+                console.warn('云端搜索失败:', error.message);
+                cloudError = true;
+            }
+
+            if (cloudError) {
+                container.innerHTML = '<div class="empty-state">🔴 云端搜索失败，请检查网络后重试</div>';
+                return;
             }
 
             if (results.length > 0) {
                 renderSearchResults(results);
-                if (usedLocal) {
-                    const note = document.createElement('div');
-                    note.style.cssText = 'text-align:center;color:rgba(255,255,255,.4);font-size:11px;padding:6px;';
-                    note.textContent = '📴 离线模式 · 仅显示本设备曾登录的用户';
-                    container.prepend(note);
-                }
             } else {
-                container.innerHTML = '<div class="empty-state">' +
-                    (usedLocal ? '未找到用户（对方需在此设备登录过才可本地搜索）' : '未找到相关用户') +
-                    '</div>';
+                container.innerHTML = '<div class="empty-state">未找到用户名含"' + keyword + '"的玩家</div>';
             }
         }
         
