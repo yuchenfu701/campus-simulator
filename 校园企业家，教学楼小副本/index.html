@@ -7237,30 +7237,58 @@
         }
         function _updateVrmPose(t) {
             if (!_vrmBonesResolved) _collectVrmBones();
-            const walk = (typeof isWalking !== 'undefined') ? isWalking : false;
-            const alpha = 0.15;
-            if (walk) {
-                const swing = Math.sin(t * 6) * 0.6;
-                _animBones('j_bip_l_upperarm',  swing * 0.8, 0,  1.1, alpha);
-                _animBones('j_bip_r_upperarm', -swing * 0.8, 0, -1.1, alpha);
-                _animBones('j_bip_l_lowerarm',  0, 0, Math.max(0,  swing * 0.3), alpha);
-                _animBones('j_bip_r_lowerarm',  0, 0, Math.min(0, -swing * 0.3), alpha);
-                _animBones('j_bip_l_upperleg',  swing * 0.7, 0, 0, alpha);
-                _animBones('j_bip_r_upperleg', -swing * 0.7, 0, 0, alpha);
-                _animBones('j_bip_l_lowerleg',  Math.max(0, -swing) * 0.8, 0, 0, alpha);
-                _animBones('j_bip_r_lowerleg',  Math.max(0,  swing) * 0.8, 0, 0, alpha);
+
+            // 使用实际的walkSpeed / walkCycle（与角色移动速度同步）
+            const spd   = (typeof walkSpeed   !== 'undefined') ? walkSpeed   : 0;
+            const cycle = (typeof walkCycle   !== 'undefined') ? walkCycle   : t * 4;
+            const alpha = 0.14;
+
+            if (spd > 0.04) {
+                // ── 行走 / 奔跑动画 ────────────────────────────────────
+                // swing 幅度随速度线性放大，跑步时手臂摆幅明显更大
+                const amp   = Math.min(spd * 1.2, 1.4);
+                const swing = Math.sin(cycle) * amp;
+
+                // 上臂：rx 控制前后摆动（arm 处于下垂状态时 rx 绕 bone-local-X 摆前后）
+                _animBones('j_bip_l_upperarm',  swing * 0.85, 0,  1.1, alpha);
+                _animBones('j_bip_r_upperarm', -swing * 0.85, 0, -1.1, alpha);
+                // 小臂：向后摆时略微弯曲
+                _animBones('j_bip_l_lowerarm',  Math.max(0,  swing) * 0.45, 0,  0.18, alpha);
+                _animBones('j_bip_r_lowerarm',  Math.max(0, -swing) * 0.45, 0, -0.18, alpha);
+
+                // 腿部：rx 绕 bone-local-X 前后迈步
+                _animBones('j_bip_l_upperleg',  swing * 0.85, 0, 0, alpha);
+                _animBones('j_bip_r_upperleg', -swing * 0.85, 0, 0, alpha);
+                // 小腿：迈出去的腿稍微弯曲
+                _animBones('j_bip_l_lowerleg',  Math.max(0, -swing) * 1.0, 0, 0, alpha);
+                _animBones('j_bip_r_lowerleg',  Math.max(0,  swing) * 1.0, 0, 0, alpha);
+
+                // 身体：跟随步伐轻微扭动
+                const hipSway = Math.sin(cycle * 2) * 0.06 * Math.min(spd, 1);
+                _animBones('j_bip_c_hips',  0, 0, hipSway, alpha);
+                _animBones('j_bip_c_spine', swing * 0.12, 0, -hipSway * 0.5, alpha);
+                _animBones('j_bip_c_chest', swing * 0.08, 0, 0, alpha);
+
             } else {
-                const breath = Math.sin(t * 1.2) * 0.02;
-                _animBones('j_bip_l_upperarm',  breath, 0,  1.25, alpha);
-                _animBones('j_bip_r_upperarm', -breath, 0, -1.25, alpha);
-                _animBones('j_bip_l_lowerarm',  0, 0,  0.1, alpha);
-                _animBones('j_bip_r_lowerarm',  0, 0, -0.1, alpha);
-                _animBones('j_bip_l_upperleg',  0, 0, 0, alpha);
-                _animBones('j_bip_r_upperleg',  0, 0, 0, alpha);
-                _animBones('j_bip_l_lowerleg',  0, 0, 0, alpha);
-                _animBones('j_bip_r_lowerleg',  0, 0, 0, alpha);
-                _animBones('j_bip_c_chest',  breath * 0.5, 0, 0, alpha);
-                _animBones('j_bip_c_spine',  breath * 0.3, 0, 0, alpha);
+                // ── 待机动画：呼吸感 ────────────────────────────────────
+                const breath = Math.sin(t * 1.4) * 0.07;       // 振幅放大到 ±4°，可见
+                const sway   = Math.sin(t * 0.7) * 0.018;      // 极轻微左右摇摆
+
+                // 上臂随呼吸起伏
+                _animBones('j_bip_l_upperarm',  breath * 0.5, 0,  1.28 + breath * 0.12, alpha);
+                _animBones('j_bip_r_upperarm', -breath * 0.5, 0, -1.28 - breath * 0.12, alpha);
+                // 小臂自然弯曲
+                _animBones('j_bip_l_lowerarm',  0.05, 0,  0.14, alpha);
+                _animBones('j_bip_r_lowerarm',  0.05, 0, -0.14, alpha);
+                // 腿自然垂直
+                _animBones('j_bip_l_upperleg', 0, 0, 0, alpha);
+                _animBones('j_bip_r_upperleg', 0, 0, 0, alpha);
+                _animBones('j_bip_l_lowerleg', 0, 0, 0, alpha);
+                _animBones('j_bip_r_lowerleg', 0, 0, 0, alpha);
+                // 躯干随呼吸鼓起/收缩
+                _animBones('j_bip_c_chest',  breath * 0.65, 0, sway, alpha);
+                _animBones('j_bip_c_spine',  breath * 0.40, 0, sway * 0.55, alpha);
+                _animBones('j_bip_c_hips',   breath * 0.15, 0, sway * 0.30, alpha);
             }
         }
 
