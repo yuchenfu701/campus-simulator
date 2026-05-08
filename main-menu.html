@@ -610,9 +610,57 @@
             .layout{grid-template-columns:240px 1fr 260px;}
         }
         @media(max-width:900px){
-            .layout{grid-template-columns:1fr;grid-template-rows:64px 1fr 72px;}
+            .layout{grid-template-columns:1fr;grid-template-rows:56px 1fr 64px;}
             .left-nav,.right-panel{display:none;}
             .center-area{grid-column:1;}
+
+            /* 顶栏手机精简 */
+            .topbar{padding:0 12px;}
+            .logo-sub,.season-tag{display:none;}
+            .logo-name{font-size:14px;letter-spacing:1px;}
+            .logo-badge{width:32px;height:32px;font-size:17px;}
+            .logo-row{gap:8px;}
+            .settings-top-btn{padding:5px 10px;font-size:12px;}
+            .tb-chip{padding:5px 9px;font-size:12px;gap:4px;}
+            /* 手机隐藏时间、排名（在底部导航里不需要） */
+            .tb-chip:last-child{display:none;}
+
+            /* 手机中心区：顶部显示用户名片（因为左面板被隐藏了） */
+            .mobile-user-card{display:flex;}
+            /* 角色姓名大字在手机上缩小 */
+            .char-name{font-size:20px;letter-spacing:2px;}
+            .char-plate{bottom:80px;}
+            .skin-row{bottom:20px;gap:8px;}
+            .skin-btn{width:38px;height:38px;font-size:17px;}
+        }
+
+        /* 手机顶部用户信息卡（平时隐藏） */
+        .mobile-user-card{
+            display:none;
+            position:absolute;top:12px;left:12px;right:12px;
+            z-index:30;
+            background:rgba(4,8,20,.85);
+            border:1px solid rgba(249,115,22,.25);
+            border-radius:12px;
+            padding:10px 14px;
+            backdrop-filter:blur(12px);
+            align-items:center;gap:12px;
+        }
+        .muc-avatar{
+            width:40px;height:40px;border-radius:10px;flex-shrink:0;
+            background:linear-gradient(135deg,var(--orange),#ef4444);
+            display:flex;align-items:center;justify-content:center;font-size:22px;
+            overflow:hidden;
+        }
+        .muc-avatar img{width:100%;height:100%;object-fit:cover;}
+        .muc-info{flex:1;min-width:0;}
+        .muc-name{font-size:14px;font-weight:700;color:var(--text-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .muc-pts{font-size:11px;color:var(--orange);margin-top:2px;}
+        .muc-enter{
+            background:linear-gradient(135deg,var(--orange),#ef4444);
+            border:none;border-radius:8px;padding:6px 14px;
+            color:#fff;font-size:13px;font-weight:700;cursor:pointer;
+            white-space:nowrap;font-family:inherit;flex-shrink:0;
         }
 
         /* ─── 手机底部导航栏 ─── */
@@ -751,6 +799,15 @@
     <div class="center-area">
         <canvas id="charCanvas"></canvas>
         <div class="center-overlay"></div>
+        <!-- 手机专用用户名片（左面板隐藏时显示） -->
+        <div class="mobile-user-card" id="mobileUserCard">
+            <div class="muc-avatar" id="mucAvatar">👤</div>
+            <div class="muc-info">
+                <div class="muc-name" id="mucName">玩家</div>
+                <div class="muc-pts">💎 <span id="mucPts">0</span> 积分</div>
+            </div>
+            <button class="muc-enter" onclick="startGame()">▶ 进入游戏</button>
+        </div>
         <div class="center-title">操作员</div>
         <div class="char-plate">
             <div class="char-name" id="charDisplayName">玩家</div>
@@ -1017,13 +1074,18 @@ const platform = new THREE.Mesh(
 platform.position.y=-.01; platform.receiveShadow=true; scene.add(platform);
 
 function resize(){
-    const w = canvas.parentElement.clientWidth || 300;
-    const h = canvas.parentElement.clientHeight || 400;
+    const parent = canvas.parentElement;
+    const w = parent.clientWidth || window.innerWidth;
+    const h = parent.clientHeight || Math.max(window.innerHeight - 120, 300);
+    if(w < 2 || h < 2) return;
     renderer.setSize(w, h, false);
-    camera.aspect = w/h;
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
 }
 resize();
+// 手机端布局回流后再 resize，保证 clientWidth/Height 有值
+setTimeout(resize, 50);
+setTimeout(resize, 200);
 window.addEventListener('resize', resize);
 
 /* ── 程序生成人物 ── */
@@ -1120,6 +1182,16 @@ function reloadCharacter(){
                     vrm.scene.rotation.y = 0;
                     vrm.scene.position.set(0, 0, 0);
                     scene.add(vrm.scene);
+                    // 将手臂放下（T-pose → 自然垂放）
+                    try{
+                        const bones = vrm.humanoid ? vrm.humanoid.rawHumanBones : null;
+                        if(bones){
+                            const lArm = bones.leftUpperArm && bones.leftUpperArm.node;
+                            const rArm = bones.rightUpperArm && bones.rightUpperArm.node;
+                            if(lArm) lArm.rotation.z =  1.25;
+                            if(rArm) rArm.rotation.z = -1.25;
+                        }
+                    }catch(e){}
                     console.log('✅ VRM 加载成功');
                 }, p => {
                     if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
@@ -1177,7 +1249,19 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
     requestAnimationFrame(tick);
     const delta=clock.getDelta();
     t+=.01;
-    if(vrm){ vrm.update(delta); vrm.scene.rotation.y=mx*.15+Math.sin(t*.25)*.03; vrm.scene.position.y=Math.sin(t)*.015; }
+    if(vrm){
+        vrm.update(delta);
+        vrm.scene.rotation.y=mx*.15+Math.sin(t*.25)*.03;
+        vrm.scene.position.y=Math.sin(t)*.015;
+        // 待机姿势：update()后再设骨骼，否则会被重置
+        try{
+            const lArm=vrm.humanoid.getRawBoneNode('leftUpperArm');
+            const rArm=vrm.humanoid.getRawBoneNode('rightUpperArm');
+            const breath=Math.sin(t*1.2)*0.02;
+            if(lArm){ lArm.rotation.z= 1.25+breath; }
+            if(rArm){ rArm.rotation.z=-1.25-breath; }
+        }catch(e){}
+    }
     if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }
     window._partyChars.forEach((c,i)=>{ c.rotation.y=Math.sin(t*.3+(i+1)*1.2)*.06; c.position.y=Math.sin(t+(i+1)*.8)*.012; });
     ring.rotation.z+=.006; ring2.rotation.z-=.009;
@@ -1198,6 +1282,14 @@ function loadUserInfo(){
     document.getElementById('userName').textContent=user.nickname||'玩家';
     document.getElementById('charDisplayName').textContent=user.nickname||'玩家';
     document.getElementById('userId').textContent='手机: '+(user.phone||'—');
+    // 手机卡片
+    const mucName=document.getElementById('mucName');
+    if(mucName) mucName.textContent=user.nickname||'玩家';
+    const mucAv=document.getElementById('mucAvatar');
+    if(mucAv){
+        if(user.avatar&&user.avatar.startsWith('data:')) mucAv.innerHTML=`<img src="${user.avatar}" alt="">`;
+        else mucAv.textContent=user.avatar||'👤';
+    }
 
     const avEls=document.querySelectorAll('#userAvatar');
     avEls.forEach(el=>{
@@ -1234,6 +1326,8 @@ function loadPointsData(){
 
     document.getElementById('userPoints').textContent=total;
     document.getElementById('navPts').textContent=total;
+    const mucPts=document.getElementById('mucPts');
+    if(mucPts) mucPts.textContent=total;
     document.getElementById('totalPoints').textContent=total;
     document.getElementById('dayStreak').textContent=streak;
     document.getElementById('statStreak').textContent=streak;

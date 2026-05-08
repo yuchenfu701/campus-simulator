@@ -743,8 +743,9 @@
                     apiClient.searchUsers(keyword),
                     new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
                 ]);
-                if (response.success && response.data && response.data.length > 0) {
-                    results = response.data;
+                if (response.success) {
+                    results = response.data || [];
+                    // 云端搜索成功（即使结果为空也不回退本地，避免显示"本地搜索"提示）
                 } else {
                     results = searchLocalUsers(keyword);
                     usedLocal = true;

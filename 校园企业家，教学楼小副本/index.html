@@ -269,8 +269,8 @@
         const SOLDIER_RADIUS = 0.3;
         const MIN_PATH_LENGTH = 5;  // 最小路径长度：5步（超小迷宫，快速通关）
         const FIRST_PERSON_HEIGHT = 1.0;  // 第一人称相机高度
-        const THIRD_PERSON_DISTANCE = 4; // 减少一倍，更合适的距离
-        const THIRD_PERSON_HEIGHT = 3; // 减少一倍，更接近角色
+        const THIRD_PERSON_DISTANCE = 1.8;
+        const THIRD_PERSON_HEIGHT = 1.4;
         const CAMERA_LERP = 0.2;
         const THIRD_PERSON_LERP = 0.15; // 增加跟随速度，减少延迟
         const MOUSE_SENSITIVITY = 0.002;
@@ -5753,21 +5753,18 @@
                 loader.load(vrmUrl, function(gltf) {
                     clearTimeout(timeoutId);
                     console.log('✅ VRM模型加载成功');
-                    // 用外层Group控制朝向旋转，内层scene反转180°修正VRM朝向
                     const vrmInner = gltf.scene;
-                    vrmInner.scale.set(0.5, 0.5, 0.5);
-                    vrmInner.rotation.y = Math.PI; // VRM面朝-Z，翻转使其背对相机（朝前走）
+                    vrmInner.rotation.y = Math.PI;
+                    // VRM模型是VRoid Studio导出的，单位是米，角色高约1.6m，scale=1.0即可
+                    // 不用包围盒（二级物理骨骼初始位置异常会让包围盒过大导致缩放过小）
+                    vrmInner.scale.set(1, 1, 1);
+                    console.log('📐 VRM固定缩放=1.0');
                     vrmInner.traverse(c => { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                     const vrmWrapper = new THREE.Group();
                     vrmWrapper.position.set(startX, 0, startZ);
                     vrmWrapper.add(vrmInner);
-                    // 扫描骨骼
                     _isVrm = true;
-                    _vrmBones = {};
-                    vrmInner.traverse(obj => {
-                        if(obj.isBone || obj.type === 'Bone') _vrmBones[obj.name.toLowerCase()] = obj;
-                    });
-                    console.log('🦴 VRM骨骼:', Object.keys(_vrmBones).join(', '));
+                    _vrmBonesResolved = false;
                     initializeSoldier(vrmWrapper);
                 }, null, function(err) {
                     clearTimeout(timeoutId);
@@ -7201,69 +7198,69 @@
         }
 
         // ── VRM骨骼姿势驱动 ────────────────────────────────────────
-        function _findVrmBone() {
-            // 按关键词组合在_vrmBones中查找，返回第一个匹配的骨骼
-            for(let i = 0; i < arguments.length; i++) {
-                const kws = arguments[i].toLowerCase().split(' ');
-                for(const [k, b] of Object.entries(_vrmBones)) {
-                    if(kws.every(w => k.includes(w))) return b;
-                }
-            }
-            return null;
-        }
+        // 直接遍历soldier场景收集所有同名骨骼节点（解决多SkinnedMesh克隆污染soldierBones字典的问题）
         let _vrmBonesResolved = false;
-        let _vb = {}; // resolved bone refs
-        function _resolveVrmBones() {
-            _vb.lArm  = _findVrmBone('l upperarm', 'leftupperarm', 'l_upper_arm', 'upperarml', 'leftshoulder upperarm');
-            _vb.rArm  = _findVrmBone('r upperarm', 'rightupperarm', 'r_upper_arm', 'upperarmr', 'rightshoulder upperarm');
-            _vb.lFore = _findVrmBone('l lowerarm', 'leftlowerarm', 'l_lower_arm', 'forearml');
-            _vb.rFore = _findVrmBone('r lowerarm', 'rightlowerarm', 'r_lower_arm', 'forearmr');
-            _vb.lLeg  = _findVrmBone('l upperleg', 'leftupperleg', 'l_upper_leg', 'thighl');
-            _vb.rLeg  = _findVrmBone('r upperleg', 'rightupperleg', 'r_upper_leg', 'thighr');
-            _vb.lKnee = _findVrmBone('l lowerleg', 'leftlowerleg', 'l_lower_leg', 'calfl');
-            _vb.rKnee = _findVrmBone('r lowerleg', 'rightlowerleg', 'r_lower_leg', 'calfr');
-            _vb.spine = _findVrmBone('spine', 'chest');
-            console.log('🎮 VRM骨骼解析:', JSON.stringify(Object.fromEntries(Object.entries(_vb).map(([k,v])=>[k, v?v.name:'null']))));
+        let _vrmBoneMap = {}; // name.toLowerCase() → [Object3D, ...]
+        function _collectVrmBones() {
+            _vrmBoneMap = {};
+            if (!soldier) return;
+            const seen = new Set();
+            function _addBone(obj) {
+                if (!obj || !obj.name || seen.has(obj)) return;
+                seen.add(obj);
+                const key = obj.name.toLowerCase();
+                if (!_vrmBoneMap[key]) _vrmBoneMap[key] = [];
+                _vrmBoneMap[key].push(obj);
+            }
+            // 方式1：场景图遍历
+            soldier.traverse(obj => _addBone(obj));
+            // 方式2：skeleton.bones数组（骨骼可能不在场景图中）
+            soldier.traverse(obj => {
+                if (obj.isSkinnedMesh && obj.skeleton) {
+                    obj.skeleton.bones.forEach(b => _addBone(b));
+                }
+            });
+            const lCnt = (_vrmBoneMap['j_bip_l_upperarm'] || []).length;
+            const rCnt = (_vrmBoneMap['j_bip_r_upperarm'] || []).length;
+            console.log('🦴 VRM骨骼收集完毕: L_UpperArm×' + lCnt + ' R_UpperArm×' + rCnt);
             _vrmBonesResolved = true;
         }
-        function _setBoneRot(bone, x, y, z) {
-            if(!bone) return;
-            bone.rotation.x = x; bone.rotation.y = y; bone.rotation.z = z;
-        }
-        function _lerpBoneRot(bone, tx, ty, tz, alpha) {
-            if(!bone) return;
-            bone.rotation.x += (tx - bone.rotation.x) * alpha;
-            bone.rotation.y += (ty - bone.rotation.y) * alpha;
-            bone.rotation.z += (tz - bone.rotation.z) * alpha;
+        // 对所有同名骨骼节点做插值旋转
+        function _animBones(nameKey, rx, ry, rz, alpha) {
+            const arr = _vrmBoneMap[nameKey];
+            if (!arr) return;
+            for (const b of arr) {
+                b.rotation.x += (rx - b.rotation.x) * alpha;
+                b.rotation.y += (ry - b.rotation.y) * alpha;
+                b.rotation.z += (rz - b.rotation.z) * alpha;
+            }
         }
         function _updateVrmPose(t) {
-            if(!_vrmBonesResolved) _resolveVrmBones();
+            if (!_vrmBonesResolved) _collectVrmBones();
             const walk = (typeof isWalking !== 'undefined') ? isWalking : false;
-            const spd = walk ? 6 : 1;
-            const alpha = 0.15; // 插值平滑系数
-            if(walk) {
-                // 跑步：手臂前后摆，腿部交替抬起
-                const swing = Math.sin(t * spd) * 0.6;
-                _lerpBoneRot(_vb.lArm,  swing * 0.8, 0,  1.1, alpha);
-                _lerpBoneRot(_vb.rArm, -swing * 0.8, 0, -1.1, alpha);
-                _lerpBoneRot(_vb.lFore, 0, 0, Math.max(0, swing * 0.3), alpha);
-                _lerpBoneRot(_vb.rFore, 0, 0, Math.min(0, -swing * 0.3), alpha);
-                _lerpBoneRot(_vb.lLeg,  swing * 0.7, 0, 0, alpha);
-                _lerpBoneRot(_vb.rLeg, -swing * 0.7, 0, 0, alpha);
-                _lerpBoneRot(_vb.lKnee, Math.max(0, -swing) * 0.8, 0, 0, alpha);
-                _lerpBoneRot(_vb.rKnee, Math.max(0,  swing) * 0.8, 0, 0, alpha);
+            const alpha = 0.15;
+            if (walk) {
+                const swing = Math.sin(t * 6) * 0.6;
+                _animBones('j_bip_l_upperarm',  swing * 0.8, 0,  1.1, alpha);
+                _animBones('j_bip_r_upperarm', -swing * 0.8, 0, -1.1, alpha);
+                _animBones('j_bip_l_lowerarm',  0, 0, Math.max(0,  swing * 0.3), alpha);
+                _animBones('j_bip_r_lowerarm',  0, 0, Math.min(0, -swing * 0.3), alpha);
+                _animBones('j_bip_l_upperleg',  swing * 0.7, 0, 0, alpha);
+                _animBones('j_bip_r_upperleg', -swing * 0.7, 0, 0, alpha);
+                _animBones('j_bip_l_lowerleg',  Math.max(0, -swing) * 0.8, 0, 0, alpha);
+                _animBones('j_bip_r_lowerleg',  Math.max(0,  swing) * 0.8, 0, 0, alpha);
             } else {
-                // 待机：手臂自然垂放，轻微呼吸起伏
                 const breath = Math.sin(t * 1.2) * 0.02;
-                _lerpBoneRot(_vb.lArm,   breath,  0,  1.25, alpha);
-                _lerpBoneRot(_vb.rArm,  -breath,  0, -1.25, alpha);
-                _lerpBoneRot(_vb.lFore,  0, 0, 0.1, alpha);
-                _lerpBoneRot(_vb.rFore,  0, 0, -0.1, alpha);
-                _lerpBoneRot(_vb.lLeg,   0, 0, 0, alpha);
-                _lerpBoneRot(_vb.rLeg,   0, 0, 0, alpha);
-                _lerpBoneRot(_vb.lKnee,  0, 0, 0, alpha);
-                _lerpBoneRot(_vb.rKnee,  0, 0, 0, alpha);
-                if(_vb.spine) _vb.spine.rotation.x = breath * 0.5;
+                _animBones('j_bip_l_upperarm',  breath, 0,  1.25, alpha);
+                _animBones('j_bip_r_upperarm', -breath, 0, -1.25, alpha);
+                _animBones('j_bip_l_lowerarm',  0, 0,  0.1, alpha);
+                _animBones('j_bip_r_lowerarm',  0, 0, -0.1, alpha);
+                _animBones('j_bip_l_upperleg',  0, 0, 0, alpha);
+                _animBones('j_bip_r_upperleg',  0, 0, 0, alpha);
+                _animBones('j_bip_l_lowerleg',  0, 0, 0, alpha);
+                _animBones('j_bip_r_lowerleg',  0, 0, 0, alpha);
+                _animBones('j_bip_c_chest',  breath * 0.5, 0, 0, alpha);
+                _animBones('j_bip_c_spine',  breath * 0.3, 0, 0, alpha);
             }
         }
 
@@ -9354,12 +9351,14 @@
         function sitDown() {
             if (!soldier) return;
             
-            // 查找最近的椅子
+            // 查找最近的椅子（用XZ平面距离，忽略Y高度差）
             let nearestChair = null;
-            let minDistance = 1.5; // 最大距离1.5米
-            
+            let minDistance = 2.5; // 最大距离2.5米
+
             for (const chair of nearbyChairs) {
-                const distance = soldier.position.distanceTo(chair.position);
+                const dx = soldier.position.x - chair.position.x;
+                const dz = soldier.position.z - chair.position.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
                 if (distance < minDistance) {
                     minDistance = distance;
                     nearestChair = chair;
