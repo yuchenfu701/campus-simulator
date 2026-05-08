@@ -196,6 +196,50 @@
         }
         .date-sep::before{ left:0; }
         .date-sep::after { right:0; }
+
+        /* ─── Emoji picker ─── */
+        .input-wrap { position:relative; flex:1; display:flex; gap:10px; }
+        .emoji-btn {
+            width:42px; height:42px; border-radius:12px; flex-shrink:0;
+            background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+            color:white; font-size:20px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            transition:all .2s; align-self:flex-end;
+        }
+        .emoji-btn:hover { background:rgba(139,92,246,.35); border-color:rgba(139,92,246,.5); }
+        .emoji-btn.open  { background:rgba(139,92,246,.4);  border-color:#8b5cf6; }
+        .emoji-picker {
+            position:absolute; bottom:calc(100% + 10px); left:0; right:0;
+            background:rgba(12,18,38,.97); border:1px solid rgba(139,92,246,.4);
+            backdrop-filter:blur(24px); border-radius:18px; padding:12px;
+            z-index:200; box-shadow:0 -4px 40px rgba(0,0,0,.55);
+            animation:epIn .22s ease;
+        }
+        @keyframes epIn {
+            from{ opacity:0; transform:translateY(8px); }
+            to  { opacity:1; transform:translateY(0); }
+        }
+        .emoji-cats {
+            display:flex; gap:6px; margin-bottom:10px; padding-bottom:9px;
+            border-bottom:1px solid rgba(255,255,255,.1); flex-wrap:wrap;
+        }
+        .emoji-cat {
+            font-size:19px; cursor:pointer; padding:5px; border-radius:9px;
+            opacity:.5; transition:all .18s; user-select:none;
+        }
+        .emoji-cat:hover,.emoji-cat.active { opacity:1; background:rgba(139,92,246,.25); }
+        .emoji-grid {
+            display:grid; grid-template-columns:repeat(auto-fill,38px);
+            gap:3px; max-height:176px; overflow-y:auto; padding-right:2px;
+        }
+        .emoji-grid::-webkit-scrollbar{ width:3px; }
+        .emoji-grid::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.2); border-radius:2px; }
+        .emoji-item {
+            font-size:22px; cursor:pointer; padding:5px; border-radius:8px;
+            text-align:center; transition:background .15s; user-select:none;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .emoji-item:hover { background:rgba(255,255,255,.15); }
     </style>
 </head>
 <body>
@@ -234,8 +278,12 @@
     </div>
 
     <div class="input-area">
-        <input type="text" id="messageInput" class="message-input"
-               placeholder="输入消息... (Enter 发送)" maxlength="1000">
+        <button class="emoji-btn" id="emojiBtn" onclick="toggleEmojiPicker()" title="表情">😊</button>
+        <div class="input-wrap">
+            <div class="emoji-picker" id="emojiPicker" style="display:none"></div>
+            <input type="text" id="messageInput" class="message-input"
+                   placeholder="输入消息... (Enter 发送)" maxlength="1000">
+        </div>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
     </div>
 </div>
@@ -427,6 +475,93 @@ async function sendMessage() {
 
 function lockSend()   { sendBtn.disabled = true;  sendBtn.textContent = '发送中...'; }
 function unlockSend() { sendBtn.disabled = false; sendBtn.textContent = '发送'; }
+
+// ─── 表情包 ──────────────────────────────────────────────
+const EMOJI_DATA = {
+    '😊 表情': ['😀','😂','😊','😍','🥰','😘','😎','🤔','😅','😭','😤','🥺','😴','🤩','😇','🙃','🤗','😬','🙄','😏','😒','😌','😔','😪','😷','🤒','🤢','🥵','🥶','😱','😨','😰','😢','😖','😞','😩','😫','😡','😠','🤬','😈','👿','💀','💩','🤡','👻','👽','🤖','🎃','😺','😸','😹','😻'],
+    '👍 手势': ['👍','👎','👏','🤝','🙏','💪','👊','✌️','🤞','👌','🤙','🖐️','👋','🫡','🤜','🤛','☝️','👆','👇','👈','👉','🤘','🤟','🖖','🫶','🤲','🫱','🫲','🫳','🫴','💅','🤳'],
+    '❤️ 爱心': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','🫀','❤️‍🔥','❤️‍🩹'],
+    '🎉 庆祝': ['🎉','🎊','🎈','🥳','🎂','🎁','🎀','🎆','🎇','🪅','🎭','🎪','✨','🌟','⭐','💫','🔥','🎯','🏆','🥇','🥈','🥉','🎖️','🏅','🎗️','🎫','🎟️'],
+    '🌸 自然': ['🌸','🌺','🌻','🌹','🌷','🍀','🍁','🌊','🌈','🌙','☀️','⛅','🌧️','❄️','🌿','🍃','🌱','🌲','🌳','🌴','🌵','🌾','🍄','🌏','🌍','🌎','🪐','⭐','🌠'],
+    '🍕 美食': ['🍕','🍔','🍟','🌮','🌯','🍣','🍜','🍩','🎂','☕','🧋','🍰','🍦','🍧','🍨','🍫','🍬','🍭','🍮','🥤','🧃','🍺','🥂','🍷','🍸','🍹'],
+    '🐶 动物': ['🐶','🐱','🐻','🐼','🦊','🐸','🐢','🦄','🐧','🦁','🐨','🐯','🐮','🐷','🐔','🦆','🦋','🐝','🐛','🦀','🐙','🦈','🐬','🦓','🦒','🐘','🐊','🦘','🐿️','🦔']
+};
+
+let emojiOpen = false;
+let activeCat = Object.keys(EMOJI_DATA)[0];
+
+function buildEmojiPicker() {
+    const picker = document.getElementById('emojiPicker');
+    const cats = Object.keys(EMOJI_DATA);
+
+    const catBar = document.createElement('div');
+    catBar.className = 'emoji-cats';
+    cats.forEach(cat => {
+        const btn = document.createElement('span');
+        btn.className = 'emoji-cat' + (cat === activeCat ? ' active' : '');
+        btn.textContent = cat.split(' ')[0];
+        btn.title = cat.split(' ')[1] || cat;
+        btn.onclick = () => {
+            activeCat = cat;
+            picker.querySelectorAll('.emoji-cat').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderEmojiGrid();
+        };
+        catBar.appendChild(btn);
+    });
+
+    const grid = document.createElement('div');
+    grid.className = 'emoji-grid';
+    grid.id = 'emojiGrid';
+
+    picker.innerHTML = '';
+    picker.appendChild(catBar);
+    picker.appendChild(grid);
+    renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+    const grid = document.getElementById('emojiGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    (EMOJI_DATA[activeCat] || []).forEach(em => {
+        const span = document.createElement('span');
+        span.className = 'emoji-item';
+        span.textContent = em;
+        span.onclick = () => insertEmoji(em);
+        grid.appendChild(span);
+    });
+}
+
+function insertEmoji(em) {
+    const inp = messageInput;
+    const s = inp.selectionStart, e = inp.selectionEnd;
+    inp.value = inp.value.slice(0, s) + em + inp.value.slice(e);
+    inp.selectionStart = inp.selectionEnd = s + em.length;
+    inp.focus();
+}
+
+function toggleEmojiPicker() {
+    const picker = document.getElementById('emojiPicker');
+    const btn    = document.getElementById('emojiBtn');
+    emojiOpen = !emojiOpen;
+    if (emojiOpen) {
+        buildEmojiPicker();
+        picker.style.display = 'block';
+        btn.classList.add('open');
+    } else {
+        picker.style.display = 'none';
+        btn.classList.remove('open');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (emojiOpen && !e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) {
+        document.getElementById('emojiPicker').style.display = 'none';
+        document.getElementById('emojiBtn').classList.remove('open');
+        emojiOpen = false;
+    }
+});
 
 // ─── 工具 ────────────────────────────────────────────────
 function scrollBottom() { messagesArea.scrollTop = messagesArea.scrollHeight; }

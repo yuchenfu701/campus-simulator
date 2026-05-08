@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朋友圈 - 校园模拟器</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei',sans-serif;}
+        body{
+            background:linear-gradient(135deg,#0f172a 0%,#1e293b 25%,#312e81 50%,#1e293b 75%,#0f172a 100%);
+            background-size:400% 400%; animation:gradientShift 15s ease infinite;
+            min-height:100vh;
+        }
+        @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+        body::before{
+            content:'';position:fixed;inset:0;
+            background:radial-gradient(circle at 20% 30%,rgba(139,92,246,.1) 0%,transparent 50%),
+                        radial-gradient(circle at 80% 70%,rgba(59,130,246,.1) 0%,transparent 50%);
+            z-index:0;pointer-events:none;
+        }
+
+        /* ── Header ── */
+        .header{
+            background:rgba(255,255,255,.1);backdrop-filter:blur(20px) saturate(180%);
+            color:white;padding:18px 24px;
+            display:flex;justify-content:space-between;align-items:center;
+            box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1);
+            border-bottom:1px solid rgba(255,255,255,.15);position:relative;z-index:10;
+        }
+        .header-left{display:flex;align-items:center;gap:14px;}
+        .back-btn{
+            background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+            color:white;width:38px;height:38px;border-radius:50%;
+            cursor:pointer;display:flex;align-items:center;justify-content:center;
+            font-size:18px;transition:all .3s;
+        }
+        .back-btn:hover{background:rgba(255,255,255,.25);transform:scale(1.1);}
+        .header-title{font-size:20px;font-weight:700;color:white;}
+        .post-btn{
+            padding:10px 22px;border-radius:12px;
+            background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);
+            color:white;border:none;cursor:pointer;font-size:14px;font-weight:600;
+            box-shadow:0 4px 20px rgba(139,92,246,.4);transition:all .3s;
+        }
+        .post-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(139,92,246,.6);}
+
+        /* ── Cover ── */
+        .cover{
+            position:relative;z-index:1;
+            background:linear-gradient(to bottom,rgba(139,92,246,.2),transparent);
+            padding:24px 20px 16px;
+            display:flex;align-items:flex-end;gap:14px;
+            border-bottom:1px solid rgba(255,255,255,.08);
+        }
+        .cover-avatar{
+            width:62px;height:62px;border-radius:14px;
+            background:linear-gradient(135deg,#8b5cf6,#6366f1);
+            display:flex;align-items:center;justify-content:center;
+            font-size:30px;border:2px solid rgba(255,255,255,.25);
+            box-shadow:0 4px 20px rgba(139,92,246,.4);flex-shrink:0;
+        }
+        .cover-info{}
+        .cover-name{font-size:18px;font-weight:700;color:white;margin-bottom:3px;}
+        .cover-sub{font-size:12px;color:rgba(255,255,255,.5);}
+
+        /* ── Post composer modal ── */
+        .composer-overlay{
+            position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);
+            z-index:1000;display:none;align-items:flex-end;justify-content:center;
+        }
+        .composer-overlay.open{display:flex;}
+        .composer{
+            width:100%;max-width:680px;
+            background:rgba(15,23,42,.98);border:1px solid rgba(139,92,246,.4);
+            border-radius:24px 24px 0 0;padding:24px;
+            animation:slideUp .3s cubic-bezier(.34,1.56,.64,1);
+        }
+        @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        .composer-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+        .composer-title{font-size:17px;font-weight:700;color:white;}
+        .composer-close{
+            background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);
+            width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;
+            display:flex;align-items:center;justify-content:center;transition:all .2s;
+        }
+        .composer-close:hover{background:rgba(255,255,255,.2);color:white;}
+        .composer-textarea{
+            width:100%;min-height:100px;max-height:220px;
+            background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
+            border-radius:14px;padding:14px;color:white;font-size:15px;
+            line-height:1.6;resize:none;outline:none;transition:border-color .2s;
+        }
+        .composer-textarea:focus{border-color:rgba(139,92,246,.6);}
+        .composer-textarea::placeholder{color:rgba(255,255,255,.35);}
+        .composer-img-row{
+            display:flex;align-items:center;gap:10px;margin-top:12px;
+        }
+        .composer-img-label{font-size:13px;color:rgba(255,255,255,.5);white-space:nowrap;}
+        .composer-img-input{
+            flex:1;padding:9px 12px;background:rgba(255,255,255,.07);
+            border:1px solid rgba(255,255,255,.15);border-radius:10px;
+            color:white;font-size:13px;outline:none;transition:border-color .2s;
+        }
+        .composer-img-input:focus{border-color:rgba(139,92,246,.5);}
+        .composer-img-input::placeholder{color:rgba(255,255,255,.3);}
+        .composer-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
+        .composer-emoji-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;}
+        .cp-emoji{font-size:20px;cursor:pointer;padding:4px;border-radius:7px;transition:background .15s;}
+        .cp-emoji:hover{background:rgba(255,255,255,.12);}
+        .submit-btn{
+            padding:11px 28px;border-radius:12px;
+            background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);
+            color:white;border:none;cursor:pointer;font-size:14px;font-weight:600;
+            box-shadow:0 4px 20px rgba(139,92,246,.4);transition:all .3s;
+        }
+        .submit-btn:hover:not(:disabled){transform:translateY(-1px);}
+        .submit-btn:disabled{opacity:.45;cursor:not-allowed;}
+        .cancel-btn{
+            padding:11px 20px;border-radius:12px;
+            background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+            color:rgba(255,255,255,.8);cursor:pointer;font-size:14px;transition:all .3s;
+        }
+        .cancel-btn:hover{background:rgba(255,255,255,.18);}
+
+        /* ── Feed ── */
+        .feed{max-width:680px;margin:0 auto;padding:20px 16px;position:relative;z-index:1;}
+        .moment-card{
+            background:rgba(255,255,255,.07);backdrop-filter:blur(12px);
+            border:1px solid rgba(255,255,255,.1);border-radius:20px;
+            padding:18px 20px;margin-bottom:16px;
+            transition:box-shadow .25s;
+        }
+        .moment-card:hover{box-shadow:0 4px 32px rgba(139,92,246,.18);}
+
+        /* author row */
+        .mc-author{display:flex;align-items:center;gap:12px;margin-bottom:13px;}
+        .mc-avatar{
+            width:44px;height:44px;border-radius:12px;flex-shrink:0;
+            background:linear-gradient(135deg,#8b5cf6,#6366f1);
+            display:flex;align-items:center;justify-content:center;font-size:22px;
+        }
+        .mc-meta{flex:1;}
+        .mc-name{font-size:15px;font-weight:600;color:white;}
+        .mc-time{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px;}
+        .mc-self-badge{
+            font-size:10px;background:rgba(139,92,246,.25);color:#a78bfa;
+            border:1px solid rgba(139,92,246,.35);border-radius:6px;padding:2px 7px;
+        }
+
+        /* content */
+        .mc-text{font-size:15px;color:rgba(255,255,255,.9);line-height:1.65;word-break:break-word;margin-bottom:12px;}
+        .mc-img{
+            width:100%;max-height:360px;object-fit:cover;
+            border-radius:12px;margin-bottom:12px;
+            border:1px solid rgba(255,255,255,.1);
+        }
+
+        /* actions */
+        .mc-actions{
+            display:flex;gap:6px;padding-top:10px;
+            border-top:1px solid rgba(255,255,255,.08);
+        }
+        .mc-act-btn{
+            display:flex;align-items:center;gap:5px;padding:7px 14px;
+            border-radius:10px;border:1px solid rgba(255,255,255,.12);
+            background:rgba(255,255,255,.06);color:rgba(255,255,255,.65);
+            font-size:13px;cursor:pointer;transition:all .2s;
+        }
+        .mc-act-btn:hover{background:rgba(255,255,255,.12);color:white;}
+        .mc-act-btn.liked{
+            background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.35);
+            color:#f87171;
+        }
+        .mc-like-count,.mc-cmt-count{font-size:12px;}
+
+        /* likes display */
+        .mc-likes-bar{
+            font-size:12px;color:rgba(255,255,255,.5);margin-top:10px;line-height:1.5;
+        }
+        .mc-likes-bar span{color:#a78bfa;font-weight:500;}
+
+        /* comments */
+        .mc-comments{margin-top:10px;}
+        .mc-comment{
+            display:flex;gap:8px;padding:7px 0;
+            border-top:1px solid rgba(255,255,255,.06);font-size:13px;
+        }
+        .mc-cmt-name{color:#a78bfa;font-weight:600;white-space:nowrap;}
+        .mc-cmt-text{color:rgba(255,255,255,.8);flex:1;word-break:break-word;}
+        .mc-cmt-time{color:rgba(255,255,255,.35);font-size:11px;white-space:nowrap;align-self:flex-end;}
+
+        /* comment input */
+        .mc-cmt-input-row{
+            display:flex;gap:8px;margin-top:10px;padding-top:8px;
+            border-top:1px solid rgba(255,255,255,.08);
+        }
+        .mc-cmt-input{
+            flex:1;padding:8px 12px;background:rgba(255,255,255,.08);
+            border:1px solid rgba(255,255,255,.14);border-radius:10px;
+            color:white;font-size:13px;outline:none;transition:border-color .2s;
+        }
+        .mc-cmt-input:focus{border-color:rgba(139,92,246,.5);}
+        .mc-cmt-input::placeholder{color:rgba(255,255,255,.3);}
+        .mc-cmt-send{
+            padding:8px 16px;border-radius:10px;border:none;
+            background:linear-gradient(135deg,#8b5cf6,#6366f1);
+            color:white;cursor:pointer;font-size:13px;transition:all .2s;
+        }
+        .mc-cmt-send:hover{transform:translateY(-1px);}
+
+        /* empty / loading */
+        .feed-empty{text-align:center;color:rgba(255,255,255,.4);padding:60px 20px;font-size:15px;}
+        .feed-loading{text-align:center;color:rgba(255,255,255,.6);padding:40px;font-size:14px;}
+        .feed-end{text-align:center;color:rgba(255,255,255,.25);padding:20px;font-size:12px;}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <button class="back-btn" onclick="history.back()">←</button>
+        <span class="header-title">🌸 朋友圈</span>
+    </div>
+    <button class="post-btn" onclick="openComposer()">✏️ 发布</button>
+</div>
+
+<!-- 个人封面 -->
+<div class="cover">
+    <div class="cover-avatar" id="coverAvatar">👤</div>
+    <div class="cover-info">
+        <div class="cover-name" id="coverName">玩家</div>
+        <div class="cover-sub" id="coverSub">分享你的校园生活</div>
+    </div>
+</div>
+
+<!-- 发布弹窗 -->
+<div class="composer-overlay" id="composerOverlay" onclick="overlayClick(event)">
+    <div class="composer">
+        <div class="composer-header">
+            <span class="composer-title">✏️ 发布朋友圈</span>
+            <button class="composer-close" onclick="closeComposer()">✕</button>
+        </div>
+        <textarea class="composer-textarea" id="postText" placeholder="分享你的校园生活、学习感悟、有趣瞬间..."></textarea>
+        <!-- 快速表情 -->
+        <div class="composer-emoji-row" id="cpEmojiRow"></div>
+        <!-- 图片 -->
+        <div class="composer-img-row">
+            <span class="composer-img-label">🖼️ 图片URL</span>
+            <input class="composer-img-input" id="postImg" placeholder="粘贴图片链接（可选）">
+        </div>
+        <div class="composer-footer">
+            <button class="cancel-btn" onclick="closeComposer()">取消</button>
+            <button class="submit-btn" id="submitBtn" onclick="submitPost()">发布</button>
+        </div>
+    </div>
+</div>
+
+<!-- 动态流 -->
+<div class="feed" id="feed">
+    <div class="feed-loading">加载朋友圈中...</div>
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/message-notifier.js"></script>
+<script>
+const userData      = JSON.parse(localStorage.getItem('campus_user') || '{}');
+const currentUserId = userData.userId || userData.id || 'guest';
+const currentName   = userData.nickname || userData.name || '玩家';
+const currentAvatar = userData.avatar || '👤';
+
+document.getElementById('coverAvatar').textContent = currentAvatar;
+document.getElementById('coverName').textContent   = currentName;
+
+// ── 快速表情 ──────────────────────────────────────────────
+const QUICK_EMOJI = ['😀','😂','🥰','😎','🤔','😭','😤','🥺','🎉','❤️','👍','🔥','✨','🌸','😊'];
+const cpRow = document.getElementById('cpEmojiRow');
+QUICK_EMOJI.forEach(e => {
+    const s = document.createElement('span');
+    s.className = 'cp-emoji'; s.textContent = e;
+    s.onclick = () => {
+        const ta = document.getElementById('postText');
+        const p = ta.selectionStart;
+        ta.value = ta.value.slice(0,p) + e + ta.value.slice(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = p + e.length;
+        ta.focus();
+    };
+    cpRow.appendChild(s);
+});
+
+// ── Composer ──────────────────────────────────────────────
+function openComposer() {
+    document.getElementById('composerOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('postText').focus(), 300);
+}
+function closeComposer() {
+    document.getElementById('composerOverlay').classList.remove('open');
+}
+function overlayClick(e) {
+    if (e.target === document.getElementById('composerOverlay')) closeComposer();
+}
+
+async function submitPost() {
+    const text    = document.getElementById('postText').value.trim();
+    const imgUrl  = document.getElementById('postImg').value.trim();
+    if (!text) { alert('请输入内容'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = '发布中...';
+
+    // 内容编码：若有图片则追加特殊分隔符
+    const content = imgUrl ? `${text}\n---img---\n${imgUrl}` : text;
+
+    try {
+        await apiClient.createPost(currentUserId, content, currentName, currentAvatar);
+        document.getElementById('postText').value = '';
+        document.getElementById('postImg').value  = '';
+        closeComposer();
+        await loadMoments();
+    } catch (e) {
+        alert('发布失败：' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = '发布';
+    }
+}
+
+// ── 解析内容 ──────────────────────────────────────────────
+function parseContent(raw) {
+    const sep = '\n---img---\n';
+    const idx = raw.indexOf(sep);
+    if (idx === -1) return { text: raw, img: '' };
+    return { text: raw.slice(0, idx), img: raw.slice(idx + sep.length) };
+}
+
+// ── 时间格式化 ────────────────────────────────────────────
+function fmtTime(iso) {
+    const d = new Date(iso), now = Date.now(), diff = now - d.getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60)  return '刚刚';
+    if (s < 3600) return Math.floor(s/60) + '分钟前';
+    if (s < 86400) return Math.floor(s/3600) + '小时前';
+    if (s < 86400*2) return '昨天 ' + d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) + ' ' +
+           d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+}
+
+function escHtml(t) {
+    const d = document.createElement('div'); d.textContent = String(t||''); return d.innerHTML;
+}
+
+// ── 渲染 ──────────────────────────────────────────────────
+function renderMoments(posts) {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '';
+
+    if (!posts.length) {
+        feed.innerHTML = '<div class="feed-empty">暂无动态<br><span style="font-size:13px;opacity:.6">添加好友后，这里会显示好友的朋友圈</span></div>';
+        return;
+    }
+
+    posts.forEach(post => feed.appendChild(buildCard(post)));
+    feed.insertAdjacentHTML('beforeend', '<div class="feed-end">— 已经到底了 —</div>');
+}
+
+function buildCard(post) {
+    const { text, img } = parseContent(post.content || '');
+    const likes    = post.likes    || [];
+    const comments = post.comments || [];
+    const isSelf   = post.authorId === currentUserId;
+    const hasLiked = likes.some(l => l.userId === currentUserId);
+
+    const card = document.createElement('div');
+    card.className = 'moment-card';
+    card.dataset.postId = post._id;
+
+    // 点赞名字列表
+    const likeNames = likes.map(l => `<span>${escHtml(l.userName||l.userId)}</span>`).join('、');
+
+    // 评论列表
+    const cmntsHtml = comments.map(c => `
+        <div class="mc-comment">
+            <span class="mc-cmt-name">${escHtml(c.userName||c.userId)}</span>
+            <span class="mc-cmt-text">：${escHtml(c.content)}</span>
+            <span class="mc-cmt-time">${fmtTime(c.createdAt)}</span>
+        </div>`).join('');
+
+    card.innerHTML = `
+        <div class="mc-author">
+            <div class="mc-avatar">${escHtml(post.authorAvatar||'👤')}</div>
+            <div class="mc-meta">
+                <div class="mc-name">${escHtml(post.authorName||post.authorId)}${isSelf?'  <span class="mc-self-badge">我</span>':''}</div>
+                <div class="mc-time">${fmtTime(post.createdAt)}</div>
+            </div>
+        </div>
+        ${text ? `<div class="mc-text">${escHtml(text).replace(/\n/g,'<br>')}</div>` : ''}
+        ${img  ? `<img class="mc-img" src="${escHtml(img)}" alt="图片" onerror="this.style.display='none'">` : ''}
+        <div class="mc-actions">
+            <button class="mc-act-btn ${hasLiked?'liked':''}" onclick="toggleLike('${post._id}',this)">
+                ${hasLiked?'❤️':'🤍'} <span class="mc-like-count">${likes.length||''}</span>
+            </button>
+            <button class="mc-act-btn" onclick="toggleComment('${post._id}',this)">
+                💬 <span class="mc-cmt-count">${comments.length||''}</span>
+            </button>
+        </div>
+        ${likes.length ? `<div class="mc-likes-bar">❤️ ${likeNames} 觉得很赞</div>` : ''}
+        <div class="mc-comments">${cmntsHtml}</div>
+        <div class="mc-cmt-input-row" id="cmtRow_${post._id}" style="display:none">
+            <input class="mc-cmt-input" id="cmtInput_${post._id}" placeholder="写评论..." maxlength="200">
+            <button class="mc-cmt-send" onclick="sendComment('${post._id}')">发送</button>
+        </div>`;
+
+    return card;
+}
+
+// ── 点赞 ──────────────────────────────────────────────────
+async function toggleLike(postId, btn) {
+    try {
+        const res = await apiClient.likePost(postId, currentUserId, currentName);
+        if (!res.success) return;
+        const likes    = res.data.likes || [];
+        const hasLiked = likes.some(l => l.userId === currentUserId);
+        btn.className  = 'mc-act-btn ' + (hasLiked ? 'liked' : '');
+        btn.innerHTML  = `${hasLiked?'❤️':'🤍'} <span class="mc-like-count">${likes.length||''}</span>`;
+
+        // 刷新点赞名单
+        const card = btn.closest('.moment-card');
+        let bar = card.querySelector('.mc-likes-bar');
+        if (likes.length) {
+            const likeNames = likes.map(l => `<span>${escHtml(l.userName||l.userId)}</span>`).join('、');
+            if (!bar) { bar = document.createElement('div'); bar.className='mc-likes-bar'; btn.closest('.mc-actions').after(bar); }
+            bar.innerHTML = `❤️ ${likeNames} 觉得很赞`;
+        } else if (bar) bar.remove();
+    } catch(e) { alert('操作失败'); }
+}
+
+// ── 评论输入框显示 ────────────────────────────────────────
+function toggleComment(postId, btn) {
+    const row = document.getElementById('cmtRow_' + postId);
+    const inp = document.getElementById('cmtInput_' + postId);
+    if (row.style.display === 'none') {
+        row.style.display = 'flex';
+        inp.focus();
+    } else {
+        row.style.display = 'none';
+    }
+}
+
+// ── 发送评论 ──────────────────────────────────────────────
+async function sendComment(postId) {
+    const inp = document.getElementById('cmtInput_' + postId);
+    const text = inp.value.trim();
+    if (!text) return;
+    inp.disabled = true;
+    try {
+        const res = await apiClient.commentPost(postId, currentUserId, currentName, text);
+        if (!res.success) throw new Error();
+        inp.value = '';
+        document.getElementById('cmtRow_' + postId).style.display = 'none';
+
+        // 在评论列表末尾追加新评论（避免整页刷新）
+        const card = document.querySelector(`.moment-card[data-post-id="${postId}"]`);
+        const cmnts = card.querySelector('.mc-comments');
+        const newCmt = document.createElement('div');
+        newCmt.className = 'mc-comment';
+        newCmt.innerHTML = `
+            <span class="mc-cmt-name">${escHtml(currentName)}</span>
+            <span class="mc-cmt-text">：${escHtml(text)}</span>
+            <span class="mc-cmt-time">刚刚</span>`;
+        cmnts.appendChild(newCmt);
+
+        const cntSpan = card.querySelector('.mc-cmt-count');
+        if (cntSpan) cntSpan.textContent = (parseInt(cntSpan.textContent||'0')+1)||'';
+    } catch(e) { alert('评论失败'); }
+    finally { inp.disabled = false; }
+}
+
+// ── 加载动态 ──────────────────────────────────────────────
+async function loadMoments() {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '<div class="feed-loading">加载中...</div>';
+    try {
+        // 获取好友列表
+        const friendsRes = await apiClient.getFriends(currentUserId);
+        const friends    = friendsRes.data || [];
+        const friendIds  = new Set(friends.map(f => f.userId || f.friendId).filter(Boolean));
+        friendIds.add(currentUserId);
+
+        // 获取帖子，过滤出朋友圈
+        const postsRes = await apiClient.getPosts();
+        if (!postsRes.success) throw new Error('加载失败');
+        const moments = (postsRes.data || []).filter(p => friendIds.has(p.authorId));
+
+        // 更新封面副标题
+        document.getElementById('coverSub').textContent =
+            `${friends.length} 位好友 · ${moments.filter(p=>p.authorId===currentUserId).length} 条动态`;
+
+        renderMoments(moments);
+    } catch(e) {
+        feed.innerHTML = `<div class="feed-empty">加载失败：${escHtml(e.message)}</div>`;
+    }
+}
+
+window.addEventListener('DOMContentLoaded', loadMoments);
+</script>
+</body>
+</html>
