@@ -172,23 +172,26 @@ class APIClient {
 
   // ==================== 帖子相关API ====================
 
-  async getPosts() {
+  // postType: 'forum'(默认) | 'moments'
+  async getPosts(postType = 'forum') {
     const db = await this.getDB();
     const { data, error } = await db
       .from('posts')
       .select('*')
+      .eq('post_type', postType)
       .order('created_at', { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
     return { success: true, data: (data || []).map(r => this._mapPost(r)) };
   }
 
-  async createPost(authorId, content, authorName, authorAvatar) {
+  async createPost(authorId, content, authorName, authorAvatar, postType = 'forum') {
     const db = await this.getDB();
     const { data, error } = await db
       .from('posts')
       .insert({ author_id: authorId, author_name: authorName || authorId,
-                author_avatar: authorAvatar || '', content })
+                author_avatar: authorAvatar || '', content,
+                post_type: postType })
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -411,6 +414,7 @@ class APIClient {
       authorName  : r.author_name,
       authorAvatar: r.author_avatar,
       content     : r.content,
+      postType    : r.post_type || 'forum',
       likes,
       comments,
       likeCount   : likes.length,

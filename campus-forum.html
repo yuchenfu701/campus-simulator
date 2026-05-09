@@ -399,7 +399,7 @@
 
             try {
                 const response = await Promise.race([
-                    apiClient.getPosts(),
+                    apiClient.getPosts('forum'),
                     new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
                 ]);
                 if (response.success && response.data && response.data.length > 0) {
@@ -506,7 +506,7 @@
             let posted = false;
             try {
                 const response = await Promise.race([
-                    apiClient.createPost(currentUserId, content, currentUserName, userData.avatar || ''),
+                    apiClient.createPost(currentUserId, content, currentUserName, userData.avatar || '', 'forum'),
                     new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
                 ]);
                 if (response.success) posted = true;

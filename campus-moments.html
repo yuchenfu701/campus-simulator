@@ -311,7 +311,7 @@ async function submitPost() {
     const content = imgUrl ? `${text}\n---img---\n${imgUrl}` : text;
 
     try {
-        await apiClient.createPost(currentUserId, content, currentName, currentAvatar);
+        await apiClient.createPost(currentUserId, content, currentName, currentAvatar, 'moments');
         document.getElementById('postText').value = '';
         document.getElementById('postImg').value  = '';
         closeComposer();
@@ -485,7 +485,7 @@ async function loadMoments() {
         friendIds.add(currentUserId);
 
         // 获取帖子，过滤出朋友圈
-        const postsRes = await apiClient.getPosts();
+        const postsRes = await apiClient.getPosts('moments');
         if (!postsRes.success) throw new Error('加载失败');
         const moments = (postsRes.data || []).filter(p => friendIds.has(p.authorId));
 

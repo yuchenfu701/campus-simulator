@@ -26,6 +26,7 @@ create table if not exists posts (
   author_name   text default '',
   author_avatar text default '',
   content       text not null,
+  post_type     text default 'forum',  -- 'forum' | 'moments'
   likes         jsonb default '[]',
   comments      jsonb default '[]',
   created_at    timestamptz default now()
