@@ -23,8 +23,11 @@
         var actions = document.createElement('div');
         actions.className = 'campus-3d-actions';
         actions.innerHTML =
-            '<button type="button" class="campus-mbtn campus-mbtn-e" id="campus-mbtn-e">交互</button>' +
-            '<button type="button" class="campus-mbtn campus-mbtn-space" id="campus-mbtn-jump">跳</button>';
+            '<button type="button" class="campus-mbtn campus-mbtn-e"     id="campus-mbtn-e">交互</button>' +
+            '<button type="button" class="campus-mbtn campus-mbtn-space" id="campus-mbtn-jump">跳</button>' +
+            '<button type="button" class="campus-mbtn campus-mbtn-x"    id="campus-mbtn-view">视角</button>' +
+            '<button type="button" class="campus-mbtn campus-mbtn-q"    id="campus-mbtn-slide">滑铲</button>' +
+            '<button type="button" class="campus-mbtn campus-mbtn-p"    id="campus-mbtn-fly">飞行</button>';
 
         root.appendChild(joyWrap);
         root.appendChild(actions);
@@ -43,7 +46,10 @@
             '.campus-mbtn{min-width:76px;padding:14px 18px;border-radius:16px;border:none;font-size:15px;font-weight:800;' +
             'color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35);font-family:inherit;touch-action:manipulation;}' +
             '.campus-mbtn-e{background:linear-gradient(135deg,#059669,#10b981);}' +
-            '.campus-mbtn-space{background:linear-gradient(135deg,#2563eb,#3b82f6);}';
+            '.campus-mbtn-space{background:linear-gradient(135deg,#2563eb,#3b82f6);}' +
+            '.campus-mbtn-x{background:linear-gradient(135deg,#7c3aed,#a855f7);}' +
+            '.campus-mbtn-q{background:linear-gradient(135deg,#dc2626,#ef4444);}' +
+            '.campus-mbtn-p{background:linear-gradient(135deg,#d97706,#f59e0b);}';
         document.head.appendChild(style);
 
         var base = document.getElementById('campus-joy-base');
@@ -157,6 +163,9 @@
         }
         bindMobileAction(document.getElementById('campus-mbtn-e'), 'e');
         bindMobileAction(document.getElementById('campus-mbtn-jump'), ' ');
+        bindMobileAction(document.getElementById('campus-mbtn-view'), 'x');
+        bindMobileAction(document.getElementById('campus-mbtn-slide'), 'q');
+        bindMobileAction(document.getElementById('campus-mbtn-fly'), 'p');
     }
 
     if (document.readyState === 'loading') {

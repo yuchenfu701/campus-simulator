@@ -276,7 +276,7 @@
             <div class="result-info">
                 <p>正确: <span id="finalCorrect">0</span>/10</p>
                 <p>得分: <span id="finalScore">0</span></p>
-                <p style="margin-top: 15px; color: #667eea; font-weight: bold;">+10 积分</p>
+                <p style="margin-top: 15px; color: #667eea; font-weight: bold;">+3 积分</p>
             </div>
             <button class="btn btn-primary" onclick="startNewGame()">再来一局</button>
         </div>
@@ -438,21 +438,15 @@
             });
         }
         
-        // 选择选项
+        // 选择选项（提交前可随时更改）
         function selectOption(index) {
-            if (gameState.selectedOption !== null) return;
-            
             gameState.selectedOption = index;
             document.getElementById('submitBtn').disabled = false;
-            
+
             // 更新UI
             const options = document.querySelectorAll('.option');
             options.forEach((opt, i) => {
-                if (i === index) {
-                    opt.classList.add('selected');
-                } else {
-                    opt.classList.remove('selected');
-                }
+                opt.classList.toggle('selected', i === index);
             });
         }
         
@@ -513,7 +507,7 @@
             document.getElementById('resultModal').classList.add('show');
             
             // 奖励积分
-            awardPoints(10);
+            awardPoints(3);
         }
         
         // 奖励积分

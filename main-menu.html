@@ -1196,10 +1196,10 @@ function reloadCharacter(){
                             const rArm = bones.rightUpperArm && bones.rightUpperArm.node;
                             const lFa  = bones.leftLowerArm  && bones.leftLowerArm.node;
                             const rFa  = bones.rightLowerArm && bones.rightLowerArm.node;
-                            if(lArm) lArm.rotation.z = -1.3;
-                            if(rArm) rArm.rotation.z =  1.3;
-                            if(lFa)  lFa.rotation.z  = -0.12;
-                            if(rFa)  rFa.rotation.z  =  0.12;
+                            if(lArm) lArm.rotation.z = -1.0;
+                            if(rArm) rArm.rotation.z =  1.0;
+                            if(lFa)  lFa.rotation.z  = -0.15;
+                            if(rFa)  rFa.rotation.z  =  0.15;
                         }
                     }catch(e){}
                     console.log('✅ VRM 加载成功');
@@ -1270,10 +1270,10 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
             const lFa =vrm.humanoid.getRawBoneNode('leftLowerArm');
             const rFa =vrm.humanoid.getRawBoneNode('rightLowerArm');
             const breath=Math.sin(t*1.4)*0.05;
-            if(lArm){ lArm.rotation.z=-1.3 - breath*0.1; }
-            if(rArm){ rArm.rotation.z= 1.3 + breath*0.1; }
-            if(lFa){  lFa.rotation.z =-0.12; }
-            if(rFa){  rFa.rotation.z = 0.12; }
+            if(lArm){ lArm.rotation.z=-1.0 - breath*0.1; }
+            if(rArm){ rArm.rotation.z= 1.0 + breath*0.1; }
+            if(lFa){  lFa.rotation.z =-0.15; }
+            if(rFa){  rFa.rotation.z = 0.15; }
         }catch(e){}
     }
     if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }

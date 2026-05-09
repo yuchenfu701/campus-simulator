@@ -7,9 +7,9 @@ class Player {
     constructor(gameEngine) {
         this.gameEngine = gameEngine;
         
-        // 基础属性（新地图入口位置 - V3布局）
-        this.x = 590;
-        this.y = 1050; // 在入口处开始
+        // 基础属性（初始位置：主楼群与操场之间的走廊，可自由行走）
+        this.x = 750;
+        this.y = 680;
         this.width = 24;
         this.height = 24;
         this.speed = 4;
@@ -277,15 +277,8 @@ class Player {
             return false;
         }
 
-        // 启用碰撞检测：建筑物墙壁不可穿越，但入口处可以通行
-        const mapSystem = this.gameEngine.getSystem('map');
-        if (mapSystem && typeof mapSystem.checkCollision === 'function') {
-            const collision = mapSystem.checkCollision(x, y, this.width, this.height);
-            if (collision) {
-                return false; // 碰撞，不允许移动
-            }
-        }
-
+        // 不做建筑碰撞：楼间道路仅20px，网格精度32px无法表达，会把玩家困死
+        // 建筑仍作为视觉元素呈现，交互通过E键触发
         return true;
     }
     

@@ -7249,9 +7249,9 @@
                 const amp   = Math.min(spd * 1.2, 1.4);
                 const swing = Math.sin(cycle) * amp;
 
-                // 上臂：rx 控制前后摆动（arm 处于下垂状态时 rx 绕 bone-local-X 摆前后）
-                _animBones('j_bip_l_upperarm',  swing * 0.85, 0,  1.1, alpha);
-                _animBones('j_bip_r_upperarm', -swing * 0.85, 0, -1.1, alpha);
+                // 上臂：rx 控制前后摆动（rz=1.52接近垂直，自然下垂状态）
+                _animBones('j_bip_l_upperarm',  swing * 0.85, 0,  1.52, alpha);
+                _animBones('j_bip_r_upperarm', -swing * 0.85, 0, -1.52, alpha);
                 // 小臂：向后摆时略微弯曲
                 _animBones('j_bip_l_lowerarm',  Math.max(0,  swing) * 0.45, 0,  0.18, alpha);
                 _animBones('j_bip_r_lowerarm',  Math.max(0, -swing) * 0.45, 0, -0.18, alpha);
@@ -7274,9 +7274,9 @@
                 const breath = Math.sin(t * 1.4) * 0.07;       // 振幅放大到 ±4°，可见
                 const sway   = Math.sin(t * 0.7) * 0.018;      // 极轻微左右摇摆
 
-                // 上臂随呼吸起伏
-                _animBones('j_bip_l_upperarm',  breath * 0.5, 0,  1.28 + breath * 0.12, alpha);
-                _animBones('j_bip_r_upperarm', -breath * 0.5, 0, -1.28 - breath * 0.12, alpha);
+                // 上臂随呼吸起伏（rz=1.52接近垂直，自然下垂）
+                _animBones('j_bip_l_upperarm',  breath * 0.5, 0,  1.52 + breath * 0.06, alpha);
+                _animBones('j_bip_r_upperarm', -breath * 0.5, 0, -1.52 - breath * 0.06, alpha);
                 // 小臂自然弯曲
                 _animBones('j_bip_l_lowerarm',  0.05, 0,  0.14, alpha);
                 _animBones('j_bip_r_lowerarm',  0.05, 0, -0.14, alpha);

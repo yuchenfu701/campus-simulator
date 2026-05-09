@@ -226,10 +226,10 @@ html.campus-mobile-mode #game-canvas-container {
     overflow: hidden !important;
 }
 
-/* 信息面板：手机上压缩为底部紧凑条（约 64px），可横向滑动查看 */
+/* 信息面板：手机上压缩为底部紧凑条，横屏进一步缩小 */
 html.campus-mobile-mode #info-panel {
     width: 100% !important;
-    max-height: 64px !important;   /* 原 28vh ≈ 240px → 改为 64px */
+    max-height: 52px !important;
     min-height: 0 !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
@@ -265,6 +265,18 @@ html.campus-mobile-mode #info-panel .task-item {
 
 html.campus-mobile-mode #info-panel > div {
     flex-shrink: 0;
+}
+
+/* 横屏时信息面板更薄 */
+@media (orientation: landscape) and (max-height: 500px) {
+    html.campus-mobile-mode #info-panel {
+        max-height: 36px !important;
+        padding: 2px 8px !important;
+        font-size: 10px !important;
+    }
+    html.campus-mobile-mode #game-canvas-container {
+        min-height: 0 !important;
+    }
 }
 
 /* 手机上隐藏底部键盘快捷键提示栏（手机没有实体键盘） */

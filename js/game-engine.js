@@ -102,8 +102,9 @@ class GameEngine {
         // 设置画布大小
         this.resizeCanvas();
         
-        // 监听窗口大小变化
+        // 监听窗口大小变化及手机横竖屏切换
         window.addEventListener('resize', () => this.resizeCanvas());
+        window.addEventListener('orientationchange', () => setTimeout(() => this.resizeCanvas(), 250));
         
         // 画布样式设置
         this.ctx.imageSmoothingEnabled = false; // 像素艺术风格
