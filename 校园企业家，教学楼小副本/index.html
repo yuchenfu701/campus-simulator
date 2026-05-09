@@ -244,6 +244,8 @@
     <script src="https://unpkg.com/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://unpkg.com/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"></script>
+    <!-- @pixiv/three-vrm：VRM骨骼坐标系标准化，与主菜单保持一致 -->
+    <script src="../js/three-vrm.js"></script>
     
     <!-- 备用CDN -->
     <script>
@@ -5740,23 +5742,30 @@
                 console.log('✅ 士兵已初始化，位置:', soldier.position);
             }
             
-            // 优先加载玩家在主菜单装备的VRM模型
+            // 优先加载玩家在主菜单装备的VRM模型（使用@pixiv/three-vrm以保证骨骼坐标系一致）
             if (equippedVrmFile && typeof THREE.GLTFLoader !== 'undefined') {
-                const loader = new THREE.GLTFLoader();
-                // 从子目录加载时修正路径（models/player.vrm → ../models/player.vrm）
                 const vrmUrl = equippedVrmFile.startsWith('http') ? equippedVrmFile : '../' + equippedVrmFile;
                 console.log('🔄 尝试加载玩家VRM模型:', vrmUrl);
                 const timeoutId = setTimeout(() => {
                     console.log('⏰ VRM加载超时，使用简单模型');
                     initializeSoldier(createSimpleSoldier());
                 }, 10000);
+                const loader = new THREE.GLTFLoader();
+                // 注册VRM插件（全局THREE_VRM由../js/three-vrm.js提供）
+                if (typeof THREE_VRM !== 'undefined' && THREE_VRM.VRMLoaderPlugin) {
+                    loader.register(p => new THREE_VRM.VRMLoaderPlugin(p));
+                }
                 loader.load(vrmUrl, function(gltf) {
                     clearTimeout(timeoutId);
                     console.log('✅ VRM模型加载成功');
+                    const vrmObj = gltf.userData.vrm;
+                    if (vrmObj) {
+                        window._gameVrm = vrmObj;  // 存储供_updateVrmPose使用
+                        try { THREE_VRM.VRMUtils && THREE_VRM.VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch(e) {}
+                        try { THREE_VRM.VRMUtils && THREE_VRM.VRMUtils.combineSkeletons(gltf.scene); } catch(e) {}
+                    }
                     const vrmInner = gltf.scene;
                     vrmInner.rotation.y = Math.PI;
-                    // VRM模型是VRoid Studio导出的，单位是米，角色高约1.6m，scale=1.0即可
-                    // 不用包围盒（二级物理骨骼初始位置异常会让包围盒过大导致缩放过小）
                     vrmInner.scale.set(1, 1, 1);
                     console.log('📐 VRM固定缩放=1.0');
                     vrmInner.traverse(c => { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
@@ -7184,6 +7193,9 @@
             // 更新动画混合器
             if (mixer) mixer.update(deltaTime);
 
+            // 更新VRM物理（弹簧骨骼等）
+            if (window._gameVrm) window._gameVrm.update(deltaTime);
+
             // 更新VRM骨骼姿势
             if (_isVrm) _updateVrmPose(time * 0.001);
 
@@ -7236,59 +7248,110 @@
             }
         }
         function _updateVrmPose(t) {
+            const spd   = (typeof walkSpeed !== 'undefined') ? walkSpeed : 0;
+            const cycle = (typeof walkCycle !== 'undefined') ? walkCycle : t * 4;
+            const alpha = 0.18;
+
+            // ── 优先使用 @pixiv/three-vrm humanoid（与主菜单坐标系一致）──
+            const humanoid = window._gameVrm && window._gameVrm.humanoid;
+            if (humanoid) {
+                const lArm  = humanoid.getRawBoneNode('leftUpperArm');
+                const rArm  = humanoid.getRawBoneNode('rightUpperArm');
+                const lFa   = humanoid.getRawBoneNode('leftLowerArm');
+                const rFa   = humanoid.getRawBoneNode('rightLowerArm');
+                const lLeg  = humanoid.getRawBoneNode('leftUpperLeg');
+                const rLeg  = humanoid.getRawBoneNode('rightUpperLeg');
+                const lKnee = humanoid.getRawBoneNode('leftLowerLeg');
+                const rKnee = humanoid.getRawBoneNode('rightLowerLeg');
+                const spine = humanoid.getRawBoneNode('spine');
+                const chest = humanoid.getRawBoneNode('upperChest') || humanoid.getRawBoneNode('chest');
+                const hips  = humanoid.getRawBoneNode('hips');
+
+                function bl(bone, tx, ty, tz) {
+                    if (!bone) return;
+                    bone.rotation.x += (tx - bone.rotation.x) * alpha;
+                    bone.rotation.y += (ty - bone.rotation.y) * alpha;
+                    bone.rotation.z += (tz - bone.rotation.z) * alpha;
+                }
+
+                if (spd > 0.04) {
+                    // ── 奔跑动画（三角洲行动风格）────────────────────────
+                    const spd01 = Math.min(spd, 1.0);
+                    const amp   = Math.min(spd * 1.4, 1.6);
+                    const swing = Math.sin(cycle) * amp;
+
+                    // 手臂：rz=-1.0 自然垂下；rx 大幅前后摆动；奔跑时肘部始终弯曲
+                    bl(lArm, swing * 1.2, 0, -1.0 + Math.abs(swing) * 0.04);
+                    bl(rArm, -swing * 1.2, 0, 1.0 - Math.abs(swing) * 0.04);
+                    // 小臂：奔跑时保持明显弯曲（军事跑姿），摆动时随动
+                    bl(lFa, Math.max(0, swing) * 0.55 + spd01 * 0.55, 0, -0.18);
+                    bl(rFa, Math.max(0, -swing) * 0.55 + spd01 * 0.55, 0, 0.18);
+
+                    // 腿部：大步迈出，高抬膝盖
+                    bl(lLeg, swing * 1.05, 0, 0.04);
+                    bl(rLeg, -swing * 1.05, 0, -0.04);
+                    // 小腿：向后蹬出时弯曲（跑步蹬地效果）
+                    bl(lKnee, Math.max(0, -swing) * 1.4, 0, 0);
+                    bl(rKnee, Math.max(0, swing) * 1.4, 0, 0);
+
+                    // 躯干：奔跑时明显前倾 + 随步伐扭动
+                    const hipSway = Math.sin(cycle * 2) * 0.06 * spd01;
+                    const lean    = spd01 * 0.18;
+                    bl(hips,  lean * 0.3, 0, hipSway);
+                    bl(spine, lean + swing * 0.1, 0, -hipSway * 0.55);
+                    bl(chest, lean * 0.7 + swing * 0.07, 0, 0);
+
+                } else {
+                    // ── 待机动画：呼吸 ───────────────────────────────────
+                    const breath = Math.sin(t * 1.4) * 0.07;
+                    const sway   = Math.sin(t * 0.7) * 0.018;
+
+                    bl(lArm,  breath * 0.4, 0, -1.0 + breath * 0.06);
+                    bl(rArm, -breath * 0.4, 0,  1.0 - breath * 0.06);
+                    bl(lFa,  0.05, 0, -0.15);
+                    bl(rFa,  0.05, 0,  0.15);
+                    bl(lLeg, 0, 0, 0);
+                    bl(rLeg, 0, 0, 0);
+                    bl(lKnee, 0, 0, 0);
+                    bl(rKnee, 0, 0, 0);
+                    bl(chest, 0.05 + breath * 0.65, 0, sway);
+                    bl(spine, 0.02 + breath * 0.40, 0, sway * 0.55);
+                    bl(hips,  0,                    0, sway * 0.30);
+                }
+                return;
+            }
+
+            // ── Fallback：老式骨骼名遍历（无three-vrm时）────────────────
             if (!_vrmBonesResolved) _collectVrmBones();
-
-            // 使用实际的walkSpeed / walkCycle（与角色移动速度同步）
-            const spd   = (typeof walkSpeed   !== 'undefined') ? walkSpeed   : 0;
-            const cycle = (typeof walkCycle   !== 'undefined') ? walkCycle   : t * 4;
-            const alpha = 0.14;
-
             if (spd > 0.04) {
-                // ── 行走 / 奔跑动画 ────────────────────────────────────
-                // swing 幅度随速度线性放大，跑步时手臂摆幅明显更大
                 const amp   = Math.min(spd * 1.2, 1.4);
                 const swing = Math.sin(cycle) * amp;
-
-                // 上臂：rx 控制前后摆动（rz=1.52接近垂直，自然下垂状态）
-                _animBones('j_bip_l_upperarm',  swing * 0.85, 0,  1.52, alpha);
-                _animBones('j_bip_r_upperarm', -swing * 0.85, 0, -1.52, alpha);
-                // 小臂：向后摆时略微弯曲
-                _animBones('j_bip_l_lowerarm',  Math.max(0,  swing) * 0.45, 0,  0.18, alpha);
-                _animBones('j_bip_r_lowerarm',  Math.max(0, -swing) * 0.45, 0, -0.18, alpha);
-
-                // 腿部：rx 绕 bone-local-X 前后迈步
+                _animBones('j_bip_l_upperarm',  swing * 0.85, 0, -1.0, alpha);
+                _animBones('j_bip_r_upperarm', -swing * 0.85, 0,  1.0, alpha);
+                _animBones('j_bip_l_lowerarm',  Math.max(0,  swing) * 0.45, 0, -0.15, alpha);
+                _animBones('j_bip_r_lowerarm',  Math.max(0, -swing) * 0.45, 0,  0.15, alpha);
                 _animBones('j_bip_l_upperleg',  swing * 0.85, 0, 0, alpha);
                 _animBones('j_bip_r_upperleg', -swing * 0.85, 0, 0, alpha);
-                // 小腿：迈出去的腿稍微弯曲
                 _animBones('j_bip_l_lowerleg',  Math.max(0, -swing) * 1.0, 0, 0, alpha);
                 _animBones('j_bip_r_lowerleg',  Math.max(0,  swing) * 1.0, 0, 0, alpha);
-
-                // 身体：跟随步伐轻微扭动
                 const hipSway = Math.sin(cycle * 2) * 0.06 * Math.min(spd, 1);
-                _animBones('j_bip_c_hips',  0, 0, hipSway, alpha);
+                _animBones('j_bip_c_hips',  0.1, 0, hipSway, alpha);
                 _animBones('j_bip_c_spine', swing * 0.12, 0, -hipSway * 0.5, alpha);
                 _animBones('j_bip_c_chest', swing * 0.08, 0, 0, alpha);
-
             } else {
-                // ── 待机动画：呼吸感 ────────────────────────────────────
-                const breath = Math.sin(t * 1.4) * 0.07;       // 振幅放大到 ±4°，可见
-                const sway   = Math.sin(t * 0.7) * 0.018;      // 极轻微左右摇摆
-
-                // 上臂随呼吸起伏（rz=1.52接近垂直，自然下垂）
-                _animBones('j_bip_l_upperarm',  breath * 0.5, 0,  1.52 + breath * 0.06, alpha);
-                _animBones('j_bip_r_upperarm', -breath * 0.5, 0, -1.52 - breath * 0.06, alpha);
-                // 小臂自然弯曲
-                _animBones('j_bip_l_lowerarm',  0.05, 0,  0.14, alpha);
-                _animBones('j_bip_r_lowerarm',  0.05, 0, -0.14, alpha);
-                // 腿自然垂直
+                const breath = Math.sin(t * 1.4) * 0.07;
+                const sway   = Math.sin(t * 0.7) * 0.018;
+                _animBones('j_bip_l_upperarm',  breath * 0.5, 0, -1.0 + breath * 0.06, alpha);
+                _animBones('j_bip_r_upperarm', -breath * 0.5, 0,  1.0 - breath * 0.06, alpha);
+                _animBones('j_bip_l_lowerarm',  0.05, 0, -0.15, alpha);
+                _animBones('j_bip_r_lowerarm',  0.05, 0,  0.15, alpha);
                 _animBones('j_bip_l_upperleg', 0, 0, 0, alpha);
                 _animBones('j_bip_r_upperleg', 0, 0, 0, alpha);
                 _animBones('j_bip_l_lowerleg', 0, 0, 0, alpha);
                 _animBones('j_bip_r_lowerleg', 0, 0, 0, alpha);
-                // 躯干随呼吸鼓起/收缩
-                _animBones('j_bip_c_chest',  breath * 0.65, 0, sway, alpha);
-                _animBones('j_bip_c_spine',  breath * 0.40, 0, sway * 0.55, alpha);
-                _animBones('j_bip_c_hips',   breath * 0.15, 0, sway * 0.30, alpha);
+                _animBones('j_bip_c_chest',  0.05 + breath * 0.65, 0, sway, alpha);
+                _animBones('j_bip_c_spine',  0.02 + breath * 0.40, 0, sway * 0.55, alpha);
+                _animBones('j_bip_c_hips',   0,                    0, sway * 0.30, alpha);
             }
         }
 

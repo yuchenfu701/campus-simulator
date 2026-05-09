@@ -1274,26 +1274,64 @@ window.refreshPartyChars = function(){
 
 /* ── 动画 ── */
 let t=0, mx=0, my=0;
+let _idleT=0; // 基于delta的真实时间，用于待机动画频率计算
 document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
 (function tick(){
     requestAnimationFrame(tick);
     const delta=clock.getDelta();
     t+=.01;
+    _idleT+=delta;
     if(vrm){
         vrm.update(delta);
-        vrm.scene.rotation.y=mx*.15+Math.sin(t*.25)*.03;
-        vrm.scene.position.y=Math.sin(t)*.015;
-        // 待机姿势：update()后再设骨骼，否则会被重置
+        vrm.scene.rotation.y=mx*.15+Math.sin(_idleT*.4)*.025;
+        vrm.scene.position.y=Math.sin(_idleT*1.1)*.012;
+        // 待机姿势（三角洲行动风格）：update()后再设骨骼，否则会被重置
         try{
-            const lArm=vrm.humanoid.getRawBoneNode('leftUpperArm');
-            const rArm=vrm.humanoid.getRawBoneNode('rightUpperArm');
-            const lFa =vrm.humanoid.getRawBoneNode('leftLowerArm');
-            const rFa =vrm.humanoid.getRawBoneNode('rightLowerArm');
-            const breath=Math.sin(t*1.4)*0.05;
-            if(lArm){ lArm.rotation.z=-1.0 - breath*0.1; }
-            if(rArm){ rArm.rotation.z= 1.0 + breath*0.1; }
-            if(lFa){  lFa.rotation.z =-0.15; }
-            if(rFa){  rFa.rotation.z = 0.15; }
+            const lArm  = vrm.humanoid.getRawBoneNode('leftUpperArm');
+            const rArm  = vrm.humanoid.getRawBoneNode('rightUpperArm');
+            const lFa   = vrm.humanoid.getRawBoneNode('leftLowerArm');
+            const rFa   = vrm.humanoid.getRawBoneNode('rightLowerArm');
+            const head  = vrm.humanoid.getRawBoneNode('head');
+            const neck  = vrm.humanoid.getRawBoneNode('neck');
+            const chest = vrm.humanoid.getRawBoneNode('upperChest') || vrm.humanoid.getRawBoneNode('chest');
+            const spine = vrm.humanoid.getRawBoneNode('spine');
+            const hips  = vrm.humanoid.getRawBoneNode('hips');
+            const lLeg  = vrm.humanoid.getRawBoneNode('leftUpperLeg');
+            const rLeg  = vrm.humanoid.getRawBoneNode('rightUpperLeg');
+
+            const it = _idleT;
+            // 呼吸：~3秒周期
+            const breath   = Math.sin(it * 2.1) * 0.055;
+            // 重心转移：~6秒周期
+            const weight   = Math.sin(it * 1.05) * 0.048;
+            // 头部左右张望：~9秒周期 + 鼠标偏转
+            const headTurn = Math.sin(it * 0.7) * 0.18 + mx * 0.10;
+            // 头部上下点头：~11秒周期，与张望相位错开
+            const headNod  = Math.sin(it * 0.57 + 1.2) * 0.04;
+            // 手臂微漂：L/R各自不同频率，形成自然不对称感
+            const armDL    = Math.sin(it * 0.45 + 0.8) * 0.07;
+            const armDR    = Math.sin(it * 0.38) * 0.07;
+            // 脊柱轻微前后晃动：~14秒周期
+            const spineLean= 0.05 + Math.sin(it * 0.44 + 0.3) * 0.018;
+
+            // 手臂自然下垂 + 微漂 + 呼吸起伏
+            if(lArm){ lArm.rotation.z=-1.0+armDL; lArm.rotation.x=-0.04+breath*0.3; }
+            if(rArm){ rArm.rotation.z= 1.0-armDR; rArm.rotation.x=-0.04+breath*0.3; }
+            // 小臂轻微弯曲，跟随手臂漂移
+            if(lFa){ lFa.rotation.z=-0.15+armDL*0.25; lFa.rotation.x=0.08; }
+            if(rFa){ rFa.rotation.z= 0.15-armDR*0.25; rFa.rotation.x=0.08; }
+            // 头部缓慢张望 + 鼠标追踪
+            if(head){ head.rotation.y=headTurn; head.rotation.x=headNod-0.05; }
+            if(neck){ neck.rotation.y=headTurn*0.35; }
+            // 胸部：呼吸膨胀 + 重心偏转
+            if(chest){ chest.rotation.x=0.05+breath*0.5; chest.rotation.z=weight*0.35; }
+            // 脊柱：重心转移 + 轻微前倾
+            if(spine){ spine.rotation.x=spineLean; spine.rotation.z=weight*0.55; }
+            // 骨盆：与脊柱反向保持平衡
+            if(hips){ hips.rotation.z=-weight*0.28; }
+            // 腿：重心腿微内旋
+            if(lLeg){ lLeg.rotation.z=weight*0.04; }
+            if(rLeg){ rLeg.rotation.z=-weight*0.04; }
         }catch(e){}
     }
     if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }
