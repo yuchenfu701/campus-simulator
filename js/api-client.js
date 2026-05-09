@@ -62,16 +62,23 @@ class APIClient {
 
   async createOrUpdateUser(userData) {
     const db = await this.getDB();
+
+    // 先读取已有数据，避免 upsert 用空值覆盖 friends / inventory / points
+    const { data: existing } = await db
+      .from('users').select('friends,inventory,points,virtual_avatar')
+      .eq('user_id', userData.userId).single().catch(() => ({ data: null }));
+
     const row = {
-      user_id      : userData.userId,
-      name         : userData.name || userData.nickname || '',
-      avatar       : userData.avatar || '',
-      virtual_avatar: userData.virtualAvatar || {},
-      points       : userData.points || 0,
-      inventory    : userData.inventory || [],
-      friends      : userData.friends || [],
-      last_seen    : new Date().toISOString(),
-      updated_at   : new Date().toISOString()
+      user_id       : userData.userId,
+      name          : userData.name || userData.nickname || '',
+      avatar        : userData.avatar || '',
+      virtual_avatar: userData.virtualAvatar  ?? existing?.virtual_avatar ?? {},
+      points        : userData.points         ?? existing?.points         ?? 0,
+      inventory     : userData.inventory      ?? existing?.inventory      ?? [],
+      // 关键：调用方没有传 friends 时，保留数据库里已有的好友列表
+      friends       : userData.friends        ?? existing?.friends        ?? [],
+      last_seen     : new Date().toISOString(),
+      updated_at    : new Date().toISOString()
     };
     const { data, error } = await db
       .from('users')

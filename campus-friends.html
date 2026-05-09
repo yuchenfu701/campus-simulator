@@ -572,36 +572,23 @@
         const currentUserName = userData.nickname || userData.name || '玩家';
         const currentUserPhone = userData.phone || '';
         
-        // 确保当前用户已同步到MongoDB
+        // 确保当前用户已同步到数据库（不覆盖已有的好友/库存数据）
         async function ensureUserExists() {
             try {
-                // 先尝试获取用户
                 const userResponse = await apiClient.getUser(currentUserId);
                 if (userResponse.success) {
-                    console.log('✅ 用户已存在于MongoDB');
+                    // 用户已存在：只更新名字/头像，绝不碰 friends 字段
                     return;
                 }
-            } catch (error) {
-                // 用户不存在，需要创建
-                console.log('⚠️ 用户不存在，正在创建...');
-            }
-            
-            try {
-                // 创建或更新用户到MongoDB
-                const createResponse = await apiClient.createOrUpdateUser({
+                // success=false 说明用户真的不存在，才创建新记录
+                await apiClient.createOrUpdateUser({
                     userId: currentUserId,
                     name: currentUserName,
-                    phone: currentUserPhone || undefined,
-                    class: '初一(1)班',
                     avatar: userData.avatar || ''
                 });
-                
-                if (createResponse.success) {
-                    console.log('✅ 用户已同步到MongoDB');
-                }
             } catch (error) {
-                console.error('❌ 同步用户失败:', error);
-                // 如果API不可用，不影响使用，只是无法使用在线功能
+                // 网络错误时什么都不做——绝不用空数据覆盖服务器上的好友列表
+                console.warn('⚠️ 无法连接服务器，跳过用户同步:', error.message);
             }
         }
         
