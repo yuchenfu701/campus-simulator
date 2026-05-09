@@ -1300,38 +1300,46 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
             const rLeg  = vrm.humanoid.getRawBoneNode('rightUpperLeg');
 
             const it = _idleT;
-            // 呼吸：~3秒周期
-            const breath   = Math.sin(it * 2.1) * 0.055;
+            // 呼吸：~3秒周期，慢调制（~31秒一次深吸）
+            const breathMod  = 0.8 + Math.sin(it * 0.20) * 0.35;
+            const breath     = Math.sin(it * 2.1) * 0.055 * breathMod;
             // 重心转移：~6秒周期
-            const weight   = Math.sin(it * 1.05) * 0.048;
-            // 头部左右张望：~9秒周期 + 鼠标偏转
-            const headTurn = Math.sin(it * 0.7) * 0.18 + mx * 0.10;
-            // 头部上下点头：~11秒周期，与张望相位错开
-            const headNod  = Math.sin(it * 0.57 + 1.2) * 0.04;
-            // 手臂微漂：L/R各自不同频率，形成自然不对称感
-            const armDL    = Math.sin(it * 0.45 + 0.8) * 0.07;
-            const armDR    = Math.sin(it * 0.38) * 0.07;
-            // 脊柱轻微前后晃动：~14秒周期
-            const spineLean= 0.05 + Math.sin(it * 0.44 + 0.3) * 0.018;
+            const weight     = Math.sin(it * 1.05) * 0.048;
+            // 头部张望：慢速 + 偶发快速"扫视"分量 + 鼠标
+            const lookBase   = Math.sin(it * 0.7) * 0.18;
+            const lookSnap   = Math.sin(it * 0.23) * Math.max(0, Math.sin(it * 0.11)) * 0.14;
+            const headTurn   = lookBase + lookSnap + mx * 0.10;
+            // 头部点头：两频叠加，偶尔低头
+            const headNod    = Math.sin(it * 0.57 + 1.2) * 0.04 + Math.sin(it * 0.19 + 0.7) * 0.025;
+            // 手臂微漂 + 肩部前后滚（不对称）
+            const armDL      = Math.sin(it * 0.45 + 0.8) * 0.07;
+            const armDR      = Math.sin(it * 0.38) * 0.07;
+            const shoulderFB = Math.sin(it * 0.33 + 0.5) * 0.04;
+            // 小臂/腕微扭
+            const wristL     = Math.sin(it * 0.62 + 1.0) * 0.03;
+            const wristR     = Math.sin(it * 0.55 + 2.0) * 0.03;
+            // 脊柱晃动 + 骨盆侧摇
+            const spineLean  = 0.05 + Math.sin(it * 0.44 + 0.3) * 0.018;
+            const hipSway    = Math.sin(it * 0.52 + 1.5) * 0.015;
 
-            // 手臂自然下垂 + 微漂 + 呼吸起伏
-            if(lArm){ lArm.rotation.z=-1.0+armDL; lArm.rotation.x=-0.04+breath*0.3; }
-            if(rArm){ rArm.rotation.z= 1.0-armDR; rArm.rotation.x=-0.04+breath*0.3; }
-            // 小臂轻微弯曲，跟随手臂漂移
-            if(lFa){ lFa.rotation.z=-0.15+armDL*0.25; lFa.rotation.x=0.08; }
-            if(rFa){ rFa.rotation.z= 0.15-armDR*0.25; rFa.rotation.x=0.08; }
-            // 头部缓慢张望 + 鼠标追踪
+            // 手臂：自然垂下 + 微漂 + 肩部前后 + 呼吸
+            if(lArm){ lArm.rotation.z=-1.0+armDL; lArm.rotation.x=-0.04+breath*0.3+shoulderFB; }
+            if(rArm){ rArm.rotation.z= 1.0-armDR; rArm.rotation.x=-0.04+breath*0.3-shoulderFB; }
+            // 小臂：弯曲 + 腕部微扭
+            if(lFa){ lFa.rotation.z=-0.15+armDL*0.25; lFa.rotation.x=0.08+wristL; lFa.rotation.y=wristL*0.5; }
+            if(rFa){ rFa.rotation.z= 0.15-armDR*0.25; rFa.rotation.x=0.08+wristR; rFa.rotation.y=-wristR*0.5; }
+            // 头部：张望 + 鼠标 + 低头
             if(head){ head.rotation.y=headTurn; head.rotation.x=headNod-0.05; }
-            if(neck){ neck.rotation.y=headTurn*0.35; }
-            // 胸部：呼吸膨胀 + 重心偏转
-            if(chest){ chest.rotation.x=0.05+breath*0.5; chest.rotation.z=weight*0.35; }
-            // 脊柱：重心转移 + 轻微前倾
-            if(spine){ spine.rotation.x=spineLean; spine.rotation.z=weight*0.55; }
-            // 骨盆：与脊柱反向保持平衡
-            if(hips){ hips.rotation.z=-weight*0.28; }
-            // 腿：重心腿微内旋
-            if(lLeg){ lLeg.rotation.z=weight*0.04; }
-            if(rLeg){ rLeg.rotation.z=-weight*0.04; }
+            if(neck){ neck.rotation.y=headTurn*0.35; neck.rotation.x=headNod*0.3; }
+            // 胸部：呼吸 + 重心 + 骨盆侧摇
+            if(chest){ chest.rotation.x=0.05+breath*0.55; chest.rotation.z=weight*0.35+hipSway*0.5; }
+            // 脊柱：重心 + 前倾 + 侧摇
+            if(spine){ spine.rotation.x=spineLean; spine.rotation.z=weight*0.55+hipSway; }
+            // 骨盆：反向平衡 + 侧摇
+            if(hips){ hips.rotation.z=-weight*0.28-hipSway*0.6; }
+            // 腿：重心分配
+            if(lLeg){ lLeg.rotation.z=weight*0.04; lLeg.rotation.x=hipSway*0.15; }
+            if(rLeg){ rLeg.rotation.z=-weight*0.04; rLeg.rotation.x=-hipSway*0.15; }
         }catch(e){}
     }
     if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }
