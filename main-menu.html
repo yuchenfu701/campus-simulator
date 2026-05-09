@@ -322,7 +322,10 @@
             background:linear-gradient(145deg,#0a0f1e,#0f1729);
             border:1px solid rgba(249,115,22,.35);
             border-radius:24px 24px 0 0;
-            padding:24px 20px 32px;
+            padding:24px 20px max(24px,env(safe-area-inset-bottom));
+            max-height:75dvh;
+            overflow-y:auto;
+            box-sizing:border-box;
         }
         .party-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
         .party-title{font-size:18px;font-weight:800;color:var(--text-hi);}
@@ -610,9 +613,10 @@
             .layout{grid-template-columns:240px 1fr 260px;}
         }
         @media(max-width:900px){
-            .layout{grid-template-columns:1fr;grid-template-rows:56px 1fr 64px;}
+            /* 手机：中心区高度固定，不让角色撑满全屏 */
+            .layout{grid-template-columns:1fr;grid-template-rows:56px min(50dvh,380px) auto;}
             .left-nav,.right-panel{display:none;}
-            .center-area{grid-column:1;}
+            .center-area{grid-column:1;height:min(50dvh,380px);}
 
             /* 顶栏手机精简 */
             .topbar{padding:0 12px;}
