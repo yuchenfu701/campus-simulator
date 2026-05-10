@@ -1275,6 +1275,7 @@ window.refreshPartyChars = function(){
 /* ── 动画 ── */
 let t=0, mx=0, my=0;
 let _idleT=0; // 基于delta的真实时间，用于待机动画频率计算
+let _catEarL1=null,_catEarL2=null,_catEarR1=null,_catEarR2=null,_catEarFound=false;
 document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
 (function tick(){
     requestAnimationFrame(tick);
@@ -1340,6 +1341,24 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
             // 腿：重心分配
             if(lLeg){ lLeg.rotation.z=weight*0.04; lLeg.rotation.x=hipSway*0.15; }
             if(rLeg){ rLeg.rotation.z=-weight*0.04; rLeg.rotation.x=-hipSway*0.15; }
+            // 猫耳：首次找到后缓存，高频扑棱 + 随头部转向歪斜
+            if(!_catEarFound && vrm.scene){
+                vrm.scene.traverse(function(o){
+                    if(o.name==='J_Opt_L_CatEar1_01') _catEarL1=o;
+                    if(o.name==='J_Opt_L_CatEar2_01') _catEarL2=o;
+                    if(o.name==='J_Opt_R_CatEar1_01') _catEarR1=o;
+                    if(o.name==='J_Opt_R_CatEar2_01') _catEarR2=o;
+                });
+                _catEarFound=true;
+            }
+            if(_catEarL1||_catEarR1){
+                const ef=Math.sin(it*7.5)*0.05+Math.sin(it*13.1+0.9)*0.03;
+                const el=headTurn*0.12;
+                if(_catEarL1){ _catEarL1.rotation.z=_catEarL1.rotation.z+( ef      -_catEarL1.rotation.z)*0.12; _catEarL1.rotation.y=_catEarL1.rotation.y+(-el      -_catEarL1.rotation.y)*0.12; }
+                if(_catEarL2){ _catEarL2.rotation.z=_catEarL2.rotation.z+(ef*0.6   -_catEarL2.rotation.z)*0.12; _catEarL2.rotation.y=_catEarL2.rotation.y+(-el*0.5  -_catEarL2.rotation.y)*0.12; }
+                if(_catEarR1){ _catEarR1.rotation.z=_catEarR1.rotation.z+(-ef      -_catEarR1.rotation.z)*0.12; _catEarR1.rotation.y=_catEarR1.rotation.y+( el      -_catEarR1.rotation.y)*0.12; }
+                if(_catEarR2){ _catEarR2.rotation.z=_catEarR2.rotation.z+(-ef*0.6  -_catEarR2.rotation.z)*0.12; _catEarR2.rotation.y=_catEarR2.rotation.y+( el*0.5  -_catEarR2.rotation.y)*0.12; }
+            }
         }catch(e){}
     }
     if(proceduralChar){ proceduralChar.rotation.y=mx*.2+Math.sin(t*.3)*.06; proceduralChar.position.y=Math.sin(t)*.015; }

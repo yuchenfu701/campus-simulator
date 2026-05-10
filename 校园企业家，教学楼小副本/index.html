@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script type="importmap">{"imports":{"three":"../js/three.module.min.js","three/addons/":"../js/"}}</script>
     <title>3D教学楼 - 多层第一人称漫游</title>
     <script src="../js/campus-settings.js"></script>
     <link rel="stylesheet" href="../css/campus-mobile.css">
@@ -5750,58 +5749,27 @@
                     console.log('⏰ VRM加载超时，使用简单模型');
                     initializeSoldier(createSimpleSoldier());
                 }, 12000);
-                // ESM GLTFLoader + ESM three-vrm（同一ESM THREE实例，VRMLoaderPlugin才能正确注册）
-                import('../js/GLTFLoader.js').then(function(gltfMod) {
-                    return import('../js/three-vrm.module.js').then(function(vrmMod) {
-                        return { GLTFLoader: gltfMod.GLTFLoader, VRMLoaderPlugin: vrmMod.VRMLoaderPlugin, VRMUtils: vrmMod.VRMUtils };
-                    });
-                }).then(function(mods) {
-                    var loader = new mods.GLTFLoader();
-                    loader.register(function(p) { return new mods.VRMLoaderPlugin(p); });
-                    loader.load(vrmUrl, function(gltf) {
-                        clearTimeout(timeoutId);
-                        var vrm = gltf.userData.vrm;
-                        if (vrm) {
-                            window._gameVrm = vrm;
-                            try { mods.VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch(e) {}
-                            try { mods.VRMUtils.combineSkeletons(gltf.scene); } catch(e) {}
-                            console.log('✅ VRM+humanoid加载成功');
-                        } else {
-                            console.warn('⚠️ VRM对象未找到，将使用骨骼遍历动画');
-                        }
-                        var vrmInner = gltf.scene;
-                        vrmInner.rotation.y = Math.PI;
-                        vrmInner.scale.set(1, 1, 1);
-                        vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
-                        var vrmWrapper = new THREE.Group();
-                        vrmWrapper.position.set(startX, 0, startZ);
-                        vrmWrapper.add(vrmInner);
-                        _isVrm = true;
-                        _vrmBonesResolved = false;
-                        initializeSoldier(vrmWrapper);
-                        if (!window._gameVrm) { setTimeout(_collectVrmBones, 200); }
-                    }, null, function(err) {
-                        clearTimeout(timeoutId);
-                        console.warn('VRM加载失败，使用简单模型');
-                        initializeSoldier(createSimpleSoldier());
-                    });
-                }).catch(function(err) {
-                    console.warn('ESM模块加载失败，退化到plain GLTF骨骼遍历模式:', err);
+                // 使用UMD THREE.GLTFLoader（与渲染器同版本，避免shader版本冲突）
+                // 动画通过骨骼遍历驱动（_collectVrmBones + _animBones）
+                var loader = new THREE.GLTFLoader();
+                loader.load(vrmUrl, function(gltf) {
                     clearTimeout(timeoutId);
-                    var loader = new THREE.GLTFLoader();
-                    loader.load(vrmUrl, function(gltf) {
-                        var vrmInner = gltf.scene;
-                        vrmInner.rotation.y = Math.PI;
-                        vrmInner.scale.set(1, 1, 1);
-                        vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
-                        var vrmWrapper = new THREE.Group();
-                        vrmWrapper.position.set(startX, 0, startZ);
-                        vrmWrapper.add(vrmInner);
-                        _isVrm = true;
-                        _vrmBonesResolved = false;
-                        initializeSoldier(vrmWrapper);
-                        setTimeout(_collectVrmBones, 200);
-                    }, null, function() { initializeSoldier(createSimpleSoldier()); });
+                    var vrmInner = gltf.scene;
+                    vrmInner.rotation.y = Math.PI;
+                    vrmInner.scale.set(1, 1, 1);
+                    vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+                    var vrmWrapper = new THREE.Group();
+                    vrmWrapper.position.set(startX, 0, startZ);
+                    vrmWrapper.add(vrmInner);
+                    _isVrm = true;
+                    _vrmBonesResolved = false;
+                    initializeSoldier(vrmWrapper);
+                    // 延迟一帧收集骨骼，确保场景图完全构建
+                    setTimeout(_collectVrmBones, 100);
+                }, null, function(err) {
+                    clearTimeout(timeoutId);
+                    console.warn('VRM加载失败，使用简单模型:', err);
+                    initializeSoldier(createSimpleSoldier());
                 });
                 return;
             }
@@ -7310,6 +7278,12 @@
                     _animBones('j_bip_c_spine',       lean + swing * 0.08,  0, -hipSway * 0.5, al);
                     _animBones('j_bip_c_chest',       lean * 0.6 + swing * 0.05, 0, 0,         al);
                     _animBones('j_bip_c_upperchest',  lean * 0.4 + swing * 0.03, 0, 0,         al);
+                    // 奔跑时猫耳随步伐弹跳（每步一次）
+                    const earBounce = Math.sin(cycle * 2) * 0.07 * spd01;
+                    _animBones('j_opt_l_catear1_01', earBounce, 0,  earBounce * 0.5, 0.15);
+                    _animBones('j_opt_l_catear2_01', earBounce * 0.6, 0,  earBounce * 0.3, 0.15);
+                    _animBones('j_opt_r_catear1_01', earBounce, 0, -earBounce * 0.5, 0.15);
+                    _animBones('j_opt_r_catear2_01', earBounce * 0.6, 0, -earBounce * 0.3, 0.15);
                 } else {
                     // 待机（与humanoid idle镜像：rz符号翻转）
                     const breath    = Math.sin(it * 2.1) * 0.055;
@@ -7333,6 +7307,13 @@
                     _animBones('j_bip_c_upperchest',0.03 + breath * 0.4, 0,  weight * 0.25, al);
                     _animBones('j_bip_c_spine',     spineLean, 0, weight * 0.55, al);
                     _animBones('j_bip_c_hips',      0, 0, -weight * 0.28, al);
+                    // 猫耳抖动：高频小幅扑棱 + 随头部转向轻微歪斜
+                    const earF = Math.sin(it * 7.5) * 0.05 + Math.sin(it * 13.1 + 0.9) * 0.03;
+                    const earL = headTurn * 0.12; // 头转时耳朵跟着倾
+                    _animBones('j_opt_l_catear1_01',  0, -earL, earF,       0.12);
+                    _animBones('j_opt_l_catear2_01',  0, -earL * 0.5, earF * 0.6, 0.12);
+                    _animBones('j_opt_r_catear1_01',  0,  earL, -earF,      0.12);
+                    _animBones('j_opt_r_catear2_01',  0,  earL * 0.5, -earF * 0.6, 0.12);
                 }
                 return;
             }
