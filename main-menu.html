@@ -1352,12 +1352,12 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
                 _catEarFound=true;
             }
             if(_catEarL1||_catEarR1){
-                const ef=Math.sin(it*7.5)*0.05+Math.sin(it*13.1+0.9)*0.03;
-                const el=headTurn*0.12;
-                if(_catEarL1){ _catEarL1.rotation.z=_catEarL1.rotation.z+( ef      -_catEarL1.rotation.z)*0.12; _catEarL1.rotation.y=_catEarL1.rotation.y+(-el      -_catEarL1.rotation.y)*0.12; }
-                if(_catEarL2){ _catEarL2.rotation.z=_catEarL2.rotation.z+(ef*0.6   -_catEarL2.rotation.z)*0.12; _catEarL2.rotation.y=_catEarL2.rotation.y+(-el*0.5  -_catEarL2.rotation.y)*0.12; }
-                if(_catEarR1){ _catEarR1.rotation.z=_catEarR1.rotation.z+(-ef      -_catEarR1.rotation.z)*0.12; _catEarR1.rotation.y=_catEarR1.rotation.y+( el      -_catEarR1.rotation.y)*0.12; }
-                if(_catEarR2){ _catEarR2.rotation.z=_catEarR2.rotation.z+(-ef*0.6  -_catEarR2.rotation.z)*0.12; _catEarR2.rotation.y=_catEarR2.rotation.y+( el*0.5  -_catEarR2.rotation.y)*0.12; }
+                // 仅Z轴微小抖动，不改变耳朵朝向（朝向由head骨骼headTurn联动决定）
+                const ef=Math.sin(it*3.8)*0.015+Math.sin(it*6.2+1.1)*0.008;
+                if(_catEarL1){ _catEarL1.rotation.z+=( ef      -_catEarL1.rotation.z)*0.08; }
+                if(_catEarL2){ _catEarL2.rotation.z+=(ef*0.7   -_catEarL2.rotation.z)*0.08; }
+                if(_catEarR1){ _catEarR1.rotation.z+=(-ef      -_catEarR1.rotation.z)*0.08; }
+                if(_catEarR2){ _catEarR2.rotation.z+=(-ef*0.7  -_catEarR2.rotation.z)*0.08; }
             }
         }catch(e){}
     }
