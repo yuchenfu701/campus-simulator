@@ -64,9 +64,14 @@ class APIClient {
     const db = await this.getDB();
 
     // 先读取已有数据，避免 upsert 用空值覆盖 friends / inventory / points
-    const { data: existing } = await db
-      .from('users').select('friends,inventory,points,virtual_avatar')
-      .eq('user_id', userData.userId).single().catch(() => ({ data: null }));
+    // 注意：Supabase v2 的 .single() 不支持 .catch()，需用 try-catch 或解构 error
+    let existing = null;
+    try {
+      const { data: _ex } = await db
+        .from('users').select('friends,inventory,points,virtual_avatar')
+        .eq('user_id', userData.userId).single();
+      existing = _ex;
+    } catch(e) { /* 用户不存在或网络错误，existing 保持 null */ }
 
     const row = {
       user_id       : userData.userId,

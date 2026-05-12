@@ -6743,17 +6743,17 @@
                 return;
             }
             
-            // 停止原始动画系统，防止冲突
+            // 停止原始动画系统，防止冲突（VRM模式下这些action都是undefined，需要guard）
             if (!isFirstPerson) {
                 // 在第三人称视角下，只停止run和jump动画，保留idle动画
-                if (currentAction === runAction) {
+                if (currentAction && currentAction === runAction) {
                     currentAction.stop();
                     if (idleAction) {
                         idleAction.reset().play();
                         currentAction = idleAction;
                     }
                 }
-                if (currentAction === jumpAction) {
+                if (currentAction && currentAction === jumpAction) {
                     currentAction.stop();
                     if (idleAction) {
                         idleAction.reset().play();

@@ -1245,6 +1245,8 @@ function reloadCharacter(){
 }
 
 reloadCharacter();
+// 暴露给全局（module script 内的函数不会自动成为全局变量）
+window.reloadCharacter = reloadCharacter;
 
 /* ── 多人组队：在场景中并排显示好友人物 ── */
 window._partyChars = [];
