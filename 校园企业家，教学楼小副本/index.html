@@ -265,7 +265,7 @@
         const MAZE_SIZE = 7;  // 迷宫大小：7×7网格（Prim算法支持的最小尺寸）
         const CELL_SIZE = 4;
         const WALL_HEIGHT = 5;
-        const SOLDIER_SPEED = 5.5;
+        const SOLDIER_SPEED = 4.0;
         const SOLDIER_RADIUS = 0.3;
         const MIN_PATH_LENGTH = 5;  // 最小路径长度：5步（超小迷宫，快速通关）
         const FIRST_PERSON_HEIGHT = 1.0;  // 第一人称相机高度
@@ -7284,23 +7284,26 @@
                     const swing2 = Math.sin(cycle * 2) * amp;    // 二倍频（左右骨盆、脚步弹跳）
                     const lag    = Math.sin(cycle - 0.45) * amp; // 小臂相位滞后，产生鞭打效果
 
-                    // ── 大臂：前后摆 + 内收(ry)让手臂交叉向胸 ──
-                    // 向前摆时略向内收（ry负值），向后时略外展
-                    const lArmRY = -swing * 0.18;  // 左臂：前摆时向内
-                    const rArmRY =  swing * 0.18;  // 右臂镜像
-                    // rz：臂始终保持向体侧下垂，向前摆时轻微肩膀上抬（rz绝对值减小）
-                    const lArmRZ = -(1.0 - Math.max(0,  swing) * 0.12);
-                    const rArmRZ = +(1.0 - Math.max(0, -swing) * 0.12);
+                    // ── 大臂：跑步持臂（不完全下垂，在体侧偏前，让肘弯从后方可见）──
+                    // rz=-0.55(约31°): 手臂不竖直垂下，保持在侧前方
+                    // 原来 rz=-1.0 让臂完全竖直，小臂弯曲方向正对摄像机→透视缩短→看起来直
+                    const lArmRZ = -(0.55 + Math.max(0, -swing) * 0.18); // 后摆时略下垂
+                    const rArmRZ = +(0.55 + Math.max(0,  swing) * 0.18);
+                    const lArmRY = -swing * 0.18; // 前摆时略向内收（手臂穿过胸前）
+                    const rArmRY =  swing * 0.18;
                     _animBones('j_bip_l_upperarm',  swing * 0.95, lArmRY, lArmRZ, al);
                     _animBones('j_bip_r_upperarm', -swing * 0.95, rArmRY, rArmRZ, al);
 
-                    // ── 小臂：90°基础弯曲 + 相位滞后鞭打 ──
-                    // 手臂后摆时肘弯更大（大臂rx<0时），前摆时肘弯略减
-                    const lElbow = 1.25 - swing * 0.55;  // 后摆(swing<0)→肘弯变大
-                    const rElbow = 1.25 + swing * 0.55;
-                    // rz：小臂随大臂内收/外展做微小旋转（pronation/supination）
-                    const lFaRZ = -0.18 + lag * 0.12;
-                    const rFaRZ = +0.18 - lag * 0.12;
+                    // ── 小臂：反向旋转（counter-rotation）保持小臂接近水平 ──
+                    // 物理原理：大臂后摆→小臂反向弯大→肘部上抬、小臂指向前上方
+                    //           大臂前摆→小臂弯曲减小→手臂自然伸展向前
+                    // 从后方看：后摆时产生清晰的 L 形肘部轮廓，前摆时自然延伸
+                    const FOREARM_BASE = 1.1; // 中立位约63°（比自然垂直的0°大，始终保持基础弯曲）
+                    const lElbow = FOREARM_BASE - swing * 0.85; // 后摆(swing<0)→弯曲增大(最大≈2.3)
+                    const rElbow = FOREARM_BASE + swing * 0.85; // 右臂镜像
+                    // rz 相位滞后：轻微 pronation/supination 次要动作
+                    const lFaRZ = -0.25 + lag * 0.10;
+                    const rFaRZ = +0.25 - lag * 0.10;
                     _animBones('j_bip_l_lowerarm', lElbow, 0, lFaRZ, al);
                     _animBones('j_bip_r_lowerarm', rElbow, 0, rFaRZ, al);
 
