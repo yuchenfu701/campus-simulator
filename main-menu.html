@@ -1750,10 +1750,19 @@ window.addEventListener('DOMContentLoaded',()=>{
             const ps=JSON.parse(localStorage.getItem('campus_points_system')||'{"students":{}}');
             const localPoints=(ps.students&&ps.students[ud.userId])?ps.students[ud.userId].points||0:0;
             const localInventory=(ps.students&&ps.students[ud.userId])?ps.students[ud.userId].inventory||[]:[];
-            // 先拉云端数据，取积分较大值
+            // 先拉云端数据，取积分较大值；注册用户最低 100 初始积分
             const cloudRes=await apiClient.getUser(ud.userId);
+            const isNewInCloud=!cloudRes.success||!cloudRes.data;
             const cloudPoints=cloudRes.success&&cloudRes.data?cloudRes.data.points||0:0;
-            const mergedPoints=Math.max(localPoints,cloudPoints);
+            // 若云端是新用户(0积分)且本地也没有积分，给予100初始积分
+            const initialPoints=isNewInCloud&&localPoints===0?100:0;
+            const mergedPoints=Math.max(localPoints,cloudPoints,initialPoints);
+            // 若本地没有记录，也补充初始积分到 localStorage
+            if(initialPoints>0){
+                if(!ps.students) ps.students={};
+                if(!ps.students[ud.userId]) ps.students[ud.userId]={points:100,inventory:[]};
+                localStorage.setItem('campus_points_system',JSON.stringify(ps));
+            }
             await apiClient.createOrUpdateUser({
                 userId:ud.userId,
                 name:ud.nickname||ud.name||'玩家',
@@ -1761,9 +1770,11 @@ window.addEventListener('DOMContentLoaded',()=>{
                 points:mergedPoints,
                 inventory:localInventory.length?localInventory:undefined
             });
-            // 如果云端积分更高，更新本地
-            if(cloudPoints>localPoints&&ps.students&&ps.students[ud.userId]){
-                ps.students[ud.userId].points=cloudPoints;
+            // 如果云端积分更高（或合并后积分更高），同步回本地
+            if(mergedPoints>localPoints){
+                if(!ps.students) ps.students={};
+                if(!ps.students[ud.userId]) ps.students[ud.userId]={points:0,inventory:[]};
+                ps.students[ud.userId].points=mergedPoints;
                 localStorage.setItem('campus_points_system',JSON.stringify(ps));
             }
             console.log('✅ 用户已同步到 Supabase，积分:'+mergedPoints);

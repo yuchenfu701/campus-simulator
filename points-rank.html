@@ -407,18 +407,31 @@
 
             // 3. 合并：云端为主，本机补充没上传过的玩家
             const merged = [...cloudList];
-            const cloudIds = new Set(cloudList.map(s => s.id));
+            const cloudIds  = new Set(cloudList.map(s => s.id));
+            const cloudNames = new Set(cloudList.map(s => (s.name || '').trim()));
             localBoard.forEach(s => {
-                if (!cloudIds.has(s.id) && (s.totalPoints || 0) > 0) merged.push(s);
+                // 既没有相同id、也没有相同名字，才从本机补充
+                const lname = (s.name || '').trim();
+                if (!cloudIds.has(s.id) && !cloudNames.has(lname) && (s.totalPoints || 0) > 0) {
+                    merged.push(s);
+                }
             });
-            // 按积分降序排列
-            merged.sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+            // 最终再按名字去重一次（兜底防止任何路径带来的同名重复）
+            const finalMap = new Map();
+            merged.forEach(s => {
+                const k = (s.name || '').trim();
+                if (!finalMap.has(k) || (s.totalPoints || 0) > (finalMap.get(k).totalPoints || 0)) {
+                    finalMap.set(k, s);
+                }
+            });
+            const deduped = Array.from(finalMap.values());
+            deduped.sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
 
             const medals = ['🥇', '🥈', '🥉'];
             const classes = ['first', 'second', 'third'];
             topThree.innerHTML = '';
 
-            merged.slice(0, 3).forEach((student, index) => {
+            deduped.slice(0, 3).forEach((student, index) => {
                 const card = document.createElement('div');
                 card.className = `top-card ${classes[index]}`;
                 const isCurrent = student.id === userId || student.name === (userData.nickname || userData.name);
@@ -433,12 +446,12 @@
                 topThree.appendChild(card);
             });
 
-            merged.slice(3).forEach((student, i) => {
+            deduped.slice(3).forEach((student, i) => {
                 const isCurrent = student.id === userId || student.name === (userData.nickname || userData.name);
                 renderRow(rankList, i + 4, student, isCurrent);
             });
 
-            if (merged.length === 0) {
+            if (deduped.length === 0) {
                 rankList.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);padding:30px">暂无排名数据</div>';
             }
         }
