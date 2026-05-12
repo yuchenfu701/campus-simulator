@@ -1356,11 +1356,11 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
             }
             if(_catEarL1||_catEarR1){
                 // 仅Z轴delta叠加到初始静止朝向，保持耳朵原始角度
-                const ef=Math.sin(it*3.8)*0.015+Math.sin(it*6.2+1.1)*0.008;
-                if(_catEarL1){ _catEarL1.rotation.z+=(_catEarRestZ.l1+ ef      -_catEarL1.rotation.z)*0.08; }
-                if(_catEarL2){ _catEarL2.rotation.z+=(_catEarRestZ.l2+ ef*0.7  -_catEarL2.rotation.z)*0.08; }
-                if(_catEarR1){ _catEarR1.rotation.z+=(_catEarRestZ.r1+-ef      -_catEarR1.rotation.z)*0.08; }
-                if(_catEarR2){ _catEarR2.rotation.z+=(_catEarRestZ.r2+-ef*0.7  -_catEarR2.rotation.z)*0.08; }
+                const ef=Math.sin(it*3.8)*0.06+Math.sin(it*6.2+1.1)*0.03;
+                if(_catEarL1){ _catEarL1.rotation.z+=(_catEarRestZ.l1+ ef      -_catEarL1.rotation.z)*0.12; }
+                if(_catEarL2){ _catEarL2.rotation.z+=(_catEarRestZ.l2+ ef*0.7  -_catEarL2.rotation.z)*0.12; }
+                if(_catEarR1){ _catEarR1.rotation.z+=(_catEarRestZ.r1+-ef      -_catEarR1.rotation.z)*0.12; }
+                if(_catEarR2){ _catEarR2.rotation.z+=(_catEarRestZ.r2+-ef*0.7  -_catEarR2.rotation.z)*0.12; }
             }
         }catch(e){}
     }

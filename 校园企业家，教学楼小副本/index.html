@@ -406,6 +406,9 @@
         let walkSpeed = 0;
         let targetWalkSpeed = 0;
         let _gameIdleT = 0; // 真实累计秒数，供多骨骼待机动画使用
+        // 相机抖动（存储值，在 updateCamera 里应用）
+        let _camBobY    = 0;
+        let _camBobRoll = 0;
         let playerMoveSpeedMul = 1;
         let _hudOverlayVisible = true;
         let isWalking = false;
@@ -422,7 +425,7 @@
         let maxJumps = 1; // 最大跳跃次数（默认单跳）
         
         // 身体摆动参数
-        const WALK_CYCLE_SPEED = 5; // 步行周期速度（稍微减慢，让动画更自然）
+        const WALK_CYCLE_SPEED = 10; // 步行周期速度（需与移速匹配：SOLDIER_SPEED=5.5）
         const ARM_SWING_AMPLITUDE = 0.8; // 手臂摆动幅度（增大）
         const BODY_SWAY_AMPLITUDE = 0.05; // 身体左右摇摆幅度
         const HEAD_BOB_AMPLITUDE = 0.08; // 头部上下摆动幅度
@@ -6029,19 +6032,12 @@
         
         // 新增函数：更新相机旋转
         function updateCameraRotation() {
-            // 重置相机的旋转
-            camera.rotation.set(0, 0, 0);
-            
             // 创建一个临时的欧拉角对象，设置正确的旋转顺序
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-            
-            // 先应用Y轴旋转（水平方向）
             euler.y = cameraHorizontalAngle;
-            
-            // 再应用X轴旋转（垂直方向）
             euler.x = cameraVerticalAngle;
-            
-            // 将欧拉角直接应用到相机
+            // 第一人称时叠加跑步侧倾 roll（三角洲风格）
+            euler.z = isFirstPerson ? _camBobRoll : 0;
             camera.rotation.copy(euler);
         }
         
@@ -6050,14 +6046,14 @@
             if (!soldier) return;
             
             if (isFirstPerson) {
-                // 第一人称视角 - 直接设置位置而不是插值，减少延迟感
+                // 第一人称视角 - 叠加相机抖动偏移（_camBobY 由 applyHeadBobToCamera 写入）
                 camera.position.set(
                     soldier.position.x,
-                    soldier.position.y + normalHeight, // 使用考虑下蹲状态的高度
+                    soldier.position.y + normalHeight + _camBobY,
                     soldier.position.z
                 );
-                
-                // 确保相机旋转是最新的
+
+                // 确保相机旋转是最新的（含侧倾 roll）
                 updateCameraRotation();
             } else {
                 // 第三人称视角 - 优化的跟随逻辑
@@ -6976,28 +6972,30 @@
             soldier.position.y += bodyBob;
         }
         
-        // 新增：应用头部摆动到相机
+        // 计算相机抖动偏移量（结果写入 _camBobY / _camBobRoll，由 updateCamera 使用）
         function applyHeadBobToCamera() {
-            if (!camera) return;
-            
-            // 只在第一人称模式下应用头部摆动
-            if (isFirstPerson) {
-                // 头部上下摆动
-                const headBob = Math.sin(walkCycle * 2) * HEAD_BOB_AMPLITUDE * walkSpeed;
-                
-                // 将摆动添加到相机的基础高度
-                const baseHeight = soldier.position.y + normalHeight;
-                camera.position.y = baseHeight + headBob;
-                
-                // 明显的左右摆动
-                const sideBob = Math.sin(walkCycle) * 0.03 * walkSpeed;
-                camera.position.x = soldier.position.x + sideBob;
-                
-                // 添加前后摆动
-                const forwardBob = Math.sin(walkCycle * 0.5) * 0.02 * walkSpeed;
-                camera.position.z = soldier.position.z + forwardBob;
+            if (!isFirstPerson) {
+                // 第三人称：平滑归零
+                _camBobY    += (0 - _camBobY)    * 0.15;
+                _camBobRoll += (0 - _camBobRoll)  * 0.15;
+                return;
             }
-            // 第三人称视角下不应用任何摇晃效果
+            const t = _gameIdleT;
+            if (walkSpeed > 0.04) {
+                // ── 跑步颠簸（三角洲风格）──
+                // 上下弹跳：双倍频 sin（每走一步上下一次）
+                const targetY    = Math.sin(walkCycle * 2) * 0.052 * walkSpeed;
+                // 侧倾：单倍频 sin（左右交替迈步）
+                const targetRoll = Math.sin(walkCycle)     * 0.024 * walkSpeed;
+                _camBobY    += (targetY    - _camBobY)    * 0.25;
+                _camBobRoll += (targetRoll - _camBobRoll) * 0.25;
+            } else {
+                // ── 静止呼吸摇晃（极轻）──
+                const breathY    = Math.sin(t * 1.1) * 0.004 + Math.sin(t * 0.53 + 0.7) * 0.002;
+                const breathRoll = Math.sin(t * 0.9) * 0.006;
+                _camBobY    += (breathY    - _camBobY)    * 0.06;
+                _camBobRoll += (breathRoll - _camBobRoll) * 0.06;
+            }
         }
         
         // 新增：创建脚步声效果（可选）
@@ -7301,11 +7299,11 @@
                     _animBones('j_bip_c_chest',      lean * 0.6 + swing * 0.05, 0, 0,        al);
                     _animBones('j_bip_c_upperchest', lean * 0.4 + swing * 0.03, 0, 0,        al);
                     // 猫耳随步伐弹跳（仅Z轴delta叠加到静止朝向，不改变耳朵方向）
-                    const earB = Math.sin(cycle * 2) * 0.03 * spd01;
-                    _animEar('j_opt_l_catear1_01',  earB,       0.15);
-                    _animEar('j_opt_l_catear2_01',  earB * 0.6, 0.15);
-                    _animEar('j_opt_r_catear1_01', -earB,       0.15);
-                    _animEar('j_opt_r_catear2_01', -earB * 0.6, 0.15);
+                    const earB = Math.sin(cycle * 2) * 0.10 * spd01;
+                    _animEar('j_opt_l_catear1_01',  earB,       0.20);
+                    _animEar('j_opt_l_catear2_01',  earB * 0.6, 0.20);
+                    _animEar('j_opt_r_catear1_01', -earB,       0.20);
+                    _animEar('j_opt_r_catear2_01', -earB * 0.6, 0.20);
                 } else {
                     // 待机：与humanoid API坐标系相同
                     const breath    = Math.sin(it * 2.1) * 0.055;
@@ -7330,12 +7328,12 @@
                     _animBones('j_bip_c_upperchest',0.03 + breath * 0.4, 0, weight * 0.25, al);
                     _animBones('j_bip_c_spine',     spineLean, 0, weight * 0.55, al);
                     _animBones('j_bip_c_hips',      0, 0, -weight * 0.28, al);
-                    // 猫耳：仅Z轴delta叠加到静止朝向，保持耳朵原始角度
-                    const earF = Math.sin(it * 3.8) * 0.015 + Math.sin(it * 6.2 + 1.1) * 0.008;
-                    _animEar('j_opt_l_catear1_01',  earF,       0.08);
-                    _animEar('j_opt_l_catear2_01',  earF * 0.7, 0.08);
-                    _animEar('j_opt_r_catear1_01', -earF,       0.08);
-                    _animEar('j_opt_r_catear2_01', -earF * 0.7, 0.08);
+                    // 猫耳待机：轻微双频颤动（幅度加大，让抖动可见）
+                    const earF = Math.sin(it * 3.8) * 0.06 + Math.sin(it * 6.2 + 1.1) * 0.03;
+                    _animEar('j_opt_l_catear1_01',  earF,       0.12);
+                    _animEar('j_opt_l_catear2_01',  earF * 0.7, 0.12);
+                    _animEar('j_opt_r_catear1_01', -earF,       0.12);
+                    _animEar('j_opt_r_catear2_01', -earF * 0.7, 0.12);
                 }
                 return;
             }

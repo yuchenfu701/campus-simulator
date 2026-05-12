@@ -369,15 +369,33 @@
 
             // 2. 从 Supabase 拉取所有玩家（按积分降序，最多200名）
             let cloudList = [];
+            let _db = null;
             try {
-                const db = await apiClient.getDB();
-                const { data, error } = await db
+                _db = await apiClient.getDB();
+                const { data, error } = await _db
                     .from('users')
                     .select('user_id, name, avatar, points')
                     .order('points', { ascending: false })
                     .limit(200);
                 if (!error && data) {
-                    cloudList = data.map(r => ({
+                    // ── 同名去重：只保留积分最高的那条（删除数据库里的冗余行）──
+                    const nameMap = new Map();
+                    data.forEach(r => {
+                        const key = (r.name || '').trim();
+                        if (!nameMap.has(key) || (r.points || 0) > (nameMap.get(key).points || 0)) {
+                            nameMap.set(key, r);
+                        }
+                    });
+                    // 异步删除低积分的重复账号（静默处理，不影响渲染）
+                    data.forEach(r => {
+                        const key = (r.name || '').trim();
+                        if (nameMap.get(key).user_id !== r.user_id) {
+                            _db.from('users').delete().eq('user_id', r.user_id)
+                                .then(() => console.log('🧹 已清理重复账号:', r.user_id))
+                                .catch(() => {});
+                        }
+                    });
+                    cloudList = Array.from(nameMap.values()).map(r => ({
                         id: r.user_id,
                         name: r.name || r.user_id,
                         avatar: r.avatar || '👤',
