@@ -326,68 +326,103 @@
     </div>
     
     <script src="js/points-system.js"></script>
+    <script src="js/api-client.js"></script>
     <script>
         // 获取当前登录用户
         const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
-        const userId = userData.userId || 'student_001';  // 兼容旧数据
-        
+        const userId = userData.userId || 'student_001';
+
         const pointsSystem = new PointsSystem();
         pointsSystem.setCurrentUser(userId);
-        
+
         window.addEventListener('DOMContentLoaded', () => {
             renderRanking();
         });
-        
-        function renderRanking() {
-            pointsSystem.updateLeaderboard();
-            const leaderboard = pointsSystem.getLeaderboard(50);
-            const currentStudent = pointsSystem.getCurrentStudent();
-            
-            // 渲染前三名
+
+        // 渲染一条排名
+        function renderRow(container, rank, student, isCurrent) {
+            const el = document.createElement('div');
+            el.className = 'rank-item' + (isCurrent ? ' current-user' : '');
+            el.innerHTML = `
+                <div class="rank-number">#${rank}</div>
+                <div class="rank-avatar">${student.avatar || '👤'}</div>
+                <div class="rank-info">
+                    <div class="rank-name">${student.name}</div>
+                    <div class="rank-class">${student.class || ''}</div>
+                </div>
+                <div class="rank-points">💎 ${student.totalPoints}</div>
+            `;
+            container.appendChild(el);
+        }
+
+        async function renderRanking() {
             const topThree = document.getElementById('topThree');
-            topThree.innerHTML = '';
-            
+            const rankList = document.getElementById('rankList');
+            topThree.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.5);padding:20px">⏳ 加载中...</div>';
+            rankList.innerHTML = '';
+
+            // 1. 本机积分（用于补充/兜底）
+            pointsSystem.updateLeaderboard();
+            const localBoard = pointsSystem.getLeaderboard(200);
+            const localMap = {};
+            localBoard.forEach(s => { localMap[s.id || s.name] = s; });
+
+            // 2. 从 Supabase 拉取所有玩家（按积分降序，最多200名）
+            let cloudList = [];
+            try {
+                const db = await apiClient.getDB();
+                const { data, error } = await db
+                    .from('users')
+                    .select('user_id, name, avatar, points')
+                    .order('points', { ascending: false })
+                    .limit(200);
+                if (!error && data) {
+                    cloudList = data.map(r => ({
+                        id: r.user_id,
+                        name: r.name || r.user_id,
+                        avatar: r.avatar || '👤',
+                        class: '',
+                        totalPoints: r.points || 0
+                    }));
+                }
+            } catch(e) { console.warn('云端排行榜加载失败，使用本机数据:', e); }
+
+            // 3. 合并：云端为主，本机补充没上传过的玩家
+            const merged = [...cloudList];
+            const cloudIds = new Set(cloudList.map(s => s.id));
+            localBoard.forEach(s => {
+                if (!cloudIds.has(s.id) && (s.totalPoints || 0) > 0) merged.push(s);
+            });
+            // 按积分降序排列
+            merged.sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+
             const medals = ['🥇', '🥈', '🥉'];
             const classes = ['first', 'second', 'third'];
-            
-            leaderboard.slice(0, 3).forEach((student, index) => {
+            topThree.innerHTML = '';
+
+            merged.slice(0, 3).forEach((student, index) => {
                 const card = document.createElement('div');
                 card.className = `top-card ${classes[index]}`;
+                const isCurrent = student.id === userId || student.name === (userData.nickname || userData.name);
+                card.style.outline = isCurrent ? '2px solid #f97316' : '';
                 card.innerHTML = `
                     <div class="rank-badge">${medals[index]}</div>
-                    <div class="top-avatar">👤</div>
-                    <div class="top-name">${student.name}</div>
-                    <div class="top-class">${student.class}</div>
+                    <div class="top-avatar">${student.avatar || '👤'}</div>
+                    <div class="top-name">${student.name}${isCurrent ? ' 👈' : ''}</div>
+                    <div class="top-class">${student.class || ''}</div>
                     <div class="top-points">💎 ${student.totalPoints}</div>
                 `;
                 topThree.appendChild(card);
             });
-            
-            // 渲染4-50名
-            const rankList = document.getElementById('rankList');
-            rankList.innerHTML = '';
-            
-            leaderboard.slice(3).forEach(student => {
-                const item = document.createElement('div');
-                item.className = 'rank-item';
-                
-                // 如果是当前用户，添加高亮
-                if (currentStudent && student.name === currentStudent.name) {
-                    item.classList.add('current-user');
-                }
-                
-                item.innerHTML = `
-                    <div class="rank-number">#${student.rank}</div>
-                    <div class="rank-avatar">👤</div>
-                    <div class="rank-info">
-                        <div class="rank-name">${student.name}</div>
-                        <div class="rank-class">${student.class}</div>
-                    </div>
-                    <div class="rank-points">💎 ${student.totalPoints}</div>
-                `;
-                
-                rankList.appendChild(item);
+
+            merged.slice(3).forEach((student, i) => {
+                const isCurrent = student.id === userId || student.name === (userData.nickname || userData.name);
+                renderRow(rankList, i + 4, student, isCurrent);
             });
+
+            if (merged.length === 0) {
+                rankList.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);padding:30px">暂无排名数据</div>';
+            }
         }
         
         // 页面跳转（在游戏内打开）

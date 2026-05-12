@@ -92,6 +92,13 @@
                     <span id="hint-text">按 E 键交互</span>
                 </div>
                 <div id="mobile-2d-interact-hint" aria-hidden="true">👆 滑动移动 · 轻点画布交互</div>
+                <!-- 手机端返回主菜单按钮 -->
+                <button id="mobile-back-to-menu" onclick="backToMenu()" style="
+                    display:none;position:absolute;top:8px;left:8px;z-index:500;
+                    background:rgba(10,15,40,0.82);color:#fff;border:1px solid rgba(255,255,255,0.2);
+                    border-radius:10px;padding:7px 13px;font-size:13px;font-weight:700;
+                    cursor:pointer;backdrop-filter:blur(8px);font-family:inherit;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.4);">🏠 主菜单</button>
             </div>
 
             <!-- 侧边信息面板 -->
@@ -279,6 +286,11 @@
             var h = document.getElementById('hint-text');
             if (h && window.CampusSettings) {
                 h.textContent = CampusSettings.isMobileMode() ? '轻点画布交互' : '按 E 键交互';
+            }
+            // 手机端显示返回主菜单按钮
+            var backBtn = document.getElementById('mobile-back-to-menu');
+            if (backBtn && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                backBtn.style.display = 'block';
             }
         });
     </script>

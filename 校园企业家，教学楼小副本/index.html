@@ -6280,11 +6280,9 @@
                 
                 return;
             }
-            
-            // 使用新的步行动画系统
-            updateWalkAnimation(deltaTime);
+            // updateWalkAnimation 已在 moveSoldier 里调用，此处不重复调用
         }
-        
+
         // 添加滑铲功能
         function startSlide() {
             // 飞行模式下跳过冷却和状态检查
@@ -6717,13 +6715,12 @@
         function updateWalkAnimation(deltaTime) {
             if (!soldier) return;
             
-            // 如果不在移动或者walkSpeed接近0，立即重置到军事化标准姿势
-            if (!isWalking || walkSpeed <= 0.01) {
+            // 如果不在移动，立即重置到待机姿势
+            if (!isWalking) {
                 // 强制停止所有走路动画
                 walkSpeed = 0;
                 walkCycle = 0;
-                targetWalkSpeed = 0;
-                
+
                 // 立即重置到军事化标准姿势
                 resetWalkAnimation();
                 
@@ -7188,14 +7185,14 @@
             // 更新VRM物理（弹簧骨骼等）
             if (window._gameVrm) window._gameVrm.update(deltaTime);
 
-            // 更新VRM骨骼姿势（所有VRM模型通用，需在vrm.update()之后调用）
-            if (_isVrm) _updateVrmPose();
-
-            // 移动士兵
+            // 移动士兵（先算walkSpeed，再驱动骨骼）
             moveSoldier(deltaTime);
 
             // 更新第一人称肢体动画
             updateFPLimbs(deltaTime);
+
+            // 更新VRM骨骼姿势（必须在moveSoldier后，才能读到当前帧walkSpeed）
+            if (_isVrm) _updateVrmPose();
 
             // 渲染场景
             renderer.render(scene, camera);
@@ -7205,8 +7202,11 @@
         // 直接遍历soldier场景收集所有同名骨骼节点（解决多SkinnedMesh克隆污染soldierBones字典的问题）
         let _vrmBonesResolved = false;
         let _vrmBoneMap = {}; // name.toLowerCase() → [Object3D, ...]
+        let _vrmBoneRestRot = {}; // 骨骼静止旋转（用于猫耳相对动画）
         function _collectVrmBones() {
             _vrmBoneMap = {};
+            // restRot 只在第一次采集（骨骼处于初始 bind-pose，尚未被动画修改）
+            const isFirstCollect = Object.keys(_vrmBoneRestRot).length === 0;
             if (!soldier) return;
             const seen = new Set();
             function _addBone(obj) {
@@ -7224,6 +7224,16 @@
                     obj.skeleton.bones.forEach(b => _addBone(b));
                 }
             });
+            // 只在第一次采集时记录猫耳骨骼的静止旋转（确保 bind-pose 原始值）
+            if (isFirstCollect) {
+                ['j_opt_l_catear1_01','j_opt_l_catear2_01','j_opt_r_catear1_01','j_opt_r_catear2_01'].forEach(k => {
+                    const arr = _vrmBoneMap[k];
+                    if (arr && arr[0]) {
+                        _vrmBoneRestRot[k] = { x: arr[0].rotation.x, y: arr[0].rotation.y, z: arr[0].rotation.z };
+                        console.log('🐱 猫耳restRot ' + k + ':', JSON.stringify(_vrmBoneRestRot[k]));
+                    }
+                });
+            }
             const lCnt = (_vrmBoneMap['j_bip_l_upperarm'] || []).length;
             const rCnt = (_vrmBoneMap['j_bip_r_upperarm'] || []).length;
             console.log('🦴 VRM骨骼收集完毕: L_UpperArm×' + lCnt + ' R_UpperArm×' + rCnt);
@@ -7237,6 +7247,17 @@
                 b.rotation.x += (rx - b.rotation.x) * alpha;
                 b.rotation.y += (ry - b.rotation.y) * alpha;
                 b.rotation.z += (rz - b.rotation.z) * alpha;
+            }
+        }
+        // 猫耳专用：在静止旋转基础上叠加Z轴delta，保持XY（耳朵朝向）不变
+        function _animEar(nameKey, dz, alpha) {
+            const arr = _vrmBoneMap[nameKey];
+            const rest = _vrmBoneRestRot[nameKey];
+            if (!arr || !rest) return;
+            for (const b of arr) {
+                b.rotation.x += (rest.x - b.rotation.x) * alpha;
+                b.rotation.y += (rest.y - b.rotation.y) * alpha;
+                b.rotation.z += (rest.z + dz - b.rotation.z) * alpha;
             }
         }
         // ══ 通用VRM骨骼姿势驱动（适用于所有VRM模型） ══
@@ -7279,12 +7300,12 @@
                     _animBones('j_bip_c_spine',      lean + swing * 0.08, 0, -hipSway * 0.5, al);
                     _animBones('j_bip_c_chest',      lean * 0.6 + swing * 0.05, 0, 0,        al);
                     _animBones('j_bip_c_upperchest', lean * 0.4 + swing * 0.03, 0, 0,        al);
-                    // 猫耳随步伐弹跳（仅Z轴，不改变朝向）
+                    // 猫耳随步伐弹跳（仅Z轴delta叠加到静止朝向，不改变耳朵方向）
                     const earB = Math.sin(cycle * 2) * 0.03 * spd01;
-                    _animBones('j_opt_l_catear1_01', 0, 0,  earB,      0.15);
-                    _animBones('j_opt_l_catear2_01', 0, 0,  earB * 0.6,0.15);
-                    _animBones('j_opt_r_catear1_01', 0, 0, -earB,      0.15);
-                    _animBones('j_opt_r_catear2_01', 0, 0, -earB * 0.6,0.15);
+                    _animEar('j_opt_l_catear1_01',  earB,       0.15);
+                    _animEar('j_opt_l_catear2_01',  earB * 0.6, 0.15);
+                    _animEar('j_opt_r_catear1_01', -earB,       0.15);
+                    _animEar('j_opt_r_catear2_01', -earB * 0.6, 0.15);
                 } else {
                     // 待机：与humanoid API坐标系相同
                     const breath    = Math.sin(it * 2.1) * 0.055;
@@ -7309,12 +7330,12 @@
                     _animBones('j_bip_c_upperchest',0.03 + breath * 0.4, 0, weight * 0.25, al);
                     _animBones('j_bip_c_spine',     spineLean, 0, weight * 0.55, al);
                     _animBones('j_bip_c_hips',      0, 0, -weight * 0.28, al);
-                    // 猫耳：仅Z轴微小抖动，不改变耳朵朝向（头转动时耳朵自动随head骨骼联动）
+                    // 猫耳：仅Z轴delta叠加到静止朝向，保持耳朵原始角度
                     const earF = Math.sin(it * 3.8) * 0.015 + Math.sin(it * 6.2 + 1.1) * 0.008;
-                    _animBones('j_opt_l_catear1_01', 0, 0,  earF,       0.08);
-                    _animBones('j_opt_l_catear2_01', 0, 0,  earF * 0.7, 0.08);
-                    _animBones('j_opt_r_catear1_01', 0, 0, -earF,       0.08);
-                    _animBones('j_opt_r_catear2_01', 0, 0, -earF * 0.7, 0.08);
+                    _animEar('j_opt_l_catear1_01',  earF,       0.08);
+                    _animEar('j_opt_l_catear2_01',  earF * 0.7, 0.08);
+                    _animEar('j_opt_r_catear1_01', -earF,       0.08);
+                    _animEar('j_opt_r_catear2_01', -earF * 0.7, 0.08);
                 }
                 return;
             }
