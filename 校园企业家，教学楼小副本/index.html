@@ -1689,7 +1689,8 @@
                 // 按Q键触发滑铲
                 if (e.key.toLowerCase() === 'q' && !isSliding) {
                     // 在飞行模式下允许随时滑铲，无视冷却时间和地面限制
-                    if (isFlying || (slideCooldown <= 0 && soldier.position.y <= GROUND_LEVEL)) {
+                    // 地面检测加容差0.15，避免角色站立时y略大于0导致无法触发
+                    if (isFlying || (slideCooldown <= 0 && !isJumping && soldier.position.y <= GROUND_LEVEL + 0.15)) {
                         startSlide();
                     }
                 }
@@ -6299,15 +6300,7 @@
                 fadeToAction(jumpAction, 0.1);
             }
             
-            // 调整角色姿势 - 使其进入滑铲状态
-            if (!isFirstPerson) {
-                // 在第三人称模式下，修改角色姿势
-                // 将角色降低到接近地面的高度，模拟滑铲姿势
-                soldier.position.y = GROUND_LEVEL + 0.1; // 几乎贴地
-                
-                // 确保角色保持水平，不要倾斜
-                soldier.rotation.x = -Math.PI / 2; // 完全平躺，面朝上
-            }
+            // 姿势完全由VRM骨骼动画(_updateVrmPose)驱动，无需旋转根节点
             
             console.log("开始滑铲" + (isFlying ? " (飞行中)" : ""));
         }
@@ -6376,13 +6369,7 @@
                 slideCooldown = 0;
             }
             
-            // 恢复角色的正常姿势和高度
-            if (!isFirstPerson) {
-                soldier.rotation.x = 0;
-                // 恢复到当前地板高度（支持多层楼）
-                const gc = checkGroundCollision();
-                soldier.position.y = gc.groundY;
-            }
+            // 骨骼动画由_updateVrmPose自动过渡回跑步/待机姿势
             
             // 恢复正常动画
             if (moveDirection.length() > 0) {
@@ -7287,37 +7274,35 @@
 
                 // ══ 滑铲骨骼动画（参考三角洲红狼）══
                 if (isSliding) {
-                    const sal = 0.45; // 快速进入滑铲姿势
-                    // 身体大幅前倾：骨盆→脊椎→胸腔依次递增，形成流畅的弧线
-                    _animBones('j_bip_c_hips',       0.42, 0,  0.08, sal);
-                    _animBones('j_bip_c_spine',       0.70, 0,  0.00, sal);
-                    _animBones('j_bip_c_chest',       0.58, 0,  0.00, sal);
-                    _animBones('j_bip_c_upperchest',  0.44, 0,  0.00, sal);
-                    // 颈/头大幅上仰，抵消身体前倾，保持视线朝前
-                    _animBones('j_bip_c_neck', -0.44, 0, 0, sal);
-                    _animBones('j_bip_c_head', -0.34, 0, 0, sal);
+                    const sal = 0.42; // 快速进入姿势
+                    // 身体前倾约28°（自然滑铲弧线）
+                    _animBones('j_bip_c_hips',       0.38, 0,  0.06, sal);
+                    _animBones('j_bip_c_spine',       0.52, 0,  0.00, sal);
+                    _animBones('j_bip_c_chest',       0.42, 0,  0.00, sal);
+                    _animBones('j_bip_c_upperchest',  0.30, 0,  0.00, sal);
+                    // 颈头上仰，保持视线向前
+                    _animBones('j_bip_c_neck', -0.38, 0, 0, sal);
+                    _animBones('j_bip_c_head', -0.28, 0, 0, sal);
 
-                    // 前腿（左）：向前伸直，是滑铲的支撑腿
-                    // rx正值=大腿向前 lowerleg小弯曲保持脚跟接近地面
-                    _animBones('j_bip_l_upperleg',  0.82, 0, +0.06, sal);
-                    _animBones('j_bip_l_lowerleg',  0.18, 0,  0.00, sal);
-                    // 后腿（右）：折叠收在身体右侧后方（rx负值=大腿向后）
-                    _animBones('j_bip_r_upperleg', -0.52, 0, -0.08, sal);
-                    _animBones('j_bip_r_lowerleg',  1.48, 0,  0.00, sal); // 膝盖深弯
+                    // 前腿（左）：向前伸出，膝盖微弯
+                    _animBones('j_bip_l_upperleg',  0.70, 0, +0.05, sal);
+                    _animBones('j_bip_l_lowerleg',  0.14, 0,  0.00, sal);
+                    // 后腿（右）：折叠蹬地，膝盖向后收
+                    _animBones('j_bip_r_upperleg', -0.48, 0, -0.07, sal);
+                    _animBones('j_bip_r_lowerleg',  1.25, 0,  0.00, sal);
 
-                    // 手臂：双臂伸向前方偏低，维持平衡（参考红狼动作）
-                    // rz控制肘部高度：-0.50≈肘在腰侧，rx向前伸
-                    _animBones('j_bip_l_upperarm',  0.40, 0, -0.52, sal);
-                    _animBones('j_bip_r_upperarm',  0.40, 0, +0.52, sal);
-                    _animBones('j_bip_l_lowerarm',  0.55, 0, -0.22, sal);
-                    _animBones('j_bip_r_lowerarm',  0.55, 0, +0.22, sal);
+                    // 双臂向前偏低伸出（rz=-0.65≈肘在腰部高度）
+                    _animBones('j_bip_l_upperarm',  0.35, 0, -0.65, sal);
+                    _animBones('j_bip_l_lowerarm',  0.50, 0, -0.18, sal);
+                    _animBones('j_bip_r_upperarm',  0.35, 0, +0.65, sal);
+                    _animBones('j_bip_r_lowerarm',  0.50, 0, +0.18, sal);
 
-                    // 猫耳：受风压向后压
+                    // 猫耳受风压向后压
                     _animEar('j_opt_l_catear1_01', -0.18, 0.22);
                     _animEar('j_opt_l_catear2_01', -0.12, 0.22);
                     _animEar('j_opt_r_catear1_01',  0.18, 0.22);
                     _animEar('j_opt_r_catear2_01',  0.12, 0.22);
-                    return; // 滑铲时跳过跑步/待机动画
+                    return; // 跳过跑步/待机
                 }
 
                 if (spd > 0.04) {
@@ -7341,8 +7326,11 @@
                     // 前摆(swing+)→rz=-0.30（肘抬高到腰侧）
                     // 后摆(swing-)→rz=-1.14（肘垂向大腿旁）
                     // 范围收窄且整体下移，手臂更贴身，像真实跑者
+                    // lArmRZ: 左臂前摆(swing+)时rz变小(肘抬高)，后摆时rz变大(肘降低)
+                    // rArmRZ: 右臂前摆对应swing为负，所以符号与左臂相同方向
+                    //         即swing+时右臂后摆→rz应更大(肘低)→+0.72+swing*0.42
                     const lArmRZ = -0.72 + swing * 0.42;   // 范围: -1.14 ~ -0.30
-                    const rArmRZ =  0.72 - swing * 0.42;
+                    const rArmRZ = +0.72 + swing * 0.42;   // 范围: +0.30 ~ +1.14（修正符号）
                     _animBones('j_bip_l_upperarm',  swing * 0.55, 0, lArmRZ, al);
                     _animBones('j_bip_r_upperarm', -swing * 0.55, 0, rArmRZ, al);
 
@@ -7442,22 +7430,19 @@
 
             // ══ 滑铲骨骼动画（humanoid API路径）══
             if (isSliding) {
-                if (hips)  { bl(hips,  0.42, 0,  0.08); }
-                if (spine) { bl(spine, 0.70, 0,  0.00); }
-                if (chest) { bl(chest, 0.58, 0,  0.00); }
-                if (neck)  { bl(neck, -0.44, 0,  0.00); }
-                if (head)  { bl(head, -0.34, 0,  0.00); }
-                // 前腿（左）伸直
-                if (lLeg)  { bl(lLeg,   0.82, 0, +0.06); }
-                if (lKnee) { bl(lKnee,  0.18, 0,  0.00); }
-                // 后腿（右）折叠
-                if (rLeg)  { bl(rLeg,  -0.52, 0, -0.08); }
-                if (rKnee) { bl(rKnee,  1.48, 0,  0.00); }
-                // 手臂前伸
-                if (lArm)  { bl(lArm,   0.40, 0, -0.52); }
-                if (rArm)  { bl(rArm,   0.40, 0, +0.52); }
-                if (lFa)   { bl(lFa,    0.55, 0, -0.22); }
-                if (rFa)   { bl(rFa,    0.55, 0, +0.22); }
+                if (hips)  { bl(hips,  0.38, 0,  0.06); }
+                if (spine) { bl(spine, 0.52, 0,  0.00); }
+                if (chest) { bl(chest, 0.42, 0,  0.00); }
+                if (neck)  { bl(neck, -0.38, 0,  0.00); }
+                if (head)  { bl(head, -0.28, 0,  0.00); }
+                if (lLeg)  { bl(lLeg,   0.70, 0, +0.05); }
+                if (lKnee) { bl(lKnee,  0.14, 0,  0.00); }
+                if (rLeg)  { bl(rLeg,  -0.48, 0, -0.07); }
+                if (rKnee) { bl(rKnee,  1.25, 0,  0.00); }
+                if (lArm)  { bl(lArm,   0.35, 0, -0.65); }
+                if (rArm)  { bl(rArm,   0.35, 0, +0.65); }
+                if (lFa)   { bl(lFa,    0.50, 0, -0.18); }
+                if (rFa)   { bl(rFa,    0.50, 0, +0.18); }
                 return;
             }
 
@@ -7469,7 +7454,7 @@
 
                 // 大臂：rz振荡控制肘高，前臂保持90°
                 const lArmRZ2 = -0.72 + swing * 0.42;
-                const rArmRZ2 =  0.72 - swing * 0.42;
+                const rArmRZ2 = +0.72 + swing * 0.42;  // 修正：右臂rz与左臂同相
                 bl(lArm,  swing * 0.55, 0, lArmRZ2);
                 bl(rArm, -swing * 0.55, 0, rArmRZ2);
                 // 小臂：恒定约90°弯曲，±0.12微变
