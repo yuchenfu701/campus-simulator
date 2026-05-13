@@ -7331,62 +7331,52 @@
                 }
 
                 if (spd > 0.04) {
-                    // ══ 跑步骨骼动画 v5 ══
-                    // 核心修正：
-                    //   1. alpha 加到 0.40 → 动作更利落不滞后
-                    //   2. 前臂保持恒定90°弯曲（±0.12），不再0.67~1.93乱晃
-                    //   3. 大臂rz范围下移：-1.14~-0.30（肘贴近身体侧面）
-                    //   4. 前倾加大至0.30（更像真实冲刺姿态）
-                    //   5. 肩部幅度减小（0.08），避免蹩扭感
+                    // ══ 跑步骨骼动画 v6（基于真实生物力学数据）══
+                    // 参考：运动生物力学研究 + 主流游戏动画规范
+                    //   大臂前后：±35-40°(0.61-0.70 rad)  大臂高度变化：仅±10°(0.17 rad)
+                    //   肘弯：恒定90°  大腿摆幅：±50-55°(0.87-0.96 rad)  前倾：10°
                     const spd01  = Math.min(spd, 1.0);
-                    const amp    = Math.min(spd * 1.2, 1.2);
+                    const amp    = Math.min(spd * 0.90, 0.90); // 控制最大摆幅
                     const swing  = Math.sin(cycle) * amp;
                     const swing2 = Math.sin(cycle * 2) * amp;
 
-                    // ── 肩部：轻微跟随（幅度减半，不再蹩扭）──
-                    _animBones('j_bip_l_shoulder',  swing * 0.08, 0, -0.08, al);
-                    _animBones('j_bip_r_shoulder', -swing * 0.08, 0, +0.08, al);
+                    // ── 肩部：极微幅跟随 ──
+                    _animBones('j_bip_l_shoulder',  swing * 0.04, 0, -0.04, al);
+                    _animBones('j_bip_r_shoulder', -swing * 0.04, 0, +0.04, al);
 
-                    // ── 大臂：rz振荡控制肘部可见高度 ──
-                    // 前摆(swing+)→rz=-0.30（肘抬高到腰侧）
-                    // 后摆(swing-)→rz=-1.14（肘垂向大腿旁）
-                    // 范围收窄且整体下移，手臂更贴身，像真实跑者
-                    // lArmRZ: 左臂前摆(swing+)时rz变小(肘抬高)，后摆时rz变大(肘降低)
-                    // rArmRZ: 右臂前摆对应swing为负，所以符号与左臂相同方向
-                    //         即swing+时右臂后摆→rz应更大(肘低)→+0.72+swing*0.42
-                    const lArmRZ = -0.72 + swing * 0.42;   // 范围: -1.14 ~ -0.30
-                    const rArmRZ = +0.72 + swing * 0.42;   // 范围: +0.30 ~ +1.14（修正符号）
-                    _animBones('j_bip_l_upperarm',  swing * 0.55, 0, lArmRZ, al);
-                    _animBones('j_bip_r_upperarm', -swing * 0.55, 0, rArmRZ, al);
+                    // ── 大臂：前后摆动±38°(rx=0.66) + rz仅±11°高度微变 ──
+                    // rz基线-0.88（接近自然垂下-1.0），振幅0.20（总±11°），手臂贴身不乱甩
+                    const lArmRZ = -0.88 + swing * 0.20;   // 范围: -1.08 ~ -0.68
+                    const rArmRZ = +0.88 + swing * 0.20;   // 范围: +0.68 ~ +1.08
+                    _animBones('j_bip_l_upperarm',  swing * 0.65, 0, lArmRZ, al);
+                    _animBones('j_bip_r_upperarm', -swing * 0.65, 0, rArmRZ, al);
 
-                    // ── 小臂：恒定约90°弯曲（跑步标志性动作）──
-                    // 仅±0.12微变，前臂始终向前握拳姿态，不再软塌乱晃
-                    const lElbow = 1.45 - swing * 0.12;   // 范围: 1.33~1.57 (76°~90°)
-                    const rElbow = 1.45 + swing * 0.12;
-                    _animBones('j_bip_l_lowerarm', lElbow, 0, -0.30, al);
-                    _animBones('j_bip_r_lowerarm', rElbow, 0, +0.30, al);
+                    // ── 小臂：完全恒定90°弯曲 ──
+                    _animBones('j_bip_l_lowerarm', 1.55, 0, -0.20, al);
+                    _animBones('j_bip_r_lowerarm', 1.55, 0, +0.20, al);
 
-                    // ── 腿：高抬膝 + 有力蹬地 ──
-                    _animBones('j_bip_l_upperleg',  swing * 1.30, 0, +0.05, al);
-                    _animBones('j_bip_r_upperleg', -swing * 1.30, 0, -0.05, al);
-                    _animBones('j_bip_l_lowerleg', Math.max(0, -swing) * 1.70, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', Math.max(0,  swing) * 1.70, 0, 0, al);
+                    // ── 腿：大腿±48°(swing*0.75) + 膝盖后摆弯曲 ──
+                    // 之前swing*1.30最大幅度达±89°，严重超出真实范围(±55°)
+                    _animBones('j_bip_l_upperleg',  swing * 0.75, 0, +0.04, al);
+                    _animBones('j_bip_r_upperleg', -swing * 0.75, 0, -0.04, al);
+                    _animBones('j_bip_l_lowerleg', Math.max(0, -swing) * 1.55, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', Math.max(0,  swing) * 1.55, 0, 0, al);
 
-                    // ── 躯干：加大前倾(~17°) + 骨盆扭转 ──
-                    const lean    = spd01 * 0.30;
-                    const hipRotY = swing * 0.10;
-                    const hipSway = swing2 * 0.055 * spd01;
-                    _animBones('j_bip_c_hips',       lean * 0.2,  hipRotY,           hipSway,          al);
-                    _animBones('j_bip_c_spine',       lean * 0.85 + swing * 0.05, -hipRotY * 0.60, -hipSway * 0.5, al);
-                    _animBones('j_bip_c_chest',       lean * 0.65 + swing * 0.03, -hipRotY * 0.30, 0, al);
-                    _animBones('j_bip_c_upperchest',  lean * 0.45,                -hipRotY * 0.12, 0, al);
+                    // ── 躯干：前倾仅10°(0.18 rad) + 轻微骨盆扭转 ──
+                    const lean    = spd01 * 0.18;
+                    const hipRotY = swing * 0.07;
+                    const hipSway = swing2 * 0.035 * spd01;
+                    _animBones('j_bip_c_hips',       lean * 0.2,  hipRotY,          hipSway,          al);
+                    _animBones('j_bip_c_spine',       lean * 0.8, -hipRotY * 0.55, -hipSway * 0.5,    al);
+                    _animBones('j_bip_c_chest',       lean * 0.6, -hipRotY * 0.25,  0,                al);
+                    _animBones('j_bip_c_upperchest',  lean * 0.4, -hipRotY * 0.10,  0,                al);
 
-                    // ── 头/颈：保持前视，微抗前倾 ──
-                    _animBones('j_bip_c_neck', -lean * 0.30, hipRotY * 0.10, 0, al);
-                    _animBones('j_bip_c_head', -lean * 0.20, 0, 0, al);
+                    // ── 头/颈：稳定前视 ──
+                    _animBones('j_bip_c_neck', -lean * 0.20, hipRotY * 0.08, 0, al);
+                    _animBones('j_bip_c_head', -lean * 0.15, 0, 0, al);
 
-                    // 猫耳随步伐弹跳
-                    const earB = Math.sin(cycle * 2) * 0.12 * spd01;
+                    // 猫耳随步伐弹跳（无猫耳模型自动跳过）
+                    const earB = Math.sin(cycle * 2) * 0.10 * spd01;
                     _animEar('j_opt_l_catear1_01',  earB,       0.20);
                     _animEar('j_opt_l_catear2_01',  earB * 0.6, 0.20);
                     _animEar('j_opt_r_catear1_01', -earB,       0.20);
@@ -7472,39 +7462,38 @@
             }
 
             if (spd > 0.04) {
-                // ══ 奔跑动画（三角洲行动军事跑姿）══
-                const spd01 = Math.min(spd, 1.0);
-                const amp   = Math.min(spd * 1.3, 1.5);
-                const swing = Math.sin(cycle) * amp;
+                // ══ 奔跑动画 v6（基于真实生物力学数据）══
+                const spd01  = Math.min(spd, 1.0);
+                const amp    = Math.min(spd * 0.90, 0.90);
+                const swing  = Math.sin(cycle) * amp;
+                const swing2 = Math.sin(cycle * 2) * amp;
 
-                // 大臂：rz振荡控制肘高，前臂保持90°
-                const lArmRZ2 = -0.72 + swing * 0.42;
-                const rArmRZ2 = +0.72 + swing * 0.42;  // 修正：右臂rz与左臂同相
-                bl(lArm,  swing * 0.55, 0, lArmRZ2);
-                bl(rArm, -swing * 0.55, 0, rArmRZ2);
-                // 小臂：恒定约90°弯曲，±0.12微变
-                const lElbow2 = 1.45 - swing * 0.12;
-                const rElbow2 = 1.45 + swing * 0.12;
-                bl(lFa, lElbow2, 0, -0.30);
-                bl(rFa, rElbow2, 0,  0.30);
+                // 大臂：前后±38°(rx=0.65) + rz仅±11°高度微变，手臂贴身不乱甩
+                const lArmRZ2 = -0.88 + swing * 0.20;   // 范围: -1.08 ~ -0.68
+                const rArmRZ2 = +0.88 + swing * 0.20;   // 范围: +0.68 ~ +1.08
+                bl(lArm,  swing * 0.65, 0, lArmRZ2);
+                bl(rArm, -swing * 0.65, 0, rArmRZ2);
+                // 小臂：完全恒定90°弯曲
+                bl(lFa, 1.55, 0, -0.20);
+                bl(rFa, 1.55, 0,  0.20);
 
-                // 腿部：大步跨越，高抬膝盖
-                bl(lLeg,  swing * 1.1, 0,  0.04);
-                bl(rLeg, -swing * 1.1, 0, -0.04);
-                // 小腿：蹬出时弯曲（跑步蹬地）
-                bl(lKnee, Math.max(0, -swing) * 1.3, 0, 0);
-                bl(rKnee, Math.max(0,  swing) * 1.3, 0, 0);
+                // 腿部：大腿±48°(swing*0.75) + 膝盖后摆弯曲
+                bl(lLeg,  swing * 0.75, 0,  0.04);
+                bl(rLeg, -swing * 0.75, 0, -0.04);
+                bl(lKnee, Math.max(0, -swing) * 1.55, 0, 0);
+                bl(rKnee, Math.max(0,  swing) * 1.55, 0, 0);
 
-                // 头部：保持基本朝前，轻微随身体扭动
-                bl(head, 0, 0, 0);
-                bl(neck, 0, 0, 0);
+                // 躯干：前倾仅10°(0.18 rad) + 轻微骨盆扭转
+                const lean2    = spd01 * 0.18;
+                const hipRotY2 = swing * 0.07;
+                const hipSway2 = swing2 * 0.035 * spd01;
+                bl(hips,  lean2 * 0.2,  hipRotY2,           hipSway2);
+                bl(spine, lean2 * 0.8, -hipRotY2 * 0.55,   -hipSway2 * 0.5);
+                bl(chest, lean2 * 0.5, -hipRotY2 * 0.18,    0);
 
-                // 躯干：加大前倾 + 步伐扭动
-                const hipSway2 = Math.sin(cycle * 2) * 0.055 * spd01;
-                const lean2    = spd01 * 0.30;
-                bl(hips,  lean2 * 0.2, swing * 0.10, hipSway2);
-                bl(spine, lean2 * 0.85 + swing * 0.05, -swing * 0.06, -hipSway2 * 0.5);
-                bl(chest, lean2 * 0.65 + swing * 0.03, -swing * 0.03, 0);
+                // 头/颈：稳定前视
+                bl(neck, -lean2 * 0.20, hipRotY2 * 0.08, 0);
+                bl(head, -lean2 * 0.15, 0, 0);
 
             } else {
                 // ══ 待机动画（与主菜单完全相同的多骨骼富动画）══
