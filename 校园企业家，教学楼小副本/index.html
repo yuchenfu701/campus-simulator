@@ -7367,14 +7367,14 @@
                     _animBones('j_bip_l_lowerarm', 1.57, 0, -0.20, al);
                     _animBones('j_bip_r_lowerarm', 1.57, 0, +0.20, al);
 
-                    // ── 大腿：交叉步态（左臂前→右腿前），前42°后28° ──
-                    const legOff = spd01 * 0.12;  // 轻微前倾偏移（随速度淡入）
-                    _animBones('j_bip_l_upperleg', legOff - swing * 0.68, 0, +0.04, al); // 左腿后when swing>0
-                    _animBones('j_bip_r_upperleg', legOff + swing * 0.68, 0, -0.04, al); // 右腿前when swing>0
+                    // ── 大腿：交叉步态，加大步幅前≈51°后≈37° ──
+                    const legOff = spd01 * 0.12;
+                    _animBones('j_bip_l_upperleg', legOff - swing * 0.88, 0, +0.04, al);
+                    _animBones('j_bip_r_upperleg', legOff + swing * 0.88, 0, -0.04, al);
 
-                    // ── 小腿：后摆时折叠至89°，前摆时伸展至22° ──
-                    _animBones('j_bip_l_lowerleg', 0.38 + Math.max(0,  swing) * 1.30, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', 0.38 + Math.max(0, -swing) * 1.30, 0, 0, al);
+                    // ── 小腿：后摆折叠至100°，前摆伸展至22° ──
+                    _animBones('j_bip_l_lowerleg', 0.38 + Math.max(0,  swing) * 1.50, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', 0.38 + Math.max(0, -swing) * 1.50, 0, 0, al);
 
                     // ── 脚踝：蹬地跖屈，摆动背屈 ──
                     const lFtRX = spd01 * (-Math.max(0,  swing) * 0.40 + Math.max(0, -swing) * 0.18);
@@ -7382,8 +7382,8 @@
                     _animBones('j_bip_l_foot', lFtRX, 0, 0, al);
                     _animBones('j_bip_r_foot', rFtRX, 0, 0, al);
 
-                    // ── 躯干：前倾8°(0.14rad) + 轻微骨盆扭转 ──
-                    const lean    = spd01 * 0.14;
+                    // ── 躯干：前倾4°(0.06rad) + 轻微骨盆扭转（之前0.14太大导致整体前倾）──
+                    const lean    = spd01 * 0.06;
                     const hipRotY = swing * 0.06;
                     const hipSway = swing2 * 0.028 * spd01;
                     _animBones('j_bip_c_hips',       lean * 0.2,  hipRotY,          hipSway,          al);
@@ -7501,21 +7501,21 @@
                 bl(lFa, 1.57, 0, -0.20);
                 bl(rFa, 1.57, 0, +0.20);
 
-                // 大腿：交叉步态（前42°后-28°）
+                // 大腿：交叉步态，加大步幅（前≈51°后≈37°）
                 const legOff2 = spd01 * 0.12;
-                bl(lLeg, legOff2 - swing * 0.68, 0,  0.04);
-                bl(rLeg, legOff2 + swing * 0.68, 0, -0.04);
-                // 小腿：折叠至89°
-                bl(lKnee, 0.38 + Math.max(0,  swing) * 1.30, 0, 0);
-                bl(rKnee, 0.38 + Math.max(0, -swing) * 1.30, 0, 0);
+                bl(lLeg, legOff2 - swing * 0.88, 0,  0.04);
+                bl(rLeg, legOff2 + swing * 0.88, 0, -0.04);
+                // 小腿：折叠至100°
+                bl(lKnee, 0.38 + Math.max(0,  swing) * 1.50, 0, 0);
+                bl(rKnee, 0.38 + Math.max(0, -swing) * 1.50, 0, 0);
                 // 脚踝
                 const lFt2 = spd01 * (-Math.max(0,  swing) * 0.40 + Math.max(0, -swing) * 0.18);
                 const rFt2 = spd01 * (-Math.max(0, -swing) * 0.40 + Math.max(0,  swing) * 0.18);
                 bl(lFoot, lFt2, 0, 0);
                 bl(rFoot, rFt2, 0, 0);
 
-                // 躯干：前倾8° + 骨盆扭转
-                const lean2    = spd01 * 0.14;
+                // 躯干：前倾4°（减少前倾）+ 骨盆扭转
+                const lean2    = spd01 * 0.06;
                 const hipRotY2 = swing * 0.06;
                 const hipSway2 = swing2 * 0.028 * spd01;
                 bl(hips,  lean2 * 0.2,  hipRotY2,           hipSway2);
