@@ -1191,6 +1191,9 @@ function reloadCharacter(){
     // 清除现有角色
     if(vrm){ scene.remove(vrm.scene); vrm=null; }
     if(proceduralChar){ scene.remove(proceduralChar); proceduralChar=null; }
+    // 切换模型时重置猫耳缓存，避免从猫耳模型切换到无猫耳模型后状态残留
+    _catEarL1=null; _catEarL2=null; _catEarR1=null; _catEarR2=null;
+    _catEarFound=false; _catEarRestZ={l1:null,l2:null,r1:null,r2:null};
     window._vrmMode = false;
     const skinRowEl = document.getElementById('skinRow');
     const vrmFile = localStorage.getItem('equipped_vrm_file');
