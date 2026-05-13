@@ -266,9 +266,9 @@
         const CELL_SIZE = 4;
         const WALL_HEIGHT = 5;
         const SOLDIER_SPEED = 4.0;
-        const SOLDIER_RADIUS = 0.3;
+        const SOLDIER_RADIUS = 0.22;
         const MIN_PATH_LENGTH = 5;  // 最小路径长度：5步（超小迷宫，快速通关）
-        const FIRST_PERSON_HEIGHT = 1.0;  // 第一人称相机高度
+        let FIRST_PERSON_HEIGHT = 1.0;  // 第一人称相机高度（VRM 2x时会覆盖为1.8）
         const THIRD_PERSON_DISTANCE = 1.8;
         const THIRD_PERSON_HEIGHT = 1.4;
         const CAMERA_LERP = 0.2;
@@ -5366,9 +5366,7 @@
             const totalWidth = cols * deskWidth + (cols - 1) * aisleWidth;
             const startX = -totalWidth / 2 + deskWidth / 2;
             const startZ = -(roomDepth / 2) + 8;  // 往后移到8米（原来是6米）
-            
-            // 清空椅子数组
-            nearbyChairs = [];
+            // 注意：不在此处重置nearbyChairs（全局已在buildScene前统一重置，此处重置会清空其他教室的椅子）
             
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < cols; col++) {
@@ -5436,9 +5434,18 @@
                         new THREE.MeshLambertMaterial({ color: 0x5a8fc2 })
                     );
                     chairSeat.position.set(x, chairHeight, chairZ);
-                    // 不给椅子添加碰撞箱，避免卡住
                     scene.add(chairSeat);
-                    
+
+                    // 椅子碰撞箱（整体结构从地面到椅背顶）
+                    const chairCollider = new THREE.Mesh(
+                        new THREE.BoxGeometry(chairWidth + 0.06, chairHeight + 0.36, chairDepth + 0.06)
+                    );
+                    chairCollider.position.set(x, (chairHeight + 0.36) / 2, chairZ);
+                    chairCollider.visible = false;
+                    chairCollider.bbox = new THREE.Box3().setFromObject(chairCollider);
+                    walls.push(chairCollider);
+                    scene.add(chairCollider);
+
                     // 保存椅子信息用于坐下功能
                     nearbyChairs.push({
                         position: new THREE.Vector3(x, chairHeight, chairZ),
@@ -5776,13 +5783,16 @@
                     _removeVrmTip();
                     var vrmInner = gltf.scene;
                     vrmInner.rotation.y = Math.PI;
-                    vrmInner.scale.set(1, 1, 1);
+                    vrmInner.scale.set(2, 2, 2);  // 默认VRM模型 2x缩放
                     vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                     var vrmWrapper = new THREE.Group();
                     vrmWrapper.position.set(startX, 0, startZ);
                     vrmWrapper.add(vrmInner);
                     _isVrm = true;
                     _vrmBonesResolved = false;
+                    // VRM 2x 时调高相机到眼部高度
+                    FIRST_PERSON_HEIGHT = 1.8;
+                    normalHeight = FIRST_PERSON_HEIGHT;
                     initializeSoldier(vrmWrapper);
                     // 延迟一帧收集骨骼，确保场景图完全构建
                     setTimeout(_collectVrmBones, 100);
@@ -7331,38 +7341,45 @@
                 }
 
                 if (spd > 0.04) {
-                    // ══ 跑步骨骼动画 v6（基于真实生物力学数据）══
-                    // 参考：运动生物力学研究 + 主流游戏动画规范
-                    //   大臂前后：±35-40°(0.61-0.70 rad)  大臂高度变化：仅±10°(0.17 rad)
-                    //   肘弯：恒定90°  大腿摆幅：±50-55°(0.87-0.96 rad)  前倾：10°
+                    // ══ 跑步骨骼动画 v7（交叉步态 + 真实生物力学）══
+                    // 关键修正：swing>0 = 左臂前摆 → 右腿前摆（交叉步态，之前同侧同相=疯跑）
+                    // 数据：肩关节前+70°后-30°（不对称）；肘恒定90°；
+                    //       大腿前60°后-17°；膝最大折叠100°；踝蹬地-25°摆动+10°
                     const spd01  = Math.min(spd, 1.0);
-                    const amp    = Math.min(spd * 0.90, 0.90); // 控制最大摆幅
-                    const swing  = Math.sin(cycle) * amp;
+                    const amp    = Math.min(spd * 0.90, 0.90);
+                    const swing  = Math.sin(cycle) * amp;      // swing>0: 左臂前摆相位
                     const swing2 = Math.sin(cycle * 2) * amp;
 
-                    // ── 肩部：极微幅跟随 ──
-                    _animBones('j_bip_l_shoulder',  swing * 0.04, 0, -0.04, al);
-                    _animBones('j_bip_r_shoulder', -swing * 0.04, 0, +0.04, al);
+                    // ── 肩部：微幅跟随 ──
+                    _animBones('j_bip_l_shoulder',  swing * 0.03, 0, -0.04, al);
+                    _animBones('j_bip_r_shoulder', -swing * 0.03, 0, +0.04, al);
 
-                    // ── 大臂：前后摆动±38°(rx=0.66) + rz仅±11°高度微变 ──
-                    // rz基线-0.88（接近自然垂下-1.0），振幅0.20（总±11°），手臂贴身不乱甩
-                    const lArmRZ = -0.88 + swing * 0.20;   // 范围: -1.08 ~ -0.68
-                    const rArmRZ = +0.88 + swing * 0.20;   // 范围: +0.68 ~ +1.08
-                    _animBones('j_bip_l_upperarm',  swing * 0.65, 0, lArmRZ, al);
-                    _animBones('j_bip_r_upperarm', -swing * 0.65, 0, rArmRZ, al);
+                    // ── 大臂：不对称摆幅（前+70°≈1.22rad 后-30°≈-0.52rad）偏移量随速度淡入 ──
+                    const lArmRX = spd01 * 0.35 + swing * 0.97;  // +0.90→+1.19rad≈68° -0.90→-0.52rad≈-30°
+                    const rArmRX = spd01 * 0.35 - swing * 0.97;  // 与左臂反相（交叉）
+                    _animBones('j_bip_l_upperarm', lArmRX, 0, -0.85, al);
+                    _animBones('j_bip_r_upperarm', rArmRX, 0, +0.85, al);
 
-                    // ── 小臂：完全恒定90°弯曲 ──
-                    _animBones('j_bip_l_lowerarm', 1.55, 0, -0.20, al);
-                    _animBones('j_bip_r_lowerarm', 1.55, 0, +0.20, al);
+                    // ── 小臂：恒定90°弯曲（π/2=1.571），rz微量保持手肘朝外 ──
+                    _animBones('j_bip_l_lowerarm', 1.57, 0, -0.20, al);
+                    _animBones('j_bip_r_lowerarm', 1.57, 0, +0.20, al);
 
-                    // ── 腿：大腿±48°(swing*0.75) + 膝盖后摆弯曲 ──
-                    // 之前swing*1.30最大幅度达±89°，严重超出真实范围(±55°)
-                    _animBones('j_bip_l_upperleg',  swing * 0.75, 0, +0.04, al);
-                    _animBones('j_bip_r_upperleg', -swing * 0.75, 0, -0.04, al);
-                    _animBones('j_bip_l_lowerleg', Math.max(0, -swing) * 1.55, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', Math.max(0,  swing) * 1.55, 0, 0, al);
+                    // ── 大腿：不对称摆幅（前≈58°后≈-17°）+ 交叉步态（左臂前→右腿前） ──
+                    const legOff = spd01 * 0.40;  // 不对称偏移（随速度淡入，静止时归0）
+                    _animBones('j_bip_l_upperleg', legOff - swing * 0.73, 0, +0.04, al); // 左腿后摆when swing>0
+                    _animBones('j_bip_r_upperleg', legOff + swing * 0.73, 0, -0.04, al); // 右腿前摆when swing>0
 
-                    // ── 躯干：前倾仅10°(0.18 rad) + 轻微骨盆扭转 ──
+                    // ── 小腿：后摆折叠至100°(1.73rad)，前摆伸展至22°(0.38rad)──
+                    _animBones('j_bip_l_lowerleg', 0.38 + Math.max(0,  swing) * 1.50, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', 0.38 + Math.max(0, -swing) * 1.50, 0, 0, al);
+
+                    // ── 脚踝：蹬地跖屈(-25°)，摆动背屈(+10°) ──
+                    const lFtRX = spd01 * (-Math.max(0,  swing) * 0.52 + Math.max(0, -swing) * 0.22);
+                    const rFtRX = spd01 * (-Math.max(0, -swing) * 0.52 + Math.max(0,  swing) * 0.22);
+                    _animBones('j_bip_l_foot', lFtRX, 0, 0, al);
+                    _animBones('j_bip_r_foot', rFtRX, 0, 0, al);
+
+                    // ── 躯干：前倾10°(0.18rad) + 轻微骨盆扭转 ──
                     const lean    = spd01 * 0.18;
                     const hipRotY = swing * 0.07;
                     const hipSway = swing2 * 0.035 * spd01;
@@ -7434,6 +7451,8 @@
             const spine = humanoid.getRawBoneNode('spine');
             const chest = humanoid.getRawBoneNode('upperChest') || humanoid.getRawBoneNode('chest');
             const hips  = humanoid.getRawBoneNode('hips');
+            const lFoot = humanoid.getRawBoneNode('leftFoot');
+            const rFoot = humanoid.getRawBoneNode('rightFoot');
 
             // 线性插值辅助
             function bl(bone, tx, ty, tz) {
@@ -7462,28 +7481,35 @@
             }
 
             if (spd > 0.04) {
-                // ══ 奔跑动画 v6（基于真实生物力学数据）══
+                // ══ 奔跑动画 v7（交叉步态 + 真实生物力学）══
                 const spd01  = Math.min(spd, 1.0);
                 const amp    = Math.min(spd * 0.90, 0.90);
-                const swing  = Math.sin(cycle) * amp;
+                const swing  = Math.sin(cycle) * amp;      // swing>0: 左臂前摆相位
                 const swing2 = Math.sin(cycle * 2) * amp;
 
-                // 大臂：前后±38°(rx=0.65) + rz仅±11°高度微变，手臂贴身不乱甩
-                const lArmRZ2 = -0.88 + swing * 0.20;   // 范围: -1.08 ~ -0.68
-                const rArmRZ2 = +0.88 + swing * 0.20;   // 范围: +0.68 ~ +1.08
-                bl(lArm,  swing * 0.65, 0, lArmRZ2);
-                bl(rArm, -swing * 0.65, 0, rArmRZ2);
-                // 小臂：完全恒定90°弯曲
-                bl(lFa, 1.55, 0, -0.20);
-                bl(rFa, 1.55, 0,  0.20);
+                // 大臂：不对称摆幅（前70°后30°）
+                const lArmRX2 = spd01 * 0.35 + swing * 0.97;
+                const rArmRX2 = spd01 * 0.35 - swing * 0.97;
+                bl(lArm, lArmRX2, 0, -0.85);
+                bl(rArm, rArmRX2, 0, +0.85);
+                // 小臂：恒定90°
+                bl(lFa, 1.57, 0, -0.20);
+                bl(rFa, 1.57, 0, +0.20);
 
-                // 腿部：大腿±48°(swing*0.75) + 膝盖后摆弯曲
-                bl(lLeg,  swing * 0.75, 0,  0.04);
-                bl(rLeg, -swing * 0.75, 0, -0.04);
-                bl(lKnee, Math.max(0, -swing) * 1.55, 0, 0);
-                bl(rKnee, Math.max(0,  swing) * 1.55, 0, 0);
+                // 大腿：不对称摆幅（前58°后-17°）+ 交叉步态
+                const legOff2 = spd01 * 0.40;
+                bl(lLeg, legOff2 - swing * 0.73, 0,  0.04);  // 左腿后摆when swing>0
+                bl(rLeg, legOff2 + swing * 0.73, 0, -0.04);  // 右腿前摆when swing>0
+                // 小腿：折叠至100°，前摆时伸展至22°
+                bl(lKnee, 0.38 + Math.max(0,  swing) * 1.50, 0, 0);
+                bl(rKnee, 0.38 + Math.max(0, -swing) * 1.50, 0, 0);
+                // 脚踝
+                const lFt2 = spd01 * (-Math.max(0,  swing) * 0.52 + Math.max(0, -swing) * 0.22);
+                const rFt2 = spd01 * (-Math.max(0, -swing) * 0.52 + Math.max(0,  swing) * 0.22);
+                bl(lFoot, lFt2, 0, 0);
+                bl(rFoot, rFt2, 0, 0);
 
-                // 躯干：前倾仅10°(0.18 rad) + 轻微骨盆扭转
+                // 躯干：前倾10° + 骨盆扭转
                 const lean2    = spd01 * 0.18;
                 const hipRotY2 = swing * 0.07;
                 const hipSway2 = swing2 * 0.035 * spd01;
