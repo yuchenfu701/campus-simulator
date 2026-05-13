@@ -1187,6 +1187,10 @@ function spawnProcedural(){
     document.querySelectorAll('.skin-btn').forEach((b,i)=>b.classList.toggle('active',i===si));
 }
 
+// 猫耳骨骼缓存（必须在 reloadCharacter 之前声明，避免 TDZ 错误）
+let _catEarL1=null,_catEarL2=null,_catEarR1=null,_catEarR2=null,_catEarFound=false;
+let _catEarRestZ={l1:null,l2:null,r1:null,r2:null};
+
 function reloadCharacter(){
     // 清除现有角色
     if(vrm){ scene.remove(vrm.scene); vrm=null; }
@@ -1280,8 +1284,6 @@ window.refreshPartyChars = function(){
 /* ── 动画 ── */
 let t=0, mx=0, my=0;
 let _idleT=0; // 基于delta的真实时间，用于待机动画频率计算
-let _catEarL1=null,_catEarL2=null,_catEarR1=null,_catEarR2=null,_catEarFound=false;
-let _catEarRestZ={l1:null,l2:null,r1:null,r2:null}; // 初始静止Z旋转
 document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
 (function tick(){
     requestAnimationFrame(tick);
