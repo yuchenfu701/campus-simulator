@@ -7353,11 +7353,15 @@
                     _animBones('j_bip_l_shoulder',  swing * 0.03, 0, -0.04, al);
                     _animBones('j_bip_r_shoulder', -swing * 0.03, 0, +0.04, al);
 
-                    // ── 大臂：游戏级摆幅（前≈33°，后≈-24°），轻微前倾偏移 ──
-                    const lArmRX = spd01 * 0.08 + swing * 0.55;  // max: ≈+0.575rad≈33°, min: ≈-0.415rad≈-24°
-                    const rArmRX = spd01 * 0.08 - swing * 0.55;  // 与左臂反相（交叉步态）
-                    _animBones('j_bip_l_upperarm', lArmRX, 0, -0.88, al);
-                    _animBones('j_bip_r_upperarm', rArmRX, 0, +0.88, al);
+                    // ── 大臂：游戏级摆幅（前≈33°，后≈-24°）
+                    // rz 关键：-0.88 让手臂横伸像飞翔！需要≈-1.1~-1.3才能让手臂自然垂下
+                    // 前摆时肘略上抬(rz趋向0)，后摆时肘略下压(rz更负) → 从后方看有节律感
+                    const lArmRX = spd01 * 0.08 + swing * 0.55;
+                    const rArmRX = spd01 * 0.08 - swing * 0.55;
+                    const lArmRZ = -1.10 + swing * 0.15;  // 前摆≈-0.965 后摆≈-1.235（始终垂下）
+                    const rArmRZ = +1.10 + swing * 0.15;  // 同相：当左前摆时右后摆肘更低
+                    _animBones('j_bip_l_upperarm', lArmRX, 0, lArmRZ, al);
+                    _animBones('j_bip_r_upperarm', rArmRX, 0, rArmRZ, al);
 
                     // ── 小臂：恒定90°弯曲 ──
                     _animBones('j_bip_l_lowerarm', 1.57, 0, -0.20, al);
@@ -7486,11 +7490,13 @@
                 const swing  = Math.sin(cycle) * amp;
                 const swing2 = Math.sin(cycle * 2) * amp;
 
-                // 大臂：游戏级摆幅（前33°后-24°）
+                // 大臂：rz≈-1.1保证手臂垂下（-0.88会横伸像飞翔）
                 const lArmRX2 = spd01 * 0.08 + swing * 0.55;
                 const rArmRX2 = spd01 * 0.08 - swing * 0.55;
-                bl(lArm, lArmRX2, 0, -0.88);
-                bl(rArm, rArmRX2, 0, +0.88);
+                const lArmRZ2 = -1.10 + swing * 0.15;
+                const rArmRZ2 = +1.10 + swing * 0.15;
+                bl(lArm, lArmRX2, 0, lArmRZ2);
+                bl(rArm, rArmRX2, 0, rArmRZ2);
                 // 小臂：恒定90°
                 bl(lFa, 1.57, 0, -0.20);
                 bl(rFa, 1.57, 0, +0.20);
