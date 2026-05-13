@@ -409,6 +409,8 @@
         // 相机抖动（存储值，在 updateCamera 里应用）
         let _camBobY    = 0;
         let _camBobRoll = 0;
+        // 滑铲姿势过渡值（0 = 站立/跑步，1 = 完全滑铲）
+        let _slidePoseT = 0;
         let playerMoveSpeedMul = 1;
         let _hudOverlayVisible = true;
         let isWalking = false;
@@ -6312,6 +6314,10 @@
         
         // 处理滑铲逻辑
         function handleSlide(deltaTime) {
+            // 更新滑铲姿势过渡值（用于相机高度和VRM骨骼动画）
+            const _slideTarget = isSliding ? 1.0 : 0.0;
+            _slidePoseT += (_slideTarget - _slidePoseT) * Math.min(deltaTime * (isSliding ? 14.0 : 7.0), 1.0);
+
             // 更新滑铲冷却时间
             if (slideCooldown > 0) {
                 slideCooldown -= deltaTime;
@@ -6470,9 +6476,12 @@
                 }
             }
             
-            // 根据下蹲过渡值更新相机高度(仅第一人称)
+            // 根据下蹲/滑铲过渡值更新相机高度(仅第一人称)
             if (isFirstPerson) {
-                normalHeight = FIRST_PERSON_HEIGHT * (1 - crouchTransition * (1 - CROUCH_HEIGHT));
+                const SLIDE_CAMERA_HEIGHT = 0.38; // 滑铲时相机降至38%正常高度
+                const crouchFactor = 1.0 - crouchTransition * (1.0 - CROUCH_HEIGHT);
+                const slideFactor  = 1.0 - _slidePoseT  * (1.0 - SLIDE_CAMERA_HEIGHT);
+                normalHeight = FIRST_PERSON_HEIGHT * crouchFactor * slideFactor;
             }
             
             // 更新第一人称肢体姿势
@@ -7276,6 +7285,41 @@
                 const it    = _gameIdleT;
                 const al    = 0.40; // v5：更快的骨骼追踪，动作利落不滞后
 
+                // ══ 滑铲骨骼动画（参考三角洲红狼）══
+                if (isSliding) {
+                    const sal = 0.45; // 快速进入滑铲姿势
+                    // 身体大幅前倾：骨盆→脊椎→胸腔依次递增，形成流畅的弧线
+                    _animBones('j_bip_c_hips',       0.42, 0,  0.08, sal);
+                    _animBones('j_bip_c_spine',       0.70, 0,  0.00, sal);
+                    _animBones('j_bip_c_chest',       0.58, 0,  0.00, sal);
+                    _animBones('j_bip_c_upperchest',  0.44, 0,  0.00, sal);
+                    // 颈/头大幅上仰，抵消身体前倾，保持视线朝前
+                    _animBones('j_bip_c_neck', -0.44, 0, 0, sal);
+                    _animBones('j_bip_c_head', -0.34, 0, 0, sal);
+
+                    // 前腿（左）：向前伸直，是滑铲的支撑腿
+                    // rx正值=大腿向前 lowerleg小弯曲保持脚跟接近地面
+                    _animBones('j_bip_l_upperleg',  0.82, 0, +0.06, sal);
+                    _animBones('j_bip_l_lowerleg',  0.18, 0,  0.00, sal);
+                    // 后腿（右）：折叠收在身体右侧后方（rx负值=大腿向后）
+                    _animBones('j_bip_r_upperleg', -0.52, 0, -0.08, sal);
+                    _animBones('j_bip_r_lowerleg',  1.48, 0,  0.00, sal); // 膝盖深弯
+
+                    // 手臂：双臂伸向前方偏低，维持平衡（参考红狼动作）
+                    // rz控制肘部高度：-0.50≈肘在腰侧，rx向前伸
+                    _animBones('j_bip_l_upperarm',  0.40, 0, -0.52, sal);
+                    _animBones('j_bip_r_upperarm',  0.40, 0, +0.52, sal);
+                    _animBones('j_bip_l_lowerarm',  0.55, 0, -0.22, sal);
+                    _animBones('j_bip_r_lowerarm',  0.55, 0, +0.22, sal);
+
+                    // 猫耳：受风压向后压
+                    _animEar('j_opt_l_catear1_01', -0.18, 0.22);
+                    _animEar('j_opt_l_catear2_01', -0.12, 0.22);
+                    _animEar('j_opt_r_catear1_01',  0.18, 0.22);
+                    _animEar('j_opt_r_catear2_01',  0.12, 0.22);
+                    return; // 滑铲时跳过跑步/待机动画
+                }
+
                 if (spd > 0.04) {
                     // ══ 跑步骨骼动画 v5 ══
                     // 核心修正：
@@ -7394,6 +7438,27 @@
                 bone.rotation.x += (tx - bone.rotation.x) * alpha;
                 bone.rotation.y += (ty - bone.rotation.y) * alpha;
                 bone.rotation.z += (tz - bone.rotation.z) * alpha;
+            }
+
+            // ══ 滑铲骨骼动画（humanoid API路径）══
+            if (isSliding) {
+                if (hips)  { bl(hips,  0.42, 0,  0.08); }
+                if (spine) { bl(spine, 0.70, 0,  0.00); }
+                if (chest) { bl(chest, 0.58, 0,  0.00); }
+                if (neck)  { bl(neck, -0.44, 0,  0.00); }
+                if (head)  { bl(head, -0.34, 0,  0.00); }
+                // 前腿（左）伸直
+                if (lLeg)  { bl(lLeg,   0.82, 0, +0.06); }
+                if (lKnee) { bl(lKnee,  0.18, 0,  0.00); }
+                // 后腿（右）折叠
+                if (rLeg)  { bl(rLeg,  -0.52, 0, -0.08); }
+                if (rKnee) { bl(rKnee,  1.48, 0,  0.00); }
+                // 手臂前伸
+                if (lArm)  { bl(lArm,   0.40, 0, -0.52); }
+                if (rArm)  { bl(rArm,   0.40, 0, +0.52); }
+                if (lFa)   { bl(lFa,    0.55, 0, -0.22); }
+                if (rFa)   { bl(rFa,    0.55, 0, +0.22); }
+                return;
             }
 
             if (spd > 0.04) {
