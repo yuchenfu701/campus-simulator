@@ -5748,15 +5748,32 @@
             if (equippedVrmFile && typeof THREE.GLTFLoader !== 'undefined') {
                 const vrmUrl = equippedVrmFile.startsWith('http') ? equippedVrmFile : '../' + equippedVrmFile;
                 console.log('🔄 尝试加载玩家VRM模型:', vrmUrl);
+
+                // 创建加载进度提示（VRM文件可达14MB，网络较慢时需要更长等待）
+                const vrmLoadingEl = document.createElement('div');
+                vrmLoadingEl.id = 'vrm-loading-tip';
+                vrmLoadingEl.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);' +
+                    'background:rgba(0,0,0,0.72);color:#fff;padding:8px 20px;border-radius:8px;' +
+                    'font-size:13px;z-index:9999;pointer-events:none;';
+                vrmLoadingEl.textContent = '⏳ 正在加载角色模型...';
+                document.body.appendChild(vrmLoadingEl);
+                function _removeVrmTip() {
+                    const el = document.getElementById('vrm-loading-tip');
+                    if (el) el.remove();
+                }
+
+                // 超时改为 90 秒（VRM文件约14MB，GitHub Pages 网速慢时需要足够时间）
                 const timeoutId = setTimeout(() => {
-                    console.log('⏰ VRM加载超时，使用简单模型');
+                    _removeVrmTip();
+                    console.warn('⏰ VRM加载超时（90s），使用简单模型');
                     initializeSoldier(createSimpleSoldier());
-                }, 12000);
+                }, 90000);
+
                 // 使用UMD THREE.GLTFLoader（与渲染器同版本，避免shader版本冲突）
-                // 动画通过骨骼遍历驱动（_collectVrmBones + _animBones）
                 var loader = new THREE.GLTFLoader();
                 loader.load(vrmUrl, function(gltf) {
                     clearTimeout(timeoutId);
+                    _removeVrmTip();
                     var vrmInner = gltf.scene;
                     vrmInner.rotation.y = Math.PI;
                     vrmInner.scale.set(1, 1, 1);
@@ -5769,8 +5786,16 @@
                     initializeSoldier(vrmWrapper);
                     // 延迟一帧收集骨骼，确保场景图完全构建
                     setTimeout(_collectVrmBones, 100);
-                }, null, function(err) {
+                }, function(xhr) {
+                    // 进度回调：显示下载百分比
+                    if (xhr.total > 0) {
+                        const pct = Math.round(xhr.loaded / xhr.total * 100);
+                        const el = document.getElementById('vrm-loading-tip');
+                        if (el) el.textContent = '⏳ 正在加载角色模型... ' + pct + '%';
+                    }
+                }, function(err) {
                     clearTimeout(timeoutId);
+                    _removeVrmTip();
                     console.warn('VRM加载失败，使用简单模型:', err);
                     initializeSoldier(createSimpleSoldier());
                 });
