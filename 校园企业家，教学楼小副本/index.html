@@ -317,6 +317,8 @@
         // rz：影响所有上臂/前臂的上下抬落轴；rx：影响前后摆动轴
         let _vrmArmRzSign = 1;
         let _vrmArmRxSign = 1;
+        // 腿部rx轴方向（VRM0.x与VRM1.x相反，抬腿方向需取反）
+        let _vrmLegRxSign = 1;
         // VRM模型正在加载时阻止主加载遮罩提前消失
         let _vrmLoadingActive = false;
         let walls = [];
@@ -5804,6 +5806,7 @@
                     vrmInner.rotation.y = isVRM0x ? 0 : Math.PI;
                     _vrmArmRzSign = isVRM0x ? -1 : 1; // VRM0.x臂部rz轴反向
                     _vrmArmRxSign = isVRM0x ? -1 : 1; // VRM0.x臂部rx轴反向（前后摆方向）
+                    _vrmLegRxSign = isVRM0x ? -1 : 1; // VRM0.x腿部rx轴反向（抬腿方向）
                     vrmInner.scale.set(2, 2, 2);  // 默认VRM模型 2x缩放
                     vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                     var vrmWrapper = new THREE.Group();
@@ -5878,6 +5881,7 @@
                         vrmInner.rotation.y = 0; // 男生VRM0.x默认朝+Z（背向镜头），无需旋转
                         _vrmArmRzSign = -1;       // VRM0.x臂部rz轴反向
                         _vrmArmRxSign = -1;       // VRM0.x臂部rx轴反向（前后摆方向）
+                        _vrmLegRxSign = -1;       // VRM0.x腿部rx轴反向（抬腿方向）
                         vrmInner.scale.set(2, 2, 2); // 与装备VRM一致：2x缩放
                         vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                         var vrmWrapper = new THREE.Group();
@@ -7518,18 +7522,19 @@
                     _animBones('j_bip_l_lowerarm', faRx, 0, _s2 * (-0.20), al);
                     _animBones('j_bip_r_lowerarm', faRx, 0, _s2 * (+0.20), al);
 
-                    // ── 大腿（左正→右取反rx）──
+                    // ── 大腿（左正→右取反rx；VRM0.x腿部rx轴反向用_vrmLegRxSign修正）──
                     const lLgRx = _kfI(t, _KLegRx), lLgRy = _kfI(t, _KLegRy), lLgRz = _kfI(t, _KLegRz);
-                    _animBones('j_bip_l_upperleg',  lLgRx, lLgRy,  lLgRz, al);
-                    _animBones('j_bip_r_upperleg', -lLgRx, lLgRy,  lLgRz, al);
-                    // ── 小腿屈曲（两侧同值，始终正值向前折叠）──
+                    const _sL = _vrmLegRxSign;
+                    _animBones('j_bip_l_upperleg',  _sL * lLgRx,  lLgRy, lLgRz, al);
+                    _animBones('j_bip_r_upperleg', _sL * (-lLgRx), lLgRy, lLgRz, al);
+                    // ── 小腿屈曲（两侧同值；VRM0.x取反使膝盖向正确方向弯折）──
                     const kneRx = _kfI(t, _KKneRx);
-                    _animBones('j_bip_l_lowerleg', kneRx, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', kneRx, 0, 0, al);
-                    // ── 踝关节（右取反rx）──
+                    _animBones('j_bip_l_lowerleg', _sL * kneRx, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', _sL * kneRx, 0, 0, al);
+                    // ── 踝关节（右取反rx；VRM0.x整体取反）──
                     const lFtRx = _kfI(t, _KFtRx), lFtRy = _kfI(t, _KFtRy);
-                    _animBones('j_bip_l_foot',  lFtRx, lFtRy, 0, al);
-                    _animBones('j_bip_r_foot', -lFtRx, lFtRy, 0, al);
+                    _animBones('j_bip_l_foot',  _sL * lFtRx,  lFtRy, 0, al);
+                    _animBones('j_bip_r_foot', _sL * (-lFtRx), lFtRy, 0, al);
 
                     // 猫耳随步伐弹跳（无猫耳模型自动跳过）
                     const earB = Math.sin(cycle * 2) * 0.10 * spd01;
@@ -7653,18 +7658,19 @@
                 const faRx2 = _kfI(t, _KFaRx);
                 bl(lFa, faRx2, 0, -0.20);
                 bl(rFa, faRx2, 0, +0.20);
-                // ── 大腿 ──
+                // ── 大腿（_vrmLegRxSign修正VRM0.x腿部rx方向）──
                 const lLgRx2 = _kfI(t, _KLegRx), lLgRy2 = _kfI(t, _KLegRy), lLgRz2 = _kfI(t, _KLegRz);
-                bl(lLeg,  lLgRx2, lLgRy2, lLgRz2);
-                bl(rLeg, -lLgRx2, lLgRy2, lLgRz2);
-                // ── 小腿（两侧同值）──
+                const _sL2 = _vrmLegRxSign;
+                bl(lLeg,  _sL2 * lLgRx2,  lLgRy2, lLgRz2);
+                bl(rLeg, _sL2 * (-lLgRx2), lLgRy2, lLgRz2);
+                // ── 小腿（两侧同值；VRM0.x取反）──
                 const kneRx2 = _kfI(t, _KKneRx);
-                bl(lKnee, kneRx2, 0, 0);
-                bl(rKnee, kneRx2, 0, 0);
-                // ── 踝关节 ──
+                bl(lKnee, _sL2 * kneRx2, 0, 0);
+                bl(rKnee, _sL2 * kneRx2, 0, 0);
+                // ── 踝关节（VRM0.x取反）──
                 const lFtRx2 = _kfI(t, _KFtRx), lFtRy2 = _kfI(t, _KFtRy);
-                bl(lFoot,  lFtRx2, lFtRy2, 0);
-                bl(rFoot, -lFtRx2, lFtRy2, 0);
+                bl(lFoot,  _sL2 * lFtRx2,  lFtRy2, 0);
+                bl(rFoot, _sL2 * (-lFtRx2), lFtRy2, 0);
 
             } else {
                 // ══ 待机动画（与主菜单完全相同的多骨骼富动画）══
