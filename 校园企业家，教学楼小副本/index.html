@@ -5812,20 +5812,43 @@
                 return;
             }
 
-            // 尝试加载在线模型
+            // 未装备VRM时，优先加载本地男生默认VRM（与女生一致：2x缩放+骨骼动画）
             if (typeof THREE.GLTFLoader !== 'undefined') {
                 const loader = new THREE.GLTFLoader();
+                const defaultMaleVrm = '男的.vrm'; // 与 index.html 同目录
 
-                console.log('🔄 尝试加载在线士兵模型...');
+                console.log('🔄 加载默认男生VRM模型:', defaultMaleVrm);
 
-                // 设置较短的超时时间
                 const timeoutId = setTimeout(() => {
-                    console.log('⏰ 加载超时，使用简单模型');
-                    const simpleSoldier = createSimpleSoldier();
-                    initializeSoldier(simpleSoldier);
-                }, 3000); // 3秒超时
-                
+                    console.log('⏰ 男生VRM加载超时，使用简单模型');
+                    initializeSoldier(createSimpleSoldier());
+                }, 30000); // 30秒超时（本地文件通常很快）
+
                 loader.load(
+                    defaultMaleVrm,
+                    function(gltf) {
+                        clearTimeout(timeoutId);
+                        console.log('✅ 默认男生VRM加载成功');
+                        var vrmInner = gltf.scene;
+                        vrmInner.rotation.y = Math.PI;
+                        vrmInner.scale.set(2, 2, 2); // 与装备VRM一致：2x缩放
+                        vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+                        var vrmWrapper = new THREE.Group();
+                        vrmWrapper.position.set(startX, 0, startZ);
+                        vrmWrapper.add(vrmInner);
+                        _isVrm = true;
+                        _vrmBonesResolved = false;
+                        FIRST_PERSON_HEIGHT = 1.8; // 与装备VRM一致
+                        normalHeight = FIRST_PERSON_HEIGHT;
+                        initializeSoldier(vrmWrapper);
+                        setTimeout(_collectVrmBones, 100);
+                    },
+                    undefined,
+                    function(err) {
+                        clearTimeout(timeoutId);
+                        console.warn('男生VRM加载失败，尝试在线模型:', err);
+                        // 回退：在线Soldier模型
+                        loader.load(
                     'https://threejs.org/examples/models/gltf/Soldier.glb',
                     function(gltf) {
                         clearTimeout(timeoutId);
@@ -5864,13 +5887,12 @@
                         console.log('📦 模型加载进度:', (xhr.loaded / xhr.total * 100).toFixed(1) + '%');
                     },
                     function(error) {
-                        clearTimeout(timeoutId);
                         console.warn('⚠️ 在线模型加载失败:', error);
-                        console.log('🔄 使用简单备用模型');
-                        const simpleSoldier = createSimpleSoldier();
-                        initializeSoldier(simpleSoldier);
+                        initializeSoldier(createSimpleSoldier());
                     }
-                );
+                ); // 在线模型 loader.load 结束
+                    } // 男生VRM失败回退结束
+                );   // 男生VRM loader.load 结束
             } else {
                 console.log('⚠️ GLTFLoader不可用，使用简单模型');
                 const simpleSoldier = createSimpleSoldier();
@@ -7291,6 +7313,72 @@
                 b.rotation.z += (rest.z + dz - b.rotation.z) * alpha;
             }
         }
+        // ── 跑步6帧关键帧数据（v9，生物力学数据）────────────────────────
+        // 关键帧时刻（归一化步态相位）：A:0.00 B:0.12 C:0.22 D:0.35 E:0.55 F:0.85
+        // 坐标映射（用户ZXY → Three.js骨骼rotation.x/y/z）：
+        //   骨盆/脊椎：rx=Y前后倾, ry=Z水平转, rz=X侧倾
+        //   上臂：rx=X前后摆, ry=Y侧摆, rz固定-1.10(左)/+1.10(右)保持手臂垂下
+        //   大腿：rx=X屈伸, ry=Z内外旋, rz=Y内收外展
+        //   小腿(膝)：rx=用户Y屈曲(两侧同值不取反)
+        //   踝：rx=X背屈, ry=Y内翻
+        //   右侧镜像：rx取反(negate X)，ry/rz同号
+        const _D2R = Math.PI / 180;
+        const _KT  = [0.00, 0.12, 0.22, 0.35, 0.55, 0.85]; // 6帧时间节点
+        function _mkKF(v) { return _KT.map((t, i) => [t, v[i] * _D2R]); }
+        // 关键帧线性插值（循环）
+        function _kfI(t, kf) {
+            t = ((t % 1) + 1) % 1;
+            const n = kf.length;
+            let i = n - 1;
+            for (let k = 0; k < n - 1; k++) { if (t < kf[k + 1][0]) { i = k; break; } }
+            const t0 = kf[i][0], v0 = kf[i][1];
+            const t1 = (i + 1 < n) ? kf[i + 1][0] : kf[0][0] + 1.0;
+            const v1 = (i + 1 < n) ? kf[i + 1][1] : kf[0][1];
+            return v0 + (v1 - v0) * Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+        }
+        // 骨盆
+        const _KHipRx = _mkKF([12, 8, 5, 3, 6, 10]);
+        const _KHipRy = _mkKF([-6, -2, 2, 8, 4, -4]);
+        const _KHipRz = _mkKF([4, 6, 2, -2, -4, 1]);
+        // 脊椎底（Spine1）
+        const _KSp1Rx = _mkKF([3, 4, 2, 1, 2, 3]);
+        const _KSp1Ry = _mkKF([-1, 0, 1, 2, 1, -1]);
+        const _KSp1Rz = _mkKF([0, 1, 0, -1, -2, 0]);
+        // 脊椎中（Spine2）
+        const _KSp2Rx = _mkKF([2, 2, 1, 0, 1, 2]);
+        const _KSp2Ry = _mkKF([-2, 0, 1, 2, 1, -1]);
+        const _KSp2Rz = _mkKF([-1, 0, 1, 2, 1, -1]);
+        // 胸廓（Spine3）
+        const _KSp3Rx = _mkKF([1, 2, 0, -1, 0, 1]);
+        const _KSp3Ry = _mkKF([-3, -1, 1, 4, 2, -2]);
+        const _KSp3Rz = _mkKF([-2, -1, 0, 3, 2, -2]);
+        // 颈部
+        const _KNkRx  = _mkKF([-5, -6, -4, -2, -3, -5]);
+        const _KNkRy  = _mkKF([-2, -1, 0, 2, 1, -1]);
+        const _KNkRz  = _mkKF([0, 1, 1, -1, -2, 0]);
+        // 锁骨（左，右取反rx）
+        const _KShoRx = _mkKF([5, 3, 0, -5, -3, 2]);
+        const _KShoRy = _mkKF([2, 1, 0, -2, -1, 1]);
+        // 上臂（左）前后摆 / 侧摆 / 肘部上下抬落
+        // 注：rx=前后（纵深，背后视角不可见），rz=上下抬落（背后视角最明显）
+        const _KArmRx = _mkKF([-65, -30, 10, 70, 50, -20]);
+        const _KArmRy = _mkKF([5, 3, 0, -5, -3, 2]);
+        // 肘部抬落偏移量（相对-1.10基础：正=抬高，负=沉降）
+        // A:手臂向前→肘抬起 +0.42, D:手臂向后→肘沉降 -0.38
+        const _KArmElevD = _mkKF([0.42, 0.22, 0.02, -0.38, -0.22, 0.18]);
+        // 前臂肘关节角度（rx）：向前摆时更弯，向后摆时略伸
+        const _KFaRx = _mkKF([1.90, 1.75, 1.60, 1.38, 1.50, 1.72]);
+        // 大腿（左）屈伸/内外旋/内收外展
+        const _KLegRx = _mkKF([45, 30, -15, -10, 70, 45]);
+        const _KLegRy = _mkKF([0, 5, 10, -5, -8, 0]);
+        const _KLegRz = _mkKF([-5, -8, -3, 2, 6, -4]);
+        // 小腿屈曲（两侧同值，rx）
+        const _KKneRx = _mkKF([22, 38, 5, 105, 35, 22]);
+        // 踝关节
+        const _KFtRx  = _mkKF([3, 12, -25, -8, 6, 3]);
+        const _KFtRy  = _mkKF([0, 2, -1, 0, 1, 0]);
+        // ──────────────────────────────────────────────────────────────────
+
         // ══ 通用VRM骨骼姿势驱动（适用于所有VRM模型） ══
         // 使用 @pixiv/three-vrm humanoid API，与主菜单坐标系完全一致
         // rz 含义（three-vrm 坐标系）：左臂 -1.0 = 自然垂下，右臂 +1.0 = 自然垂下
@@ -7341,59 +7429,54 @@
                 }
 
                 if (spd > 0.04) {
-                    // ══ 跑步骨骼动画 v8（交叉步态，游戏级别摆幅）══
-                    // 交叉步态：swing>0 = 左臂前摆 + 右腿前摆（自然跑步规律）
-                    // 摆幅压缩至游戏常见范围：手臂±33°，大腿+42°/-28°，膝盖最大89°
-                    const spd01  = Math.min(spd, 1.0);
-                    const amp    = Math.min(spd * 0.90, 0.90);
-                    const swing  = Math.sin(cycle) * amp;      // swing>0: 左臂前摆相位
-                    const swing2 = Math.sin(cycle * 2) * amp;
+                    // ══ 跑步骨骼动画 v9（6帧生物力学关键帧）══
+                    const spd01 = Math.min(spd, 1.0);
+                    // 归一化相位 [0,1)：walkCycle为弧度，除以2π转换
+                    const t = (((cycle / (Math.PI * 2)) % 1) + 1) % 1;
 
-                    // ── 肩部：微幅跟随 ──
-                    _animBones('j_bip_l_shoulder',  swing * 0.03, 0, -0.04, al);
-                    _animBones('j_bip_r_shoulder', -swing * 0.03, 0, +0.04, al);
+                    // ── 骨盆 ──
+                    _animBones('j_bip_c_hips',
+                        _kfI(t, _KHipRx), _kfI(t, _KHipRy), _kfI(t, _KHipRz), al);
+                    // ── 脊椎（3段分层，相对父骨骼自然叠加）──
+                    _animBones('j_bip_c_spine',
+                        _kfI(t, _KSp1Rx), _kfI(t, _KSp1Ry), _kfI(t, _KSp1Rz), al);
+                    _animBones('j_bip_c_chest',
+                        _kfI(t, _KSp2Rx), _kfI(t, _KSp2Ry), _kfI(t, _KSp2Rz), al);
+                    _animBones('j_bip_c_upperchest',
+                        _kfI(t, _KSp3Rx), _kfI(t, _KSp3Ry), _kfI(t, _KSp3Rz), al);
+                    // ── 颈/头 ──
+                    _animBones('j_bip_c_neck',
+                        _kfI(t, _KNkRx), _kfI(t, _KNkRy), _kfI(t, _KNkRz), al);
+                    _animBones('j_bip_c_head', 2 * _D2R, 0, 0, al); // 恒定微前倾2°视线保持前方
 
-                    // ── 大臂：游戏级摆幅（前≈33°，后≈-24°）
-                    // rz 关键：-0.88 让手臂横伸像飞翔！需要≈-1.1~-1.3才能让手臂自然垂下
-                    // 前摆时肘略上抬(rz趋向0)，后摆时肘略下压(rz更负) → 从后方看有节律感
-                    const lArmRX = spd01 * 0.08 + swing * 0.55;
-                    const rArmRX = spd01 * 0.08 - swing * 0.55;
-                    const lArmRZ = -1.10 + swing * 0.15;  // 前摆≈-0.965 后摆≈-1.235（始终垂下）
-                    const rArmRZ = +1.10 + swing * 0.15;  // 同相：当左前摆时右后摆肘更低
-                    _animBones('j_bip_l_upperarm', lArmRX, 0, lArmRZ, al);
-                    _animBones('j_bip_r_upperarm', rArmRX, 0, rArmRZ, al);
+                    // ── 锁骨（左rx正→后摆; 右镜像取反）──
+                    const shoRx = _kfI(t, _KShoRx), shoRy = _kfI(t, _KShoRy);
+                    _animBones('j_bip_l_shoulder',  shoRx,  shoRy, 0, al);
+                    _animBones('j_bip_r_shoulder', -shoRx,  shoRy, 0, al);
 
-                    // ── 小臂：恒定90°弯曲 ──
-                    _animBones('j_bip_l_lowerarm', 1.57, 0, -0.20, al);
-                    _animBones('j_bip_r_lowerarm', 1.57, 0, +0.20, al);
+                    // ── 上臂：rx=前后摆（纵深）, rz=肘部抬落（背后可见）──
+                    // armElevD：向前摆时>0肘抬起，向后摆时<0肘沉降
+                    const lArmRx = _kfI(t, _KArmRx), lArmRy = _kfI(t, _KArmRy);
+                    const armElevD = _kfI(t, _KArmElevD);
+                    _animBones('j_bip_l_upperarm',  lArmRx,  lArmRy, -1.10 + armElevD, al);
+                    _animBones('j_bip_r_upperarm', -lArmRx,  lArmRy, +1.10 + armElevD, al);
+                    // ── 前臂：随摆动相位轻微屈伸（向前多弯，向后略伸）──
+                    const faRx = _kfI(t, _KFaRx);
+                    _animBones('j_bip_l_lowerarm', faRx, 0, -0.20, al);
+                    _animBones('j_bip_r_lowerarm', faRx, 0, +0.20, al);
 
-                    // ── 大腿：交叉步态，加大步幅前≈51°后≈37° ──
-                    const legOff = spd01 * 0.12;
-                    _animBones('j_bip_l_upperleg', legOff - swing * 0.88, 0, +0.04, al);
-                    _animBones('j_bip_r_upperleg', legOff + swing * 0.88, 0, -0.04, al);
-
-                    // ── 小腿：后摆折叠至100°，前摆伸展至22° ──
-                    _animBones('j_bip_l_lowerleg', 0.38 + Math.max(0,  swing) * 1.50, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', 0.38 + Math.max(0, -swing) * 1.50, 0, 0, al);
-
-                    // ── 脚踝：蹬地跖屈，摆动背屈 ──
-                    const lFtRX = spd01 * (-Math.max(0,  swing) * 0.40 + Math.max(0, -swing) * 0.18);
-                    const rFtRX = spd01 * (-Math.max(0, -swing) * 0.40 + Math.max(0,  swing) * 0.18);
-                    _animBones('j_bip_l_foot', lFtRX, 0, 0, al);
-                    _animBones('j_bip_r_foot', rFtRX, 0, 0, al);
-
-                    // ── 躯干：前倾4°(0.06rad) + 轻微骨盆扭转（之前0.14太大导致整体前倾）──
-                    const lean    = spd01 * 0.06;
-                    const hipRotY = swing * 0.06;
-                    const hipSway = swing2 * 0.028 * spd01;
-                    _animBones('j_bip_c_hips',       lean * 0.2,  hipRotY,          hipSway,          al);
-                    _animBones('j_bip_c_spine',       lean * 0.8, -hipRotY * 0.55, -hipSway * 0.5,    al);
-                    _animBones('j_bip_c_chest',       lean * 0.6, -hipRotY * 0.25,  0,                al);
-                    _animBones('j_bip_c_upperchest',  lean * 0.4, -hipRotY * 0.10,  0,                al);
-
-                    // ── 头/颈：稳定前视 ──
-                    _animBones('j_bip_c_neck', -lean * 0.20, hipRotY * 0.08, 0, al);
-                    _animBones('j_bip_c_head', -lean * 0.15, 0, 0, al);
+                    // ── 大腿（左正→右取反rx）──
+                    const lLgRx = _kfI(t, _KLegRx), lLgRy = _kfI(t, _KLegRy), lLgRz = _kfI(t, _KLegRz);
+                    _animBones('j_bip_l_upperleg',  lLgRx, lLgRy,  lLgRz, al);
+                    _animBones('j_bip_r_upperleg', -lLgRx, lLgRy,  lLgRz, al);
+                    // ── 小腿屈曲（两侧同值，始终正值向前折叠）──
+                    const kneRx = _kfI(t, _KKneRx);
+                    _animBones('j_bip_l_lowerleg', kneRx, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', kneRx, 0, 0, al);
+                    // ── 踝关节（右取反rx）──
+                    const lFtRx = _kfI(t, _KFtRx), lFtRy = _kfI(t, _KFtRy);
+                    _animBones('j_bip_l_foot',  lFtRx, lFtRy, 0, al);
+                    _animBones('j_bip_r_foot', -lFtRx, lFtRy, 0, al);
 
                     // 猫耳随步伐弹跳（无猫耳模型自动跳过）
                     const earB = Math.sin(cycle * 2) * 0.10 * spd01;
@@ -7456,6 +7539,10 @@
             const hips  = humanoid.getRawBoneNode('hips');
             const lFoot = humanoid.getRawBoneNode('leftFoot');
             const rFoot = humanoid.getRawBoneNode('rightFoot');
+            const lSho  = humanoid.getRawBoneNode('leftShoulder');
+            const rSho  = humanoid.getRawBoneNode('rightShoulder');
+            const spine2= humanoid.getRawBoneNode('chest');
+            const spine3= humanoid.getRawBoneNode('upperChest');
 
             // 线性插值辅助
             function bl(bone, tx, ty, tz) {
@@ -7484,47 +7571,44 @@
             }
 
             if (spd > 0.04) {
-                // ══ 奔跑动画 v8（交叉步态，游戏级别摆幅）══
-                const spd01  = Math.min(spd, 1.0);
-                const amp    = Math.min(spd * 0.90, 0.90);
-                const swing  = Math.sin(cycle) * amp;
-                const swing2 = Math.sin(cycle * 2) * amp;
+                // ══ 奔跑动画 v9（6帧生物力学关键帧）══
+                const spd01 = Math.min(spd, 1.0);
+                const t = (((cycle / (Math.PI * 2)) % 1) + 1) % 1;
 
-                // 大臂：rz≈-1.1保证手臂垂下（-0.88会横伸像飞翔）
-                const lArmRX2 = spd01 * 0.08 + swing * 0.55;
-                const rArmRX2 = spd01 * 0.08 - swing * 0.55;
-                const lArmRZ2 = -1.10 + swing * 0.15;
-                const rArmRZ2 = +1.10 + swing * 0.15;
-                bl(lArm, lArmRX2, 0, lArmRZ2);
-                bl(rArm, rArmRX2, 0, rArmRZ2);
-                // 小臂：恒定90°
-                bl(lFa, 1.57, 0, -0.20);
-                bl(rFa, 1.57, 0, +0.20);
-
-                // 大腿：交叉步态，加大步幅（前≈51°后≈37°）
-                const legOff2 = spd01 * 0.12;
-                bl(lLeg, legOff2 - swing * 0.88, 0,  0.04);
-                bl(rLeg, legOff2 + swing * 0.88, 0, -0.04);
-                // 小腿：折叠至100°
-                bl(lKnee, 0.38 + Math.max(0,  swing) * 1.50, 0, 0);
-                bl(rKnee, 0.38 + Math.max(0, -swing) * 1.50, 0, 0);
-                // 脚踝
-                const lFt2 = spd01 * (-Math.max(0,  swing) * 0.40 + Math.max(0, -swing) * 0.18);
-                const rFt2 = spd01 * (-Math.max(0, -swing) * 0.40 + Math.max(0,  swing) * 0.18);
-                bl(lFoot, lFt2, 0, 0);
-                bl(rFoot, rFt2, 0, 0);
-
-                // 躯干：前倾4°（减少前倾）+ 骨盆扭转
-                const lean2    = spd01 * 0.06;
-                const hipRotY2 = swing * 0.06;
-                const hipSway2 = swing2 * 0.028 * spd01;
-                bl(hips,  lean2 * 0.2,  hipRotY2,           hipSway2);
-                bl(spine, lean2 * 0.8, -hipRotY2 * 0.55,   -hipSway2 * 0.5);
-                bl(chest, lean2 * 0.5, -hipRotY2 * 0.18,    0);
-
-                // 头/颈：稳定前视
-                bl(neck, -lean2 * 0.20, hipRotY2 * 0.08, 0);
-                bl(head, -lean2 * 0.15, 0, 0);
+                // ── 骨盆 ──
+                bl(hips,  _kfI(t, _KHipRx), _kfI(t, _KHipRy), _kfI(t, _KHipRz));
+                // ── 脊椎 ──
+                bl(spine,  _kfI(t, _KSp1Rx), _kfI(t, _KSp1Ry), _kfI(t, _KSp1Rz));
+                bl(spine2, _kfI(t, _KSp2Rx), _kfI(t, _KSp2Ry), _kfI(t, _KSp2Rz));
+                bl(spine3, _kfI(t, _KSp3Rx), _kfI(t, _KSp3Ry), _kfI(t, _KSp3Rz));
+                // ── 颈/头 ──
+                bl(neck, _kfI(t, _KNkRx), _kfI(t, _KNkRy), _kfI(t, _KNkRz));
+                bl(head, 2 * _D2R, 0, 0);
+                // ── 锁骨 ──
+                const shoRx2 = _kfI(t, _KShoRx), shoRy2 = _kfI(t, _KShoRy);
+                bl(lSho,  shoRx2,  shoRy2, 0);
+                bl(rSho, -shoRx2,  shoRy2, 0);
+                // ── 上臂：rx=前后摆, rz=肘部抬落（背后可见的泵动）──
+                const lArmRx2 = _kfI(t, _KArmRx), lArmRy2 = _kfI(t, _KArmRy);
+                const armElevD2 = _kfI(t, _KArmElevD);
+                bl(lArm,  lArmRx2,  lArmRy2, -1.10 + armElevD2);
+                bl(rArm, -lArmRx2,  lArmRy2, +1.10 + armElevD2);
+                // ── 前臂：随摆动相位轻微屈伸 ──
+                const faRx2 = _kfI(t, _KFaRx);
+                bl(lFa, faRx2, 0, -0.20);
+                bl(rFa, faRx2, 0, +0.20);
+                // ── 大腿 ──
+                const lLgRx2 = _kfI(t, _KLegRx), lLgRy2 = _kfI(t, _KLegRy), lLgRz2 = _kfI(t, _KLegRz);
+                bl(lLeg,  lLgRx2, lLgRy2, lLgRz2);
+                bl(rLeg, -lLgRx2, lLgRy2, lLgRz2);
+                // ── 小腿（两侧同值）──
+                const kneRx2 = _kfI(t, _KKneRx);
+                bl(lKnee, kneRx2, 0, 0);
+                bl(rKnee, kneRx2, 0, 0);
+                // ── 踝关节 ──
+                const lFtRx2 = _kfI(t, _KFtRx), lFtRy2 = _kfI(t, _KFtRy);
+                bl(lFoot,  lFtRx2, lFtRy2, 0);
+                bl(rFoot, -lFtRx2, lFtRy2, 0);
 
             } else {
                 // ══ 待机动画（与主菜单完全相同的多骨骼富动画）══

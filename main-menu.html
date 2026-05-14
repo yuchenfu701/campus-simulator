@@ -1212,7 +1212,10 @@ function reloadCharacter(){
                     vrm = gltf.userData.vrm;
                     try{ VRMUtils.removeUnnecessaryVertices(gltf.scene); }catch(e){}
                     try{ VRMUtils.combineSkeletons(gltf.scene); }catch(e){}
-                    vrm.scene.rotation.y = 0;
+                    // VRM0.x（男生等）需要 rotateVRM0 将朝向修正为面向镜头（scene.rotation.y = π）
+                    // VRM1.0（女生等）rotateVRM0 内部检查 metaVersion 后跳过，scene.rotation.y 保持 0
+                    try{ VRMUtils.rotateVRM0(vrm); }catch(e){}
+                    _vrmBaseRotY = vrm.scene.rotation.y; // 记录基准旋转供动画循环叠加鼠标偏移
                     vrm.scene.position.set(0, 0, 0);
                     scene.add(vrm.scene);
                     // 将手臂放下（T-pose → 自然垂放）
@@ -1284,6 +1287,7 @@ window.refreshPartyChars = function(){
 /* ── 动画 ── */
 let t=0, mx=0, my=0;
 let _idleT=0; // 基于delta的真实时间，用于待机动画频率计算
+let _vrmBaseRotY=0; // VRM0.x加载后scene.rotation.y=π，VRM1.0保持0；需叠加鼠标偏移
 document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
 (function tick(){
     requestAnimationFrame(tick);
@@ -1292,7 +1296,7 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
     _idleT+=delta;
     if(vrm){
         vrm.update(delta);
-        vrm.scene.rotation.y=mx*.15+Math.sin(_idleT*.4)*.025;
+        vrm.scene.rotation.y=_vrmBaseRotY+mx*.15+Math.sin(_idleT*.4)*.025;
         vrm.scene.position.y=Math.sin(_idleT*1.1)*.012;
         // 待机姿势（三角洲行动风格）：update()后再设骨骼，否则会被重置
         try{
