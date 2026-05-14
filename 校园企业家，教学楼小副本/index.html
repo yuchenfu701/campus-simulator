@@ -7412,9 +7412,9 @@
         // 注：rx=前后（纵深，背后视角不可见），rz=上下抬落（背后视角最明显）
         const _KArmRx = _mkKF([-65, -30, 10, 70, 50, -20]);
         const _KArmRy = _mkKF([5, 3, 0, -5, -3, 2]);
-        // 肘部抬落偏移量（相对-1.10基础：正=抬高，负=沉降）
-        // A:手臂向前→肘抬起 +0.42, D:手臂向后→肘沉降 -0.38
-        const _KArmElevD = _mkKF([0.42, 0.22, 0.02, -0.38, -0.22, 0.18]);
+        // 肘部抬落偏移量（相对基础rz：正=肘抬起，负=肘沉降；幅度放大提升背后视角可见度）
+        // A:手臂向前→肘抬起 +0.58, D:手臂向后→肘沉降 -0.52
+        const _KArmElevD = _mkKF([0.58, 0.32, 0.05, -0.52, -0.30, 0.25]);
         // 前臂肘关节角度（rx）：向前摆时更弯，向后摆时略伸
         const _KFaRx = _mkKF([1.90, 1.75, 1.60, 1.38, 1.50, 1.72]);
         // 大腿（左）屈伸/内外旋/内收外展
@@ -7511,8 +7511,8 @@
                     const armElevD = _kfI(t, _KArmElevD);
                     const _s2 = _vrmArmRzSign;
                     const _s3 = _vrmArmRxSign;
-                    _animBones('j_bip_l_upperarm',  _s3 * lArmRx,  lArmRy, _s2 * (-1.10 + armElevD), al);
-                    _animBones('j_bip_r_upperarm', _s3 * (-lArmRx),  lArmRy, _s2 * (+1.10 + armElevD), al);
+                    _animBones('j_bip_l_upperarm',  _s3 * lArmRx,  lArmRy, _s2 * (-0.95 + armElevD), al);
+                    _animBones('j_bip_r_upperarm', _s3 * (-lArmRx),  lArmRy, _s2 * (+0.95 + armElevD), al);
                     // ── 前臂：随摆动相位轻微屈伸（向前多弯，向后略伸）──
                     const faRx = _kfI(t, _KFaRx);
                     _animBones('j_bip_l_lowerarm', faRx, 0, _s2 * (-0.20), al);
@@ -7647,8 +7647,8 @@
                 const lArmRx2 = _kfI(t, _KArmRx), lArmRy2 = _kfI(t, _KArmRy);
                 const armElevD2 = _kfI(t, _KArmElevD);
                 const _s4 = _vrmArmRxSign;
-                bl(lArm,  _s4 * lArmRx2,  lArmRy2, -1.10 + armElevD2);
-                bl(rArm, _s4 * (-lArmRx2),  lArmRy2, +1.10 + armElevD2);
+                bl(lArm,  _s4 * lArmRx2,  lArmRy2, -0.95 + armElevD2);
+                bl(rArm, _s4 * (-lArmRx2),  lArmRy2, +0.95 + armElevD2);
                 // ── 前臂：随摆动相位轻微屈伸 ──
                 const faRx2 = _kfI(t, _KFaRx);
                 bl(lFa, faRx2, 0, -0.20);

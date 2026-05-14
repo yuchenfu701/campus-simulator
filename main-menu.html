@@ -1218,20 +1218,8 @@ function reloadCharacter(){
                     _vrmBaseRotY = vrm.scene.rotation.y; // 记录基准旋转供动画循环叠加鼠标偏移
                     vrm.scene.position.set(0, 0, 0);
                     scene.add(vrm.scene);
-                    // 将手臂放下（T-pose → 自然垂放）
-                    try{
-                        const bones = vrm.humanoid ? vrm.humanoid.rawHumanBones : null;
-                        if(bones){
-                            const lArm = bones.leftUpperArm && bones.leftUpperArm.node;
-                            const rArm = bones.rightUpperArm && bones.rightUpperArm.node;
-                            const lFa  = bones.leftLowerArm  && bones.leftLowerArm.node;
-                            const rFa  = bones.rightLowerArm && bones.rightLowerArm.node;
-                            if(lArm) lArm.rotation.z = -1.0;
-                            if(rArm) rArm.rotation.z =  1.0;
-                            if(lFa)  lFa.rotation.z  = -0.15;
-                            if(rFa)  rFa.rotation.z  =  0.15;
-                        }
-                    }catch(e){}
+                    // 手臂初始化由动画循环的 getNormalizedBoneNode 路径统一处理
+                    // （rawHumanBones 在 VRM0.x 中 rz 轴方向相反，会把手臂举起来，不要用）
                     console.log('✅ VRM 加载成功');
                 }, p => {
                     if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
