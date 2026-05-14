@@ -1298,19 +1298,22 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
         vrm.update(delta);
         vrm.scene.rotation.y=_vrmBaseRotY+mx*.15+Math.sin(_idleT*.4)*.025;
         vrm.scene.position.y=Math.sin(_idleT*1.1)*.012;
-        // 待机姿势（三角洲行动风格）：update()后再设骨骼，否则会被重置
+        // 待机姿势：update()后再设骨骼，否则会被重置
+        // 用 getNormalizedBoneNode 代替 getRawBoneNode：
+        //   Normalized骨骼坐标系对VRM0.x和VRM1.x完全一致（rz=-1.0始终垂下左臂）
         try{
-            const lArm  = vrm.humanoid.getRawBoneNode('leftUpperArm');
-            const rArm  = vrm.humanoid.getRawBoneNode('rightUpperArm');
-            const lFa   = vrm.humanoid.getRawBoneNode('leftLowerArm');
-            const rFa   = vrm.humanoid.getRawBoneNode('rightLowerArm');
-            const head  = vrm.humanoid.getRawBoneNode('head');
-            const neck  = vrm.humanoid.getRawBoneNode('neck');
-            const chest = vrm.humanoid.getRawBoneNode('upperChest') || vrm.humanoid.getRawBoneNode('chest');
-            const spine = vrm.humanoid.getRawBoneNode('spine');
-            const hips  = vrm.humanoid.getRawBoneNode('hips');
-            const lLeg  = vrm.humanoid.getRawBoneNode('leftUpperLeg');
-            const rLeg  = vrm.humanoid.getRawBoneNode('rightUpperLeg');
+            const _nb = n => vrm.humanoid.getNormalizedBoneNode(n);
+            const lArm  = _nb('leftUpperArm');
+            const rArm  = _nb('rightUpperArm');
+            const lFa   = _nb('leftLowerArm');
+            const rFa   = _nb('rightLowerArm');
+            const head  = _nb('head');
+            const neck  = _nb('neck');
+            const chest = _nb('upperChest') || _nb('chest');
+            const spine = _nb('spine');
+            const hips  = _nb('hips');
+            const lLeg  = _nb('leftUpperLeg');
+            const rLeg  = _nb('rightUpperLeg');
 
             const it = _idleT;
             // 呼吸：~3秒周期，慢调制（~31秒一次深吸）

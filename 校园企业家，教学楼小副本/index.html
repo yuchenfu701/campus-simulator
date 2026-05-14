@@ -313,6 +313,9 @@
         // VRM骨骼动画
         let _vrmBones = {}; // 找到的VRM骨骼节点
         let _isVrm = false; // 当前是否使用VRM角色
+        // VRM0.x 骨骼 rz 轴方向与 VRM1.x 相反：-1=VRM0.x(男生), +1=VRM1.x(女生)
+        // 影响所有上臂/前臂的 rz（上下抬落轴），乘此值保证两版本手臂都能正确垂下
+        let _vrmArmRzSign = 1;
         let walls = [];
         /** 仅包围盒碰撞（玻璃/薄顶等，无 mesh）；缓存命中时与 wb 一致不写入，依赖已序列化的 walls */
         function addWallBBoxOnly(x, y, z, w, h, d) {
@@ -5782,7 +5785,12 @@
                     clearTimeout(timeoutId);
                     _removeVrmTip();
                     var vrmInner = gltf.scene;
-                    vrmInner.rotation.y = Math.PI;
+                    // 检测VRM版本：VRM0.x有'VRM'扩展（默认朝+Z=背向镜头，无需旋转）
+                    //              VRM1.x有'VRMC_vrm'扩展（默认朝-Z=面向镜头，需π旋转）
+                    var gltfExt = (gltf.parser && gltf.parser.json && gltf.parser.json.extensions) || {};
+                    var isVRM0x = !!gltfExt['VRM'];
+                    vrmInner.rotation.y = isVRM0x ? 0 : Math.PI;
+                    _vrmArmRzSign = isVRM0x ? -1 : 1; // VRM0.x臂部rz轴反向
                     vrmInner.scale.set(2, 2, 2);  // 默认VRM模型 2x缩放
                     vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                     var vrmWrapper = new THREE.Group();
@@ -5830,7 +5838,8 @@
                         clearTimeout(timeoutId);
                         console.log('✅ 默认男生VRM加载成功');
                         var vrmInner = gltf.scene;
-                        vrmInner.rotation.y = Math.PI;
+                        vrmInner.rotation.y = 0; // 男生VRM0.x默认朝+Z（背向镜头），无需旋转
+                        _vrmArmRzSign = -1;       // VRM0.x臂部rz轴反向
                         vrmInner.scale.set(2, 2, 2); // 与装备VRM一致：2x缩放
                         vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                         var vrmWrapper = new THREE.Group();
@@ -7414,11 +7423,12 @@
                     _animBones('j_bip_r_upperleg', -0.48, 0, -0.07, sal);
                     _animBones('j_bip_r_lowerleg',  1.25, 0,  0.00, sal);
 
-                    // 双臂向前偏低伸出（rz=-0.65≈肘在腰部高度）
-                    _animBones('j_bip_l_upperarm',  0.35, 0, -0.65, sal);
-                    _animBones('j_bip_l_lowerarm',  0.50, 0, -0.18, sal);
-                    _animBones('j_bip_r_upperarm',  0.35, 0, +0.65, sal);
-                    _animBones('j_bip_r_lowerarm',  0.50, 0, +0.18, sal);
+                    // 双臂向前偏低伸出（rz符号随VRM版本自适应）
+                    const _s = _vrmArmRzSign;
+                    _animBones('j_bip_l_upperarm',  0.35, 0, _s * (-0.65), sal);
+                    _animBones('j_bip_l_lowerarm',  0.50, 0, _s * (-0.18), sal);
+                    _animBones('j_bip_r_upperarm',  0.35, 0, _s * (+0.65), sal);
+                    _animBones('j_bip_r_lowerarm',  0.50, 0, _s * (+0.18), sal);
 
                     // 猫耳受风压向后压
                     _animEar('j_opt_l_catear1_01', -0.18, 0.22);
@@ -7455,15 +7465,16 @@
                     _animBones('j_bip_r_shoulder', -shoRx,  shoRy, 0, al);
 
                     // ── 上臂：rx=前后摆（纵深）, rz=肘部抬落（背后可见）──
-                    // armElevD：向前摆时>0肘抬起，向后摆时<0肘沉降
+                    // _vrmArmRzSign: VRM1.x=+1, VRM0.x=-1（坐标轴反向）
                     const lArmRx = _kfI(t, _KArmRx), lArmRy = _kfI(t, _KArmRy);
                     const armElevD = _kfI(t, _KArmElevD);
-                    _animBones('j_bip_l_upperarm',  lArmRx,  lArmRy, -1.10 + armElevD, al);
-                    _animBones('j_bip_r_upperarm', -lArmRx,  lArmRy, +1.10 + armElevD, al);
+                    const _s2 = _vrmArmRzSign;
+                    _animBones('j_bip_l_upperarm',  lArmRx,  lArmRy, _s2 * (-1.10 + armElevD), al);
+                    _animBones('j_bip_r_upperarm', -lArmRx,  lArmRy, _s2 * (+1.10 + armElevD), al);
                     // ── 前臂：随摆动相位轻微屈伸（向前多弯，向后略伸）──
                     const faRx = _kfI(t, _KFaRx);
-                    _animBones('j_bip_l_lowerarm', faRx, 0, -0.20, al);
-                    _animBones('j_bip_r_lowerarm', faRx, 0, +0.20, al);
+                    _animBones('j_bip_l_lowerarm', faRx, 0, _s2 * (-0.20), al);
+                    _animBones('j_bip_r_lowerarm', faRx, 0, _s2 * (+0.20), al);
 
                     // ── 大腿（左正→右取反rx）──
                     const lLgRx = _kfI(t, _KLegRx), lLgRy = _kfI(t, _KLegRy), lLgRz = _kfI(t, _KLegRz);
@@ -7493,11 +7504,12 @@
                     const armDL     = Math.sin(it * 0.45 + 0.8) * 0.07;
                     const armDR     = Math.sin(it * 0.38) * 0.07;
                     const spineLean = 0.04 + Math.sin(it * 0.44 + 0.3) * 0.015;
-                    // 手臂向下（与humanoid同号：左-1.0右+1.0）
-                    _animBones('j_bip_l_upperarm', -0.04 + breath * 0.3, 0, -(1.0 - armDL), al);
-                    _animBones('j_bip_r_upperarm', -0.04 + breath * 0.3, 0, +(1.0 - armDR), al);
-                    _animBones('j_bip_l_lowerarm',  0.08, 0, -0.15 + armDL * 0.25, al);
-                    _animBones('j_bip_r_lowerarm',  0.08, 0, +0.15 - armDR * 0.25, al);
+                    // 手臂向下（rz符号随VRM版本自适应）
+                    const _si = _vrmArmRzSign;
+                    _animBones('j_bip_l_upperarm', -0.04 + breath * 0.3, 0, _si * -(1.0 - armDL), al);
+                    _animBones('j_bip_r_upperarm', -0.04 + breath * 0.3, 0, _si * +(1.0 - armDR), al);
+                    _animBones('j_bip_l_lowerarm',  0.08, 0, _si * (-0.15 + armDL * 0.25), al);
+                    _animBones('j_bip_r_lowerarm',  0.08, 0, _si * (+0.15 - armDR * 0.25), al);
                     _animBones('j_bip_l_upperleg',  0, 0, +weight * 0.04, al);
                     _animBones('j_bip_r_upperleg',  0, 0, -weight * 0.04, al);
                     _animBones('j_bip_l_lowerleg',  0, 0, 0, al);
