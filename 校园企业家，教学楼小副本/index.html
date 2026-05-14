@@ -313,9 +313,12 @@
         // VRM骨骼动画
         let _vrmBones = {}; // 找到的VRM骨骼节点
         let _isVrm = false; // 当前是否使用VRM角色
-        // VRM0.x 骨骼 rz 轴方向与 VRM1.x 相反：-1=VRM0.x(男生), +1=VRM1.x(女生)
-        // 影响所有上臂/前臂的 rz（上下抬落轴），乘此值保证两版本手臂都能正确垂下
+        // VRM0.x 骨骼 rz/rx 轴方向与 VRM1.x 相反：-1=VRM0.x(男生), +1=VRM1.x(女生)
+        // rz：影响所有上臂/前臂的上下抬落轴；rx：影响前后摆动轴
         let _vrmArmRzSign = 1;
+        let _vrmArmRxSign = 1;
+        // VRM模型正在加载时阻止主加载遮罩提前消失
+        let _vrmLoadingActive = false;
         let walls = [];
         /** 仅包围盒碰撞（玻璃/薄顶等，无 mesh）；缓存命中时与 wb 一致不写入，依赖已序列化的 walls */
         function addWallBBoxOnly(x, y, z, w, h, d) {
@@ -4438,6 +4441,7 @@
             if (hint) hint.textContent = text;
             if (bar)  { _loadStep = Math.min(_loadStep + 14, 96); bar.style.width = _loadStep + '%'; }
             if (!text && overlay) {
+                if (_vrmLoadingActive) return; // VRM仍在加载，暂不隐藏遮罩
                 // 加载完成，动画隐藏
                 if (bar) bar.style.width = '100%';
                 setTimeout(() => { if (overlay) overlay.style.opacity='0'; overlay.style.transition='opacity 0.6s'; }, 200);
@@ -5759,17 +5763,25 @@
                 const vrmUrl = equippedVrmFile.startsWith('http') ? equippedVrmFile : '../' + equippedVrmFile;
                 console.log('🔄 尝试加载玩家VRM模型:', vrmUrl);
 
-                // 创建加载进度提示（VRM文件可达14MB，网络较慢时需要更长等待）
-                const vrmLoadingEl = document.createElement('div');
-                vrmLoadingEl.id = 'vrm-loading-tip';
-                vrmLoadingEl.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);' +
-                    'background:rgba(0,0,0,0.72);color:#fff;padding:8px 20px;border-radius:8px;' +
-                    'font-size:13px;z-index:9999;pointer-events:none;';
-                vrmLoadingEl.textContent = '⏳ 正在加载角色模型...';
-                document.body.appendChild(vrmLoadingEl);
+                // 复用主加载遮罩显示VRM加载进度（防止提前消失并复位显示）
+                _vrmLoadingActive = true;
+                (function() {
+                    var _lo = document.getElementById('map-loading');
+                    var _lh = document.getElementById('load-hint');
+                    var _lb = document.getElementById('load-bar');
+                    if (_lo) { _lo.style.display='flex'; _lo.style.opacity='1'; _lo.style.transition='none'; }
+                    if (_lh) _lh.textContent = '⏳ 正在加载角色模型...';
+                    if (_lb) _lb.style.width = '20%';
+                })();
                 function _removeVrmTip() {
-                    const el = document.getElementById('vrm-loading-tip');
-                    if (el) el.remove();
+                    _vrmLoadingActive = false;
+                    var _lo = document.getElementById('map-loading');
+                    var _lb = document.getElementById('load-bar');
+                    if (_lb) _lb.style.width = '100%';
+                    if (_lo) {
+                        setTimeout(function(){ _lo.style.opacity='0'; _lo.style.transition='opacity 0.6s'; }, 200);
+                        setTimeout(function(){ _lo.style.display='none'; }, 900);
+                    }
                 }
 
                 // 超时改为 90 秒（VRM文件约14MB，GitHub Pages 网速慢时需要足够时间）
@@ -5791,6 +5803,7 @@
                     var isVRM0x = !!gltfExt['VRM'];
                     vrmInner.rotation.y = isVRM0x ? 0 : Math.PI;
                     _vrmArmRzSign = isVRM0x ? -1 : 1; // VRM0.x臂部rz轴反向
+                    _vrmArmRxSign = isVRM0x ? -1 : 1; // VRM0.x臂部rx轴反向（前后摆方向）
                     vrmInner.scale.set(2, 2, 2);  // 默认VRM模型 2x缩放
                     vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                     var vrmWrapper = new THREE.Group();
@@ -5805,11 +5818,13 @@
                     // 延迟一帧收集骨骼，确保场景图完全构建
                     setTimeout(_collectVrmBones, 100);
                 }, function(xhr) {
-                    // 进度回调：显示下载百分比
+                    // 进度回调：更新主加载遮罩（capped at 100%，防止182%等超标问题）
                     if (xhr.total > 0) {
-                        const pct = Math.round(xhr.loaded / xhr.total * 100);
-                        const el = document.getElementById('vrm-loading-tip');
-                        if (el) el.textContent = '⏳ 正在加载角色模型... ' + pct + '%';
+                        var pct = Math.min(100, Math.round(xhr.loaded / xhr.total * 100));
+                        var _lh = document.getElementById('load-hint');
+                        var _lb = document.getElementById('load-bar');
+                        if (_lh) _lh.textContent = '⏳ 正在加载角色模型... ' + pct + '%';
+                        if (_lb) _lb.style.width = Math.round(20 + pct * 0.76) + '%';
                     }
                 }, function(err) {
                     clearTimeout(timeoutId);
@@ -5827,8 +5842,30 @@
 
                 console.log('🔄 加载默认男生VRM模型:', defaultMaleVrm);
 
+                // 复用主加载遮罩显示男生VRM加载进度
+                _vrmLoadingActive = true;
+                (function() {
+                    var _lo = document.getElementById('map-loading');
+                    var _lh = document.getElementById('load-hint');
+                    var _lb = document.getElementById('load-bar');
+                    if (_lo) { _lo.style.display='flex'; _lo.style.opacity='1'; _lo.style.transition='none'; }
+                    if (_lh) _lh.textContent = '⏳ 正在加载角色模型...';
+                    if (_lb) _lb.style.width = '20%';
+                })();
+                function _hideMaleVrmOverlay() {
+                    _vrmLoadingActive = false;
+                    var _lo = document.getElementById('map-loading');
+                    var _lb = document.getElementById('load-bar');
+                    if (_lb) _lb.style.width = '100%';
+                    if (_lo) {
+                        setTimeout(function(){ _lo.style.opacity='0'; _lo.style.transition='opacity 0.6s'; }, 200);
+                        setTimeout(function(){ _lo.style.display='none'; }, 900);
+                    }
+                }
+
                 const timeoutId = setTimeout(() => {
                     console.log('⏰ 男生VRM加载超时，使用简单模型');
+                    _hideMaleVrmOverlay();
                     initializeSoldier(createSimpleSoldier());
                 }, 30000); // 30秒超时（本地文件通常很快）
 
@@ -5840,6 +5877,7 @@
                         var vrmInner = gltf.scene;
                         vrmInner.rotation.y = 0; // 男生VRM0.x默认朝+Z（背向镜头），无需旋转
                         _vrmArmRzSign = -1;       // VRM0.x臂部rz轴反向
+                        _vrmArmRxSign = -1;       // VRM0.x臂部rx轴反向（前后摆方向）
                         vrmInner.scale.set(2, 2, 2); // 与装备VRM一致：2x缩放
                         vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
                         var vrmWrapper = new THREE.Group();
@@ -5849,12 +5887,14 @@
                         _vrmBonesResolved = false;
                         FIRST_PERSON_HEIGHT = 1.8; // 与装备VRM一致
                         normalHeight = FIRST_PERSON_HEIGHT;
+                        _hideMaleVrmOverlay();
                         initializeSoldier(vrmWrapper);
                         setTimeout(_collectVrmBones, 100);
                     },
                     undefined,
                     function(err) {
                         clearTimeout(timeoutId);
+                        _hideMaleVrmOverlay();
                         console.warn('男生VRM加载失败，尝试在线模型:', err);
                         // 回退：在线Soldier模型
                         loader.load(
@@ -7465,12 +7505,14 @@
                     _animBones('j_bip_r_shoulder', -shoRx,  shoRy, 0, al);
 
                     // ── 上臂：rx=前后摆（纵深）, rz=肘部抬落（背后可见）──
-                    // _vrmArmRzSign: VRM1.x=+1, VRM0.x=-1（坐标轴反向）
+                    // _vrmArmRzSign: VRM1.x=+1, VRM0.x=-1（rz轴反向）
+                    // _vrmArmRxSign: VRM1.x=+1, VRM0.x=-1（rx前后摆方向反向）
                     const lArmRx = _kfI(t, _KArmRx), lArmRy = _kfI(t, _KArmRy);
                     const armElevD = _kfI(t, _KArmElevD);
                     const _s2 = _vrmArmRzSign;
-                    _animBones('j_bip_l_upperarm',  lArmRx,  lArmRy, _s2 * (-1.10 + armElevD), al);
-                    _animBones('j_bip_r_upperarm', -lArmRx,  lArmRy, _s2 * (+1.10 + armElevD), al);
+                    const _s3 = _vrmArmRxSign;
+                    _animBones('j_bip_l_upperarm',  _s3 * lArmRx,  lArmRy, _s2 * (-1.10 + armElevD), al);
+                    _animBones('j_bip_r_upperarm', _s3 * (-lArmRx),  lArmRy, _s2 * (+1.10 + armElevD), al);
                     // ── 前臂：随摆动相位轻微屈伸（向前多弯，向后略伸）──
                     const faRx = _kfI(t, _KFaRx);
                     _animBones('j_bip_l_lowerarm', faRx, 0, _s2 * (-0.20), al);
@@ -7601,10 +7643,12 @@
                 bl(lSho,  shoRx2,  shoRy2, 0);
                 bl(rSho, -shoRx2,  shoRy2, 0);
                 // ── 上臂：rx=前后摆, rz=肘部抬落（背后可见的泵动）──
+                // _vrmArmRxSign: VRM0.x=-1修正前后摆方向
                 const lArmRx2 = _kfI(t, _KArmRx), lArmRy2 = _kfI(t, _KArmRy);
                 const armElevD2 = _kfI(t, _KArmElevD);
-                bl(lArm,  lArmRx2,  lArmRy2, -1.10 + armElevD2);
-                bl(rArm, -lArmRx2,  lArmRy2, +1.10 + armElevD2);
+                const _s4 = _vrmArmRxSign;
+                bl(lArm,  _s4 * lArmRx2,  lArmRy2, -1.10 + armElevD2);
+                bl(rArm, _s4 * (-lArmRx2),  lArmRy2, +1.10 + armElevD2);
                 // ── 前臂：随摆动相位轻微屈伸 ──
                 const faRx2 = _kfI(t, _KFaRx);
                 bl(lFa, faRx2, 0, -0.20);
