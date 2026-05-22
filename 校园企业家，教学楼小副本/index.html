@@ -446,7 +446,7 @@
         const BODY_SWAY_AMPLITUDE = 0.05; // 身体左右摇摆幅度
         const HEAD_BOB_AMPLITUDE = 0.08; // 头部上下摆动幅度
         const STEP_SOUND_INTERVAL = 0.6; // 脚步声间隔
-        const LEG_SWING_AMPLITUDE = 0.5; // 腿部摆动幅度（稍微减小，让动作更自然）
+        const LEG_SWING_AMPLITUDE = 0.75; // 腿部摆动幅度（加大，与VRM骨骼动画同步）
         
         // 原始位置存储（用于动画重置）
         let originalArmPositions = {};
@@ -7465,25 +7465,19 @@
                 leftLeg.position.x = -0.15 + leftSideBob;
                 rightLeg.position.x = 0.15 + rightSideBob;
                 
-                // 小腿动画 - 弯曲膝盖效果
+                // 小腿动画：两侧完全相同的曲线，仅相位差π
+                // 使用平滑的sin²确保膝盖弯曲不超过合理范围
+                const kneeBendL = (0.5 - 0.5 * Math.cos(walkCycle + Math.PI)) * 0.55 * walkSpeed;
+                const kneeBendR = (0.5 - 0.5 * Math.cos(walkCycle))           * 0.55 * walkSpeed;
                 if (leftLeg.children.length > 0) {
                     const leftCalf = leftLeg.children[0];
-                    // 抬腿时膝盖弯曲更多
-                    const leftKneeBend = Math.max(0, Math.sin(walkCycle)) * 0.4 * walkSpeed;
-                    leftCalf.rotation.x = leftKneeBend;
-                    
-                    // 小腿前后位置调整
-                    leftCalf.position.y = -0.45 + leftKneeBend * 0.1;
+                    leftCalf.rotation.x = kneeBendL;
+                    leftCalf.position.y = -0.45 + kneeBendL * 0.08;
                 }
-                
                 if (rightLeg.children.length > 0) {
                     const rightCalf = rightLeg.children[0];
-                    // 抬腿时膝盖弯曲更多
-                    const rightKneeBend = Math.max(0, Math.sin(walkCycle + Math.PI)) * 0.4 * walkSpeed;
-                    rightCalf.rotation.x = rightKneeBend;
-                    
-                    // 小腿前后位置调整
-                    rightCalf.position.y = -0.45 + rightKneeBend * 0.1;
+                    rightCalf.rotation.x = kneeBendR;
+                    rightCalf.position.y = -0.45 + kneeBendR * 0.08;
                 }
             }
         }
@@ -7826,47 +7820,47 @@
         }
         // 骨盆（全局运动，不做左右镜像）
         // ★ 反对称设计：val[i] = -val[i+3]，使 (t+0.5) 相位下值为负
-        const _KHipRx = _mkKF([8, 6, 4, 8, 6, 4]);     // 轻微前倾（常量）
-        const _KHipRy = _mkKF([-5, -2, 3, 5, 2, -3]);   // 骨盆Y旋（左腿前→骨盆左转）
-        const _KHipRz = _mkKF([2, 5, 2, -2, -5, -2]);   // 侧倾（支撑脚侧下沉）
+        const _KHipRx = _mkKF([6, 5, 4, 6, 5, 4]);      // 轻微前倾（常量）
+        const _KHipRy = _mkKF([-6, -3, 4, 6, 3, -4]);   // 骨盆Y旋（左腿前→骨盆左转）
+        const _KHipRz = _mkKF([3, 9, 3, -3, -9, -3]);   // 侧倾加大→明显左右晃动
         // 脊椎（随骨盆反向旋转，抵消上半身晃动）
         const _KSp1Rx = _mkKF([3, 3, 2, 3, 3, 2]);
-        const _KSp1Ry = _mkKF([-2, 0, 2, -2, 0, 2]);    // 与骨盆同步（脊椎底小幅）
-        const _KSp1Rz = _mkKF([0, 1, -1, 0, 1, -1]);
+        const _KSp1Ry = _mkKF([-3, 0, 3, -3, 0, 3]);
+        const _KSp1Rz = _mkKF([0, 2, -2, 0, 2, -2]);
         const _KSp2Rx = _mkKF([2, 2, 1, 2, 2, 1]);
         const _KSp2Ry = _mkKF([-2, 0, 2, -2, 0, 2]);
-        const _KSp2Rz = _mkKF([-1, 0, 1, -1, 0, 1]);
+        const _KSp2Rz = _mkKF([-2, 0, 2, -2, 0, 2]);
         const _KSp3Rx = _mkKF([1, 2, 0, 1, 2, 0]);
-        const _KSp3Ry = _mkKF([-3, 0, 3, -3, 0, 3]);    // 胸廓反向于骨盆
-        const _KSp3Rz = _mkKF([-2, 0, 2, -2, 0, 2]);
+        const _KSp3Ry = _mkKF([-4, 0, 4, -4, 0, 4]);   // 胸廓反向于骨盆
+        const _KSp3Rz = _mkKF([-3, 0, 3, -3, 0, 3]);
         // 颈部
         const _KNkRx  = _mkKF([-5, -4, -4, -5, -4, -4]);
         const _KNkRy  = _mkKF([-2, 0, 2, -2, 0, 2]);
         const _KNkRz  = _mkKF([0, 1, -1, 0, 1, -1]);
         // ★ 锁骨/肩（左；右侧用(t+0.5)%1）
-        // 反对称：val[i]=-val[i+3]，右臂前摆时右锁骨前屈
-        const _KShoRx = _mkKF([-4, -2, 3, 4, 2, -3]);
+        const _KShoRx = _mkKF([-5, -2, 4, 5, 2, -4]);
         const _KShoRy = _mkKF([2, 1, -2, -2, -1, 2]);
         // ★ 上臂（左；右侧用(t+0.5)%1）
-        // t=0: 左腿向前 → 左臂向后(-40°)，自然对侧摆臂
-        // 反对称：_kfI(t+0.5, _KArmRx) = -_kfI(t, _KArmRx) 精确成立
-        const _KArmRx = _mkKF([-40, -18, 28, 40, 18, -28]);
+        // t=0: 左腿向前 → 左臂向后，自然对侧摆臂
+        const _KArmRx = _mkKF([-48, -22, 34, 48, 22, -34]);  // 加大摆臂幅度
         const _KArmRy = _mkKF([4, 2, -4, -4, -2, 4]);
         // 肘部抬落delta（臂向后时肘抬起+可见；臂向前时肘下沉）
         const _KArmElevD = _mkKF([0.28, 0.14, -0.08, -0.28, -0.14, 0.08]);
         // 前臂（左；右侧用(t+0.5)%1）：臂后伸时肘弯曲更多，前摆时略伸
         const _KFaRx = _mkKF([1.80, 1.72, 1.58, 1.75, 1.67, 1.53]);
         // ★ 大腿（左；右侧全部用(t+0.5)%1——rx/ry/rz均反对称）
-        // t=0: 左腿最前+38°；t=0.5: 右腿最前(左-38°)
-        // 严格反对称：_kfI(t+0.5,_KLegRx)= -_kfI(t,_KLegRx) ← 均匀节点+反对称值保证
-        const _KLegRx = _mkKF([38, 8, -35, -38, -8, 35]);  // 屈(+)/伸(-)
-        const _KLegRy = _mkKF([4, 2, -3, -4, -2, 3]);       // 外旋(+)/内旋(-)
-        const _KLegRz = _mkKF([-3, -6, -2, 3, 6, 2]);        // 展(-)/收(+)
-        // 小腿（左；右侧用(t+0.5)%1；非反对称，两侧均正值）
-        // t=2/6(=-35°,蹬地期): 小腿弯曲少；t=3/6(推进离地): 大弯曲75°清脚
-        const _KKneRx = _mkKF([12, 8, 20, 75, 48, 18]);
+        // t=0: 右腿最前+52°；t=0.5: 左腿最前(右-52°)
+        // 加大步幅：从38°增至52°，使迈步更明显
+        const _KLegRx = _mkKF([52, 20, -44, -52, -20, 44]);  // 屈(+)/伸(-) 加大幅度
+        const _KLegRy = _mkKF([4, 2, -3, -4, -2, 3]);        // 外旋/内旋
+        const _KLegRz = _mkKF([-2, -5, -2, 2, 5, 2]);        // 展/收
+        // ★ 小腿（左右相同曲线，各自用自己的相位）
+        // 关键修复：减小后摆膝盖弯曲75°→42°，避免视觉上看起来"一瘸一拐"
+        // 前迈（t=0）:8° 微屈  落地(t≈0.17):10°  支撑(t≈0.33):8°
+        // 后蹬(t=0.5):42° 适度弯曲清脚  摆荡(t≈0.67):36°  前摆收回(t≈0.83):14°
+        const _KKneRx = _mkKF([8, 10, 8, 42, 36, 14]);
         // 踝关节（左；右侧用(t+0.5)%1；反对称）
-        const _KFtRx  = _mkKF([8, 4, -22, -8, 4, 14]);   // 背屈(+)/跖屈(-)
+        const _KFtRx  = _mkKF([8, 4, -18, -8, 4, 12]);   // 背屈(+)/跖屈(-)
         const _KFtRy  = _mkKF([2, 1, -1, -2, -1, 1]);     // 内翻(+)/外翻(-)
         // ──────────────────────────────────────────────────────────────────
 
