@@ -352,7 +352,25 @@
     <div id="postModal" class="modal" style="display: none;">
         <div class="modal-content">
             <h2>发布新帖子</h2>
-            <textarea id="postContent" placeholder="分享你的想法..." maxlength="1000" rows="6"></textarea>
+            <textarea id="postContent" placeholder="分享你的想法..." maxlength="1000" rows="5"></textarea>
+            <!-- 图片上传区 -->
+            <div id="imgUploadArea" style="
+                margin-top:12px; border:2px dashed rgba(139,92,246,0.4);
+                border-radius:12px; padding:14px; text-align:center;
+                cursor:pointer; transition:all 0.2s; background:rgba(139,92,246,0.05);
+                position:relative;" onclick="document.getElementById('forumImgInput').click()"
+                ondragover="event.preventDefault();this.style.borderColor='#8b5cf6';"
+                ondragleave="this.style.borderColor='rgba(139,92,246,0.4)'"
+                ondrop="handleForumImgDrop(event)">
+                <div id="imgUploadHint" style="color:rgba(255,255,255,0.5);font-size:13px;pointer-events:none;">
+                    🖼️ 点击选图 / 拖入图片 / Ctrl+V 粘贴
+                </div>
+                <img id="forumImgPreview" style="max-width:100%;max-height:160px;border-radius:8px;display:none;margin-top:8px;">
+                <input type="file" id="forumImgInput" accept="image/*" style="display:none" onchange="handleForumImgFile(this.files[0])">
+            </div>
+            <button id="clearForumImg" onclick="clearForumImage()" style="
+                display:none; margin-top:6px; background:none; border:none;
+                color:rgba(200,100,100,0.8); cursor:pointer; font-size:12px;">✕ 移除图片</button>
             <div class="modal-actions">
                 <button onclick="closePostModal()">取消</button>
                 <button onclick="submitPost()" class="primary">发布</button>
@@ -443,6 +461,11 @@
                 // 检查当前用户是否已点赞
                 const isLiked = post.likes.some(like => like.userId === currentUserId);
                 
+                // 解析内容和图片
+                const _sep = '\n---img---\n';
+                const _sepIdx = (post.content||'').indexOf(_sep);
+                const _postText = _sepIdx>=0 ? post.content.slice(0,_sepIdx) : (post.content||'');
+                const _postImg  = _sepIdx>=0 ? post.content.slice(_sepIdx+_sep.length) : '';
                 postCard.innerHTML = `
                     <div class="post-header">
                         <div class="post-avatar">${post.authorAvatar || '👤'}</div>
@@ -451,7 +474,8 @@
                             <div class="post-time">${timeAgo}</div>
                         </div>
                     </div>
-                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    <div class="post-content">${escapeHtml(_postText)}</div>
+                    ${_postImg ? `<img src="${escapeHtml(_postImg)}" style="max-width:100%;border-radius:10px;margin-top:10px;display:block;" onerror="this.style.display='none'">` : ''}
                     <div class="post-actions">
                         <div class="action-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post._id}')">
                             👍 点赞 (${post.likeCount || 0})
@@ -486,8 +510,67 @@
         function closePostModal() {
             document.getElementById('postModal').style.display = 'none';
             document.getElementById('postContent').value = '';
+            clearForumImage();
         }
         
+        // ── 图片处理 ──────────────────────────────────────────
+        let _forumImgData = ''; // base64 或 '' 表示无图
+
+        function _compressImage(file, maxW, maxH, q) {
+            return new Promise(res => {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    let w = img.width, h = img.height;
+                    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+                    if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+                    const c = document.createElement('canvas');
+                    c.width = w; c.height = h;
+                    c.getContext('2d').drawImage(img, 0, 0, w, h);
+                    res(c.toDataURL('image/jpeg', q));
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+                img.src = url;
+            });
+        }
+        async function handleForumImgFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const data = await _compressImage(file, 900, 900, 0.78);
+            if (!data) return;
+            _forumImgData = data;
+            const preview = document.getElementById('forumImgPreview');
+            preview.src = data; preview.style.display = 'block';
+            document.getElementById('imgUploadHint').style.display = 'none';
+            document.getElementById('clearForumImg').style.display = 'inline-block';
+        }
+        function handleForumImgDrop(e) {
+            e.preventDefault();
+            document.getElementById('imgUploadArea').style.borderColor = 'rgba(139,92,246,0.4)';
+            const file = e.dataTransfer.files[0];
+            if (file) handleForumImgFile(file);
+        }
+        function clearForumImage() {
+            _forumImgData = '';
+            const preview = document.getElementById('forumImgPreview');
+            preview.src = ''; preview.style.display = 'none';
+            document.getElementById('imgUploadHint').style.display = 'block';
+            document.getElementById('clearForumImg').style.display = 'none';
+            document.getElementById('forumImgInput').value = '';
+        }
+        // 粘贴图片支持
+        document.addEventListener('paste', async function(e) {
+            if (document.getElementById('postModal').style.display === 'none') return;
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    await handleForumImgFile(item.getAsFile());
+                    break;
+                }
+            }
+        });
+
         // 提交帖子
         async function submitPost() {
             const content = document.getElementById('postContent').value.trim();
@@ -503,21 +586,22 @@
             }
             
             const userData = JSON.parse(localStorage.getItem('campus_user') || '{}');
+            // 拼合内容（含图片时追加分隔符）
+            const fullContent = _forumImgData ? `${content}\n---img---\n${_forumImgData}` : content;
             let posted = false;
             try {
                 const response = await Promise.race([
-                    apiClient.createPost(currentUserId, content, currentUserName, userData.avatar || '', 'forum'),
-                    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
+                    apiClient.createPost(currentUserId, fullContent, currentUserName, userData.avatar || '', 'forum'),
+                    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
                 ]);
                 if (response.success) posted = true;
             } catch (error) {
                 console.warn('服务器发帖失败，保存到本地:', error.message);
             }
             if(!posted){
-                // 保存到 localStorage
                 saveLocalPost({
                     _id: 'local_'+Date.now(),
-                    content,
+                    content: fullContent,
                     authorId: currentUserId,
                     authorName: currentUserName,
                     authorAvatar: userData.avatar || '👤',
@@ -525,6 +609,7 @@
                     likes: [], comments: [], likeCount: 0, commentCount: 0
                 });
             }
+            clearForumImage();
             alert('✅ 帖子发布成功！');
             closePostModal();
             await loadPosts();

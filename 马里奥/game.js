@@ -496,17 +496,20 @@ class PokemonGame {
         });
         
         // 按钮事件
-        document.getElementById('startBtn').addEventListener('click', () => {
-            this.startGame();
-        });
-        
+        const startBtn = document.getElementById('startBtn');
+        startBtn.addEventListener('click', () => { this.startGame(); });
+        startBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.startGame(); }, { passive: false });
+
         document.getElementById('pauseBtn').addEventListener('click', () => {
             this.togglePause();
         });
-        
+
         document.getElementById('restartBtn').addEventListener('click', () => {
             this.restartGame();
         });
+
+        // 移动端虚拟按键支持
+        this._setupTouchControls();
         
         const dialogNextBtn = document.getElementById('dialogNext');
         dialogNextBtn.addEventListener('click', (ev) => {
@@ -521,7 +524,47 @@ class PokemonGame {
             }
         });
     }
-    
+
+    _setupTouchControls() {
+        // 创建移动端虚拟摇杆覆盖层
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        if (!isMobile) return;
+        const btnBase = 'border-radius:50%;border:none;color:#fff;cursor:pointer;touch-action:manipulation;';
+        const pad = document.createElement('div');
+        pad.id = 'touch-pad';
+        pad.style.cssText = 'position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 16px;z-index:9999;pointer-events:none;';
+        pad.innerHTML = `
+            <div style="display:flex;gap:8px;pointer-events:all;">
+                <button id="btn-left"  style="${btnBase}width:60px;height:60px;background:rgba(0,0,0,0.5);font-size:24px;">◀</button>
+                <button id="btn-right" style="${btnBase}width:60px;height:60px;background:rgba(0,0,0,0.5);font-size:24px;">▶</button>
+            </div>
+            <div style="pointer-events:all;">
+                <button id="btn-jump" style="${btnBase}width:70px;height:70px;background:rgba(80,180,80,0.8);font-size:28px;">↑</button>
+            </div>`;
+        document.body.appendChild(pad);
+
+        const map = { 'btn-left': 'ArrowLeft', 'btn-right': 'ArrowRight', 'btn-jump': 'Space' };
+        for (const [id, code] of Object.entries(map)) {
+            const el = document.getElementById(id);
+            if (!el) continue;
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); this.keys[code] = true; }, { passive: false });
+            el.addEventListener('touchend',   (e) => { e.preventDefault(); this.keys[code] = false; }, { passive: false });
+            el.addEventListener('touchcancel',(e) => { e.preventDefault(); this.keys[code] = false; }, { passive: false });
+        }
+        // 射击按钮 Z
+        const shootBtn = document.createElement('button');
+        shootBtn.textContent = '🎯';
+        shootBtn.style.cssText = 'position:fixed;bottom:96px;right:16px;width:60px;height:60px;border-radius:50%;border:none;background:rgba(200,80,80,0.8);color:#fff;font-size:24px;cursor:pointer;touch-action:manipulation;z-index:9999;pointer-events:all;';
+        document.body.appendChild(shootBtn);
+        shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.keys['KeyZ'] = true; }, { passive: false });
+        shootBtn.addEventListener('touchend',   (e) => { e.preventDefault(); this.keys['KeyZ'] = false; }, { passive: false });
+
+        // 画布缩放适配移动端
+        const canvas = this.canvas;
+        const scale = Math.min(window.innerWidth / 1200, window.innerHeight / 600, 1);
+        canvas.style.cssText = `width:${1200*scale}px;height:${600*scale}px;display:block;margin:0 auto;`;
+    }
+
     startGame() {
         document.getElementById('startScreen').style.display = 'none';
         this.gameState = 'playing';
@@ -788,7 +831,7 @@ class PokemonGame {
         this.updateCamera();
         
         // 检查胜利条件（宝可梦全收集 + 敌人清空后不再生成时触发）
-        if (this.pokemons.length === 0 && this.enemies.length === 0 && !this.hasWon) {
+        if (this.pokemons.length === 0 && this.enemies.length === 0 && !this.hasWon && this.pokemonCount > 0) {
             this.hasWon = true;
             this.gameState = 'won';
             this.victory();

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D教学楼 - 多层第一人称漫游</title>
     <script src="../js/campus-settings.js"></script>
+    <script src="../js/api-client.js"></script>
     <link rel="stylesheet" href="../css/campus-mobile.css">
     <style>
         * { box-sizing: border-box; }
@@ -204,6 +205,13 @@
             <div id="load-bar" style="width:0%; height:100%; background:linear-gradient(90deg,#3a7bd5,#7dd4ff); border-radius:3px; transition:width 0.4s;"></div>
         </div>
         <div style="font-size:11px; color:#5588aa; margin-top:8px;">首次加载约3-5秒，之后将从缓存快速读取</div>
+        <button id="skip-vrm-btn" onclick="window._skipVrmLoad&&window._skipVrmLoad()" style="
+            display:none; margin-top:8px; padding:8px 22px;
+            background:rgba(80,160,255,0.18); color:#7dd4ff;
+            border:1px solid rgba(80,160,255,0.4); border-radius:8px;
+            font-size:13px; cursor:pointer; letter-spacing:1px;">
+            ⏩ 跳过角色加载，直接进入
+        </button>
     </div>
 
     <div id="campus-mobile-hud">
@@ -224,7 +232,7 @@
         <p><span class="key">W/A/S/D</span> 移动</p>
         <p class="campus-desktop-only"><span class="key">鼠标</span> 点击锁定视角</p>
         <p><span class="key">Space</span> 跳跃（双跳）</p>
-        <p><span class="key">E</span> 坐下/起立（靠近椅子）/ 开关大门（靠近大门）</p>
+        <p><span class="key">E</span> 坐下/起立（靠近椅子）/ 开关大门（靠近大门或校门）</p>
         <p><span class="key">Shift</span> 下蹲 &nbsp;<span class="key">Q</span> 滑铲</p>
         <p><span class="key">X</span> 第一/三人称</p>
         <p><span class="key">P</span> 飞行模式</p>
@@ -239,24 +247,22 @@
         <input type="text" id="console-input" placeholder="输入命令...">
     </div>
 
-    <!-- 引入Three.js库 -->
-    <script src="https://unpkg.com/three@0.134.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://unpkg.com/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://unpkg.com/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"></script>
-    
-    <!-- 备用CDN -->
+    <!-- 引入Three.js库（jsDelivr：国内速度快；失败自动换cdnjs） -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"></script>
+
+    <!-- 备用CDN（jsDelivr失败时） -->
     <script>
-        // 检查Three.js是否加载成功，如果失败则使用备用CDN
         if (typeof THREE === 'undefined') {
             console.log('主CDN失败，尝试备用CDN...');
             document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"><\/script>');
             document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/loaders/GLTFLoader.js"><\/script>');
             document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/controls/OrbitControls.js"><\/script>');
         }
-        // BufferGeometryUtils 备用 CDN
         if (typeof THREE !== 'undefined' && !THREE.BufferGeometryUtils) {
-            document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"><\/script>');
+            document.write('<script src="https://unpkg.com/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"><\/script>');
         }
     </script>
 
@@ -1231,6 +1237,7 @@
         window._gfxTier = 'high';
         function applyAdaptiveGpuQuality(renderer, sunDirLight) {
             let tier = 'high';
+            const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
             try {
                 const gl = renderer.getContext();
                 const dbg = gl.getExtension('WEBGL_debug_renderer_info');
@@ -1239,29 +1246,33 @@
                     if (/SwiftShader|LLVMpipe|Software|Microsoft Basic|llvmpipe/i.test(ren)) tier = 'low';
                 }
                 const cores = navigator.hardwareConcurrency || 4;
-                const mem = navigator.deviceMemory || 8;
+                const mem   = navigator.deviceMemory || 8;
                 if (tier !== 'low') {
                     if (mem <= 2 || cores <= 2) tier = 'low';
-                    else if (mem <= 4 || cores <= 4 || window.innerWidth < 1100) tier = 'medium';
+                    else if (mem <= 4 || cores <= 4 || window.innerWidth < 1100 || isMobileUA) tier = 'medium';
                 }
-            } catch (e) { tier = 'medium'; }
+            } catch (e) { tier = isMobileUA ? 'medium' : 'high'; }
             window._gfxTier = tier;
             if (tier === 'low') {
-                renderer.setPixelRatio(1);
-                if (sunDirLight && sunDirLight.shadow) {
-                    sunDirLight.shadow.mapSize.width = 1024;
-                    sunDirLight.shadow.mapSize.height = 1024;
-                }
+                // 超低配：关阴影、最低分辨率、关抗锯齿效果
+                renderer.setPixelRatio(Math.min(1.0, window.devicePixelRatio || 1));
+                renderer.shadowMap.enabled = false;
+                if (sunDirLight) { sunDirLight.castShadow = false; }
             } else if (tier === 'medium') {
-                renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
+                // 手机/中配：降分辨率 + 小阴影贴图
+                renderer.setPixelRatio(Math.min(1.2, window.devicePixelRatio || 1));
                 if (sunDirLight && sunDirLight.shadow) {
-                    sunDirLight.shadow.mapSize.width = 1536;
-                    sunDirLight.shadow.mapSize.height = 1536;
+                    sunDirLight.shadow.mapSize.width  = 512;
+                    sunDirLight.shadow.mapSize.height = 512;
                 }
             } else {
                 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+                if (sunDirLight && sunDirLight.shadow) {
+                    sunDirLight.shadow.mapSize.width  = 2048;
+                    sunDirLight.shadow.mapSize.height = 2048;
+                }
             }
-            console.log('画质档:', tier, '（阴影贴图 GPU）');
+            console.log('画质档:', tier, '| 移动端:', isMobileUA);
             return tier;
         }
 
@@ -1651,6 +1662,39 @@
                                 showHint(isOpen?'大门已开启':'大门已关闭');
                                 break;
                             }
+                        }
+                    }
+                    // 校门开关（距离校门中心 <10m，E键开关）
+                    if(!doorTriggered && window._schoolGatePivL){
+                        const sgCZ = window._schoolGateCZ || 118;
+                        const sgC  = new THREE.Vector3(0, 2, sgCZ);
+                        if(soldier && soldier.position.distanceTo(sgC) < 10){
+                            doorTriggered = true;
+                            window._schoolGateOpen = !window._schoolGateOpen;
+                            const _sgOpen = window._schoolGateOpen;
+                            const _tL = _sgOpen ? -Math.PI*0.46 : 0;
+                            const _tR = _sgOpen ?  Math.PI*0.46 : 0;
+                            window._sgAnimGen = (window._sgAnimGen || 0) + 1;
+                            const _sgGen = window._sgAnimGen;
+                            (function animSchoolGate(){
+                                if(_sgGen !== window._sgAnimGen) return;
+                                const k = 0.11;
+                                window._schoolGatePivL.rotation.y += (_tL - window._schoolGatePivL.rotation.y)*k;
+                                window._schoolGatePivR.rotation.y += (_tR - window._schoolGatePivR.rotation.y)*k;
+                                const done = Math.abs(_tL - window._schoolGatePivL.rotation.y) < 0.009;
+                                if(!done){ requestAnimationFrame(animSchoolGate); }
+                                else {
+                                    window._schoolGatePivL.rotation.y = _tL;
+                                    window._schoolGatePivR.rotation.y = _tR;
+                                    const B = window._schoolGateBarrier;
+                                    if(B){
+                                        const idx = walls.indexOf(B);
+                                        if(_sgOpen){ if(idx>=0) walls.splice(idx,1); }
+                                        else { if(idx<0) walls.push(B); }
+                                    }
+                                }
+                            })();
+                            showHint(_sgOpen ? '校门已开启' : '校门已关闭');
                         }
                     }
                     if(!doorTriggered) toggleSitting();
@@ -2836,6 +2880,14 @@
                     const cc=new THREE.Mesh(new THREE.BoxGeometry(slabW2,0.02,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0xf8f8f2}));
                     cc.position.set(BX1+slabW2/2,yB+FH-0.01,corrZ+(BZ2-corrZ)/2);scene.add(cc);
                     addWallBBoxOnly(BX1 + slabW2 / 2, yB + FH - 0.01, corrZ + (BZ2 - corrZ) / 2, slabW2, 0.02, BZ2 - corrZ);
+                    // 走廊吊灯（灯具 + PointLight）
+                    {const _b2lX=BX1+slabW2/2, _b2lY=yB+FH-0.18, _b2lZ=corrZ+(BZ2-corrZ)*0.5;
+                    const _b2sh=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.1,0.2),new THREE.MeshLambertMaterial({color:0xe8e8e4}));
+                    _b2sh.position.set(_b2lX,_b2lY,_b2lZ);scene.add(_b2sh);
+                    const _b2gl=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.04,0.14),new THREE.MeshBasicMaterial({color:0xfff5c0}));
+                    _b2gl.position.set(_b2lX,_b2lY-0.04,_b2lZ);scene.add(_b2gl);
+                    const _b2pt=new THREE.PointLight(0xfff4cc,1.4,12,2);
+                    _b2pt.position.set(_b2lX,_b2lY-0.15,_b2lZ);scene.add(_b2pt);}
                     // 走廊地砖
                     const ct=new THREE.Mesh(new THREE.PlaneGeometry(slabW2,BZ2-corrZ),new THREE.MeshLambertMaterial({color:0x90b8cc}));
                     ct.rotation.x=-Math.PI/2;ct.position.set(BX1+slabW2/2,yB+0.008,corrZ+(BZ2-corrZ)/2);scene.add(ct);
@@ -3375,19 +3427,112 @@
             box(CX1,wallH+0.14,(CZ1+CZ2)/2,wallT+0.1,0.28,CZ2-CZ1,wallTopColor);
             box(CX2,wallH+0.14,(CZ1+CZ2)/2,wallT+0.1,0.28,CZ2-CZ1,wallTopColor);
 
-            // ── 校门（南围墙中央，更宏伟） ──
-            const gateH=7.0, gateGap=12;
-            [-7,-3.5,3.5,7].forEach(ox=>{
-                const isBig=Math.abs(ox)>5;
-                const cH=isBig?gateH+2.5:gateH, cW=isBig?2.2:1.2;
-                wall(ox,cH/2,CZ2,cW,cH,wallT+0.8,isBig?0xd0bea0:0xe0d2bc);
-                box(ox,cH+0.35,CZ2,cW+0.4,0.7,wallT+1.0,wallTopColor);
-            });
-            box(0,gateH-0.4,CZ2,gateGap+1.2,1.0,wallT+0.6,0xc8b898);
-            box(0,gateH+0.5,CZ2,10.0,1.1,0.15,0x1a2a5a);
-            box(0,gateH+0.5,CZ2+0.1,9.0,0.75,0.12,0xffd700);
-            for(let x=-5.2;x<=5.2;x+=0.6) box(x,gateH/2-0.6,CZ2,0.1,gateH-1.2,0.06,0x999999);
-            plane(0, 0.009, CZ2 + 5, 22, 10, 0xbcb2a2);
+            // ── 校门（真实大门设计：宏伟石柱 + 铁艺门扇 + E键开关 + 碰撞箱） ──
+            (function(){
+                const gZ = CZ2;         // Z=118 南围墙Z
+                const gH = 9.0;         // 主柱高度
+                const gGap = 14;        // 门洞宽（对应南围墙缺口 x=-7~7）
+                const halfW = gGap / 2; // 7.0
+                const pW = 2.4;         // 柱宽
+                const pT = wallT + 1.2; // 柱厚
+
+                // 主门柱（左右各一，带碰撞）
+                const pMat = new THREE.MeshLambertMaterial({color: 0xcec4b4});
+                [-1,1].forEach(function(side){
+                    const px = side * (halfW + pW/2 - 0.3); // 与南围墙端部衔接
+                    const pillar = new THREE.Mesh(new THREE.BoxGeometry(pW, gH, pT), pMat);
+                    pillar.position.set(px, gH/2, gZ); scene.add(pillar);
+                    pillar.bbox = new THREE.Box3().setFromObject(pillar); walls.push(pillar);
+                    // 柱顶盖石
+                    box(px, gH+0.38, gZ, pW+0.5, 0.75, pT+0.5, 0xb8a898);
+                    // 柱顶收分（倒棱台装饰）
+                    box(px, gH+0.82, gZ, pW+0.2, 0.32, pT+0.2, 0xc8b8a8);
+                    // 柱顶球形灯饰（发光）
+                    if(!window._skipVisualMesh){
+                        const lamp=new THREE.Mesh(new THREE.SphereGeometry(0.3,10,7),
+                            new THREE.MeshBasicMaterial({color:0xfff6c0}));
+                        lamp.position.set(px, gH+1.22, gZ); scene.add(lamp);
+                        const gPt=new THREE.PointLight(0xffeea0,1.2,20,2);
+                        gPt.position.set(px, gH+0.9, gZ); scene.add(gPt);
+                    }
+                    // 柱身横向腰线
+                    box(px, gH*0.35, gZ, pW+0.1, 0.14, pT+0.1, 0xd8cec0);
+                    box(px, gH*0.65, gZ, pW+0.1, 0.14, pT+0.1, 0xd8cec0);
+                });
+
+                // 连接横梁（两柱顶部，带牌匾）
+                const beamW = gGap + pW*2 - 0.6;
+                box(0, gH-0.6, gZ, beamW, 1.2, wallT+0.5, 0xccc0b0);
+                // 深色牌匾底板
+                box(0, gH-0.18, gZ+wallT*0.5+0.28, 7.2, 0.62, 0.12, 0x1a2c5a);
+                // 金色牌匾面板
+                box(0, gH-0.18, gZ+wallT*0.5+0.35, 6.6, 0.44, 0.09, 0xe8c840);
+                // 横梁底面装饰线条
+                box(0, gH-1.25, gZ, beamW*0.88, 0.12, wallT+0.3, 0xb8aa9a);
+
+                // 铁艺门扇（两扇，E键联动，关门时有碰撞屏障）
+                if(!window._skipVisualMesh){
+                    const iMat=new THREE.MeshLambertMaterial({color:0x253348});
+                    const sMat=new THREE.MeshLambertMaterial({color:0x1c2839});
+                    const leafH = gH - 1.5;  // 门叶高度
+
+                    function buildGateLeaf(leafW){
+                        const g=new THREE.Group();
+                        // 顶横框
+                        const topR=new THREE.Mesh(new THREE.BoxGeometry(leafW,0.13,0.09),iMat);
+                        topR.position.set(0, 0, 0); g.add(topR);
+                        // 底横框
+                        const botR=new THREE.Mesh(new THREE.BoxGeometry(leafW,0.13,0.09),iMat);
+                        botR.position.set(0, -leafH, 0); g.add(botR);
+                        // 1/3处横梁
+                        const midR=new THREE.Mesh(new THREE.BoxGeometry(leafW,0.09,0.07),iMat);
+                        midR.position.set(0, -leafH*0.35, 0); g.add(midR);
+                        // 竖杆（间距约0.5m）
+                        const nV=Math.max(3, Math.round(leafW/0.52));
+                        for(let i=0;i<nV;i++){
+                            const bx=-leafW/2+(i+0.5)*(leafW/nV);
+                            const vBar=new THREE.Mesh(new THREE.BoxGeometry(0.08,leafH,0.08),sMat);
+                            vBar.position.set(bx,-leafH/2,0); g.add(vBar);
+                            // 矛尖
+                            const tip=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.38,4),iMat);
+                            tip.rotation.y=Math.PI/4;
+                            tip.position.set(bx,0.19,0); g.add(tip);
+                        }
+                        return g;
+                    }
+
+                    // 左扇：铰链在左柱内侧（x=-halfW），门叶向右延伸halfW
+                    const pivL=new THREE.Group();
+                    pivL.position.set(-halfW, gH-0.88, gZ); scene.add(pivL);
+                    const leafL=buildGateLeaf(halfW);
+                    leafL.position.set(halfW/2, 0, 0); pivL.add(leafL);
+
+                    // 右扇：铰链在右柱内侧（x=+halfW），门叶向左延伸halfW
+                    const pivR=new THREE.Group();
+                    pivR.position.set(halfW, gH-0.88, gZ); scene.add(pivR);
+                    const leafR=buildGateLeaf(halfW);
+                    leafR.position.set(-halfW/2, 0, 0); pivR.add(leafR);
+
+                    window._schoolGatePivL = pivL;
+                    window._schoolGatePivR = pivR;
+                    window._schoolGateOpen = false;
+                    window._schoolGateCZ   = gZ;
+                }
+
+                // 关门碰撞屏障（默认生效；开门后从 walls 移除）
+                const _sgB = {
+                    _schoolGateBarrier: true,
+                    bbox: new THREE.Box3().setFromCenterAndSize(
+                        new THREE.Vector3(0, (gH-1.5)/2, gZ),
+                        new THREE.Vector3(gGap-0.4, gH-1.5, 0.55)
+                    )
+                };
+                window._schoolGateBarrier = _sgB;
+                walls.push(_sgB);
+
+                // 门洞前广场路面
+                plane(0, 0.009, gZ+5, 24, 10, 0xbcb2a2);
+            })();
 
             // ── 旗台（操场正前方）──
             wall(0,0.6,55,0.5,1.2,0.5,0xeeeeee);
@@ -3522,13 +3667,19 @@
                 [-25,52,-42, 7],[110,45,-60,12],[-90,47,-70, 9],[50,43,-40, 8],
                 [-60,49,-90, 7],[20,51,-100,10],[-35,45,-50, 6],[-110,44,-50,11],
             ];
-            clouds.forEach(([x,y,z,r])=>{
+            clouds.forEach(([x,y,z,r], ci)=>{
+                // 每朵云一个子 Group，独立记录漂移速度
+                const cg = new THREE.Group();
+                cg.position.set(x, y, z);
+                cg.userData.vx = 1.2 + (ci % 5) * 0.45 + Math.sin(ci * 2.17) * 0.7; // m/s 偏东
+                cg.userData.vz = Math.sin(ci * 1.73) * 0.55;
                 const offsets=[[0,0,0,1],[0.9,0.1,0,0.72],[-0.75,0.05,0.3,0.65],[0.2,0.38,0.4,0.55],[-0.35,0.32,-0.25,0.5]];
                 offsets.forEach(([ox,oy,oz,sr])=>{
                     const c=new THREE.Mesh(new THREE.SphereGeometry(1,7,5), cloudMat);
-                    c.scale.set(r*sr*1.4, r*sr*0.55, r*sr); c.position.set(x+ox*r, y+oy*r, z+oz*r);
-                    _cloudGroup.add(c);
+                    c.scale.set(r*sr*1.4, r*sr*0.55, r*sr); c.position.set(ox*r, oy*r, oz*r);
+                    cg.add(c);
                 });
+                _cloudGroup.add(cg);
             });
             _cloudGroup.visible = true;
             scene.add(_cloudGroup);
@@ -4282,7 +4433,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v38'; // v38：玩家半径0.3、玻璃/顶/屋顶/主副门关门碰撞
+        const MAP_VER = 'campus_v39'; // v39：云朵独立运动、走廊/教室灯光、真实校门+碰撞、椅子碰撞箱
 
         function _dbOpen(cb) {
             try {
@@ -4829,6 +4980,20 @@
                 // 走廊天花板（暖灰，与教室顶略有区分）
                 vb(slabCX, yB+FLOOR_H-0.01, CORR_Z+(BZ2-CORR_Z)/2, slabW, 0.02, BZ2-CORR_Z, 0xc4bdb4, 1);
                 wbc(slabCX, yB+FLOOR_H-0.01, CORR_Z+(BZ2-CORR_Z)/2, slabW, 0.02, BZ2-CORR_Z);
+                // 走廊吊灯（灯具视觉 + PointLight 光源）
+                if (!window._skipVisualMesh) {
+                    const _corrLX = slabCX;
+                    const _corrLY = yB + FLOOR_H - 0.18;
+                    const _corrLZ = CORR_Z + (BZ2 - CORR_Z) * 0.5;
+                    const _lSh = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.2),
+                        new THREE.MeshLambertMaterial({color: 0xe8e8e4}));
+                    _lSh.position.set(_corrLX, _corrLY, _corrLZ); scene.add(_lSh);
+                    const _lGl = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.14),
+                        new THREE.MeshBasicMaterial({color: 0xfff5c0}));
+                    _lGl.position.set(_corrLX, _corrLY - 0.04, _corrLZ); scene.add(_lGl);
+                    const _corrPt = new THREE.PointLight(0xfff4cc, 1.4, 12, 2);
+                    _corrPt.position.set(_corrLX, _corrLY - 0.15, _corrLZ); scene.add(_corrPt);
+                }
                 // 教室天花板
                 for (let r=0; r<3; r++) {
                     vb((ROOM_XS[r]+ROOM_XS[r+1])/2, yB+FLOOR_H-0.01, (BZ1+CORR_Z)/2, ROOM_XS[r+1]-ROOM_XS[r]-WT, 0.02, CORR_Z-BZ1-WT, 0xd5cfc6, 1);
@@ -5083,6 +5248,12 @@
                     bckT.position.set(cx - 0.17, yBase + cH + 0.38, dz);
                     shRoom(bckT); scene.add(bckT);
                     nearbyChairs.push({ position: new THREE.Vector3(cx, yBase + cH, dz), mesh: seat });
+                    // 椅子碰撞箱（阻止玩家穿入椅子）
+                    const _cc = new THREE.Mesh(new THREE.BoxGeometry(0.50, cH + 0.38, 0.52));
+                    _cc.position.set(cx, yBase + cH * 0.44, dz);
+                    _cc.visible = false;
+                    _cc.bbox = new THREE.Box3().setFromObject(_cc);
+                    walls.push(_cc); scene.add(_cc);
                     [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => {
                         const cl = new THREE.Mesh(new THREE.BoxGeometry(0.03, cH, 0.03), legMat);
                         cl.position.set(cx + sx * 0.18, yBase + cH / 2, dz + sz * 0.17);
@@ -5109,6 +5280,10 @@
                 glow.castShadow = false;
                 scene.add(glow);
             });
+            // 教室顶灯光源（中央一盏 PointLight，覆盖整间教室）
+            const _roomPt = new THREE.PointLight(0xfff8e8, 1.1, 14, 2);
+            _roomPt.position.set(roomCX, lgY - 0.2, roomCZ);
+            scene.add(_roomPt);
 
             // 软木公告栏改到西墙（北墙不再遮挡窗户）
             const blW = Math.min(roomW * 0.4, 4.0);
@@ -5626,6 +5801,66 @@
             if (fpLegs) fpLegs.visible = isFirstPerson;
         }
         
+        // ── VRM IndexedDB 缓存（三角洲风格：第一次联网下载，之后秒开）──
+        const _VRM_DB_NAME = 'campus-vrm-cache';
+        const _VRM_DB_VER  = 1;
+        function _idbOpen() {
+            return new Promise((res, rej) => {
+                const r = indexedDB.open(_VRM_DB_NAME, _VRM_DB_VER);
+                r.onupgradeneeded = e => e.target.result.createObjectStore('models');
+                r.onsuccess = e => res(e.target.result);
+                r.onerror   = e => rej(e.target.error);
+            });
+        }
+        async function _idbGetVrm(url) {
+            try {
+                const db = await _idbOpen();
+                return await new Promise((res, rej) => {
+                    const tx = db.transaction('models','readonly');
+                    const g  = tx.objectStore('models').get(url);
+                    g.onsuccess = () => res(g.result || null);
+                    g.onerror   = () => res(null);
+                });
+            } catch(e) { return null; }
+        }
+        async function _idbPutVrm(url, buf) {
+            try {
+                const db = await _idbOpen();
+                await new Promise((res, rej) => {
+                    const tx = db.transaction('models','readwrite');
+                    tx.objectStore('models').put(buf, url);
+                    tx.oncomplete = res; tx.onerror = rej;
+                });
+            } catch(e) { /* 缓存失败不影响运行 */ }
+        }
+        // 带缓存的VRM加载：命中缓存则直接用 Blob URL，否则 fetch 后缓存
+        async function _loadVrmCached(vrmUrl, onProgress) {
+            // 1. 尝试从 IndexedDB 读取
+            const cached = await _idbGetVrm(vrmUrl);
+            if (cached) {
+                console.log('⚡ VRM命中缓存，秒开:', vrmUrl);
+                return URL.createObjectURL(new Blob([cached], {type:'model/gltf-binary'}));
+            }
+            // 2. 网络下载，并缓存
+            console.log('🌐 首次下载VRM（将缓存到本地）:', vrmUrl);
+            return new Promise((res, rej) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', vrmUrl, true);
+                xhr.responseType = 'arraybuffer';
+                xhr.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total); };
+                xhr.onload = async () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        await _idbPutVrm(vrmUrl, xhr.response);
+                        res(URL.createObjectURL(new Blob([xhr.response], {type:'model/gltf-binary'})));
+                    } else {
+                        rej(new Error('HTTP ' + xhr.status));
+                    }
+                };
+                xhr.onerror = () => rej(new Error('network error'));
+                xhr.send();
+            });
+        }
+
         // 加载士兵模型
         function loadSoldier() {
             // 玩家起始位置：根据组队人数分配不重叠的出生点
@@ -5646,6 +5881,143 @@
                 {shirt:0xffffff,pants:0x1a1a2e},
             ];
             const sk = SKINS_DEF[skinIndex] || SKINS_DEF[0];
+
+            // ── VRM材质修复：MeshBasicMaterial不响应灯光，转为MeshLambertMaterial ──
+            // VRM文件通过GLTFLoader加载时，MToon材质通常映射为KHR_materials_unlit→MeshBasicMaterial
+            // 这类材质完全不受环境光/点光源影响，导致角色在暗室里仍"发光"
+            // 转为MeshLambertMaterial后，角色会随场景灯光明暗变化，与环境一致
+            function _fixVrmMaterials(vrmScene) {
+                vrmScene.traverse(function(c) {
+                    if (!c.isMesh) return;
+                    var mats = Array.isArray(c.material) ? c.material : [c.material];
+                    var changed = false;
+                    var newMats = mats.map(function(mat) {
+                        if (!mat) return mat;
+                        if (mat.type === 'MeshBasicMaterial') {
+                            var lm = new THREE.MeshLambertMaterial({
+                                map:          mat.map          || null,
+                                color:        mat.color        ? mat.color.clone() : new THREE.Color(1,1,1),
+                                transparent:  mat.transparent  || false,
+                                opacity:      mat.opacity      != null ? mat.opacity : 1,
+                                alphaTest:    mat.alphaTest    || 0,
+                                side:         mat.side         != null ? mat.side : THREE.FrontSide,
+                                depthWrite:   mat.depthWrite   != null ? mat.depthWrite : true,
+                                blending:     mat.blending     || THREE.NormalBlending,
+                                vertexColors: mat.vertexColors || false,
+                            });
+                            mat.dispose();
+                            changed = true;
+                            return lm;
+                        }
+                        // 标准/Phong材质：移除自发光，避免角色在暗处发亮
+                        if (mat.emissive) { mat.emissive.set(0, 0, 0); changed = true; }
+                        if (mat.emissiveIntensity != null && mat.emissiveIntensity > 0) {
+                            mat.emissiveIntensity = 0; changed = true;
+                        }
+                        return mat;
+                    });
+                    if (changed) {
+                        c.material = Array.isArray(c.material) ? newMats : newMats[0];
+                    }
+                });
+            }
+
+            // ══════════════════════════════════════════
+            //  组队实时位置同步（Supabase Realtime Broadcast）
+            // ══════════════════════════════════════════
+            var _partyChannel = null;
+            var _partyOtherPlayers = {};
+
+            function _initPartySync() {
+                var partyGame = null;
+                try { partyGame = JSON.parse(localStorage.getItem('campus_party_game')||'null'); } catch(e) {}
+                if (!partyGame || !partyGame.partyId) return;
+                var partyId = partyGame.partyId;
+                var myId = (JSON.parse(localStorage.getItem('campus_user')||'{}')).userId || '';
+                if (!myId) return;
+                console.log('👥 组队同步启动 partyId:', partyId);
+
+                apiClient.getDB().then(function(db) {
+                    _partyChannel = db.channel('party_pos_' + partyId);
+                    _partyChannel
+                        .on('broadcast', {event:'pos'}, function(evt) {
+                            var p = evt.payload;
+                            if (!p || p.userId === myId) return;
+                            _updateOtherPlayer(p);
+                        })
+                        .subscribe(function(s){ console.log('👥 频道:', s); });
+
+                    setInterval(function() {
+                        if (!soldier || !_partyChannel) return;
+                        var ud = JSON.parse(localStorage.getItem('campus_user')||'{}');
+                        _partyChannel.send({type:'broadcast', event:'pos', payload:{
+                            userId: myId,
+                            userName: ud.nickname || ud.name || '玩家',
+                            x: soldier.position.x,
+                            y: soldier.position.y,
+                            z: soldier.position.z,
+                            ry: soldier.rotation.y
+                        }});
+                    }, 250);
+
+                    setInterval(function() {
+                        var now = Date.now();
+                        Object.keys(_partyOtherPlayers).forEach(function(uid) {
+                            var e = _partyOtherPlayers[uid];
+                            if (now - e.lastSeen > 6000) {
+                                if (e.mesh) scene.remove(e.mesh);
+                                if (e.label) e.label.remove();
+                                delete _partyOtherPlayers[uid];
+                            }
+                        });
+                    }, 3000);
+                }).catch(function(e){ console.warn('组队同步失败:', e); });
+            }
+
+            function _updateOtherPlayer(p) {
+                if (!scene) return;
+                var entry = _partyOtherPlayers[p.userId];
+                if (!entry) {
+                    var hue = 0;
+                    for (var ci=0; ci<(p.userId||'').length; ci++) hue = (hue*31 + p.userId.charCodeAt(ci)) & 0xffffff;
+                    var color = (hue & 0x7f7f7f) | 0x606060;
+                    var grp = new THREE.Group();
+                    var bodyM = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.22, 0.22, 1.0, 8),
+                        new THREE.MeshLambertMaterial({color: color})
+                    );
+                    bodyM.position.y = 0.9; bodyM.castShadow = true; grp.add(bodyM);
+                    var headM = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.22, 8, 8),
+                        new THREE.MeshLambertMaterial({color: 0xffe0b2})
+                    );
+                    headM.position.y = 1.65; headM.castShadow = true; grp.add(headM);
+                    scene.add(grp);
+
+                    var lbl = document.createElement('div');
+                    lbl.style.cssText = 'position:fixed;z-index:500;pointer-events:none;color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 3px #000;background:rgba(0,0,0,.55);padding:2px 7px;border-radius:6px;display:none;white-space:nowrap;';
+                    lbl.textContent = p.userName || p.userId;
+                    document.body.appendChild(lbl);
+                    entry = _partyOtherPlayers[p.userId] = {mesh:grp, label:lbl, lastSeen:Date.now()};
+                }
+                entry.mesh.position.set(p.x, p.y, p.z);
+                entry.mesh.rotation.y = p.ry || 0;
+                entry.lastSeen = Date.now();
+
+                if (camera && renderer) {
+                    var hp = new THREE.Vector3(p.x, p.y + 1.95, p.z);
+                    hp.project(camera);
+                    var cw = renderer.domElement.clientWidth, ch = renderer.domElement.clientHeight;
+                    var sx = (hp.x * 0.5 + 0.5) * cw, sy = (-hp.y * 0.5 + 0.5) * ch;
+                    if (hp.z < 1 && hp.z > -1) {
+                        entry.label.style.display = 'block';
+                        entry.label.style.left = (sx - entry.label.offsetWidth/2) + 'px';
+                        entry.label.style.top = (sy - 20) + 'px';
+                    } else {
+                        entry.label.style.display = 'none';
+                    }
+                }
+            }
 
             // 先创建备用简单士兵模型
             function createSimpleSoldier() {
@@ -5756,8 +6128,11 @@
                 
                 // 设置初始可见性
                 updateSoldierVisibility();
-                
+
                 console.log('✅ 士兵已初始化，位置:', soldier.position);
+
+                // 组队位置同步（有 party_game session 才启动）
+                setTimeout(_initPartySync, 1000);
             }
             
             // 优先加载玩家在主菜单装备的VRM模型（使用@pixiv/three-vrm以保证骨骼坐标系一致）
@@ -5777,6 +6152,9 @@
                 })();
                 function _removeVrmTip() {
                     _vrmLoadingActive = false;
+                    window._skipVrmLoad = null;
+                    var _sb = document.getElementById('skip-vrm-btn');
+                    if (_sb) _sb.style.display = 'none';
                     var _lo = document.getElementById('map-loading');
                     var _lb = document.getElementById('load-bar');
                     if (_lb) _lb.style.width = '100%';
@@ -5786,54 +6164,75 @@
                     }
                 }
 
-                // 超时改为 90 秒（VRM文件约14MB，GitHub Pages 网速慢时需要足够时间）
-                const timeoutId = setTimeout(() => {
-                    _removeVrmTip();
-                    console.warn('⏰ VRM加载超时（90s），使用简单模型');
-                    initializeSoldier(createSimpleSoldier());
-                }, 90000);
+                // 手机端（真实UA检测）超时25秒，桌面端90秒
+                var _realMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+                var _vrmTimeout = _realMobile ? 25000 : 90000;
 
-                // 使用UMD THREE.GLTFLoader（与渲染器同版本，避免shader版本冲突）
-                var loader = new THREE.GLTFLoader();
-                loader.load(vrmUrl, function(gltf) {
+                // 5秒后显示"跳过"按钮，让用户不必等满超时
+                var _skipShowTimer = setTimeout(function() {
+                    var _sb = document.getElementById('skip-vrm-btn');
+                    if (_sb) _sb.style.display = 'block';
+                }, 5000);
+                window._skipVrmLoad = function() {
                     clearTimeout(timeoutId);
+                    clearTimeout(_skipShowTimer);
                     _removeVrmTip();
-                    var vrmInner = gltf.scene;
-                    // 检测VRM版本：VRM0.x有'VRM'扩展（默认朝+Z=背向镜头，无需旋转）
-                    //              VRM1.x有'VRMC_vrm'扩展（默认朝-Z=面向镜头，需π旋转）
-                    var gltfExt = (gltf.parser && gltf.parser.json && gltf.parser.json.extensions) || {};
-                    var isVRM0x = !!gltfExt['VRM'];
-                    vrmInner.rotation.y = isVRM0x ? 0 : Math.PI;
-                    _vrmArmRzSign = isVRM0x ? -1 : 1; // VRM0.x臂部rz轴反向
-                    _vrmArmRxSign = isVRM0x ? -1 : 1; // VRM0.x臂部rx轴反向（前后摆方向）
-                    _vrmLegRxSign = isVRM0x ? -1 : 1; // VRM0.x腿部rx轴反向（抬腿方向）
-                    vrmInner.scale.set(2, 2, 2);  // 默认VRM模型 2x缩放
-                    vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
-                    var vrmWrapper = new THREE.Group();
-                    vrmWrapper.position.set(startX, 0, startZ);
-                    vrmWrapper.add(vrmInner);
-                    _isVrm = true;
-                    _vrmBonesResolved = false;
-                    // VRM 2x 时调高相机到眼部高度
-                    FIRST_PERSON_HEIGHT = 1.8;
-                    normalHeight = FIRST_PERSON_HEIGHT;
-                    initializeSoldier(vrmWrapper);
-                    // 延迟一帧收集骨骼，确保场景图完全构建
-                    setTimeout(_collectVrmBones, 100);
-                }, function(xhr) {
-                    // 进度回调：更新主加载遮罩（capped at 100%，防止182%等超标问题）
-                    if (xhr.total > 0) {
-                        var pct = Math.min(100, Math.round(xhr.loaded / xhr.total * 100));
-                        var _lh = document.getElementById('load-hint');
-                        var _lb = document.getElementById('load-bar');
-                        if (_lh) _lh.textContent = '⏳ 正在加载角色模型... ' + pct + '%';
-                        if (_lb) _lb.style.width = Math.round(20 + pct * 0.76) + '%';
-                    }
-                }, function(err) {
-                    clearTimeout(timeoutId);
-                    _removeVrmTip();
-                    console.warn('VRM加载失败，使用简单模型:', err);
+                    console.log('⏩ 用户跳过VRM加载，使用简单模型');
                     initializeSoldier(createSimpleSoldier());
+                };
+
+                const timeoutId = setTimeout(() => {
+                    clearTimeout(_skipShowTimer);
+                    _removeVrmTip();
+                    console.warn('⏰ VRM加载超时（' + (_vrmTimeout/1000) + 's），使用简单模型');
+                    initializeSoldier(createSimpleSoldier());
+                }, _vrmTimeout);
+
+                // 走缓存通道加载（命中缓存则秒开，否则下载并写缓存）
+                function _doLoadGltf(blobOrUrl) {
+                    var loader2 = new THREE.GLTFLoader();
+                    loader2.load(blobOrUrl, function(gltf) {
+                        clearTimeout(timeoutId);
+                        _removeVrmTip();
+                        // 若是 blob: URL 需要及时释放（GLTFLoader已完成解析）
+                        if (blobOrUrl.startsWith('blob:')) URL.revokeObjectURL(blobOrUrl);
+                        var vrmInner = gltf.scene;
+                        var gltfExt = (gltf.parser && gltf.parser.json && gltf.parser.json.extensions) || {};
+                        var isVRM0x = !!gltfExt['VRM'];
+                        vrmInner.rotation.y = isVRM0x ? 0 : Math.PI;
+                        _vrmArmRzSign = isVRM0x ? -1 : 1;
+                        _vrmArmRxSign = isVRM0x ? -1 : 1;
+                        _vrmLegRxSign = isVRM0x ? -1 : 1;
+                        vrmInner.scale.set(2, 2, 2);
+                        vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+                        _fixVrmMaterials(vrmInner);
+                        var vrmWrapper = new THREE.Group();
+                        vrmWrapper.position.set(startX, 0, startZ);
+                        vrmWrapper.add(vrmInner);
+                        _isVrm = true;
+                        _vrmBonesResolved = false;
+                        FIRST_PERSON_HEIGHT = 1.8;
+                        normalHeight = FIRST_PERSON_HEIGHT;
+                        initializeSoldier(vrmWrapper);
+                        setTimeout(_collectVrmBones, 100);
+                    }, function(){}, function(err) {
+                        clearTimeout(timeoutId);
+                        _removeVrmTip();
+                        console.warn('VRM加载失败，使用简单模型:', err);
+                        initializeSoldier(createSimpleSoldier());
+                    });
+                }
+                _loadVrmCached(vrmUrl, function(loaded, total) {
+                    var pct = Math.min(100, Math.round(loaded / total * 100));
+                    var _lh = document.getElementById('load-hint');
+                    var _lb = document.getElementById('load-bar');
+                    if (_lh) _lh.textContent = '⏳ 正在加载角色模型... ' + pct + '%';
+                    if (_lb) _lb.style.width = Math.round(20 + pct * 0.76) + '%';
+                }).then(function(blobUrl) {
+                    _doLoadGltf(blobUrl);
+                }).catch(function(err) {
+                    console.warn('缓存加载失败，回退直链:', err);
+                    _doLoadGltf(vrmUrl);
                 });
                 return;
             }
@@ -5841,7 +6240,7 @@
             // 未装备VRM时，优先加载本地男生默认VRM（与女生一致：2x缩放+骨骼动画）
             if (typeof THREE.GLTFLoader !== 'undefined') {
                 const loader = new THREE.GLTFLoader();
-                const defaultMaleVrm = '男的.vrm'; // 与 index.html 同目录
+                const defaultMaleVrm = '../角色建模/男的.vrm';
 
                 console.log('🔄 加载默认男生VRM模型:', defaultMaleVrm);
 
@@ -5857,6 +6256,9 @@
                 })();
                 function _hideMaleVrmOverlay() {
                     _vrmLoadingActive = false;
+                    window._skipVrmLoad = null;
+                    var _sb = document.getElementById('skip-vrm-btn');
+                    if (_sb) _sb.style.display = 'none';
                     var _lo = document.getElementById('map-loading');
                     var _lb = document.getElementById('load-bar');
                     if (_lb) _lb.style.width = '100%';
@@ -5866,45 +6268,75 @@
                     }
                 }
 
-                const timeoutId = setTimeout(() => {
+                var _maleSkipShowTimer = setTimeout(function() {
+                    var _sb = document.getElementById('skip-vrm-btn');
+                    if (_sb) _sb.style.display = 'block';
+                }, 5000);
+                window._skipVrmLoad = function() {
+                    clearTimeout(maleTimeoutId);
+                    clearTimeout(_maleSkipShowTimer);
+                    _hideMaleVrmOverlay();
+                    console.log('⏩ 用户跳过男生VRM加载，使用简单模型');
+                    initializeSoldier(createSimpleSoldier());
+                };
+
+                var _realMobile2 = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+                const maleTimeoutId = setTimeout(() => {
+                    clearTimeout(_maleSkipShowTimer);
                     console.log('⏰ 男生VRM加载超时，使用简单模型');
                     _hideMaleVrmOverlay();
                     initializeSoldier(createSimpleSoldier());
-                }, 30000); // 30秒超时（本地文件通常很快）
+                }, _realMobile2 ? 15000 : 30000);
 
-                loader.load(
-                    defaultMaleVrm,
-                    function(gltf) {
-                        clearTimeout(timeoutId);
+                function _onMaleGltf(gltf) {
+                        clearTimeout(maleTimeoutId);
+                        clearTimeout(_maleSkipShowTimer);
                         console.log('✅ 默认男生VRM加载成功');
                         var vrmInner = gltf.scene;
-                        vrmInner.rotation.y = 0; // 男生VRM0.x默认朝+Z（背向镜头），无需旋转
-                        _vrmArmRzSign = -1;       // VRM0.x臂部rz轴反向
-                        _vrmArmRxSign = -1;       // VRM0.x臂部rx轴反向（前后摆方向）
-                        _vrmLegRxSign = -1;       // VRM0.x腿部rx轴反向（抬腿方向）
-                        vrmInner.scale.set(2, 2, 2); // 与装备VRM一致：2x缩放
+                        vrmInner.rotation.y = 0;
+                        _vrmArmRzSign = -1;
+                        _vrmArmRxSign = -1;
+                        _vrmLegRxSign = -1;
+                        vrmInner.scale.set(2, 2, 2);
                         vrmInner.traverse(function(c) { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+                        _fixVrmMaterials(vrmInner);
                         var vrmWrapper = new THREE.Group();
                         vrmWrapper.position.set(startX, 0, startZ);
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
                         _vrmBonesResolved = false;
-                        FIRST_PERSON_HEIGHT = 1.8; // 与装备VRM一致
+                        FIRST_PERSON_HEIGHT = 1.8;
                         normalHeight = FIRST_PERSON_HEIGHT;
                         _hideMaleVrmOverlay();
                         initializeSoldier(vrmWrapper);
                         setTimeout(_collectVrmBones, 100);
-                    },
-                    undefined,
+                }
+                _loadVrmCached(defaultMaleVrm, function(loaded, total) {
+                    var pct = Math.min(100, Math.round(loaded/total*100));
+                    var _lh2 = document.getElementById('load-hint');
+                    var _lb2 = document.getElementById('load-bar');
+                    if (_lh2) _lh2.textContent = '⏳ 正在加载角色模型... ' + pct + '%';
+                    if (_lb2) _lb2.style.width = Math.round(20 + pct * 0.76) + '%';
+                }).then(function(blobUrl) {
+                    var loader3 = new THREE.GLTFLoader();
+                    loader3.load(blobUrl, function(gltf){ URL.revokeObjectURL(blobUrl); _onMaleGltf(gltf); },
+                        function(){}, function(err2){
+                            clearTimeout(maleTimeoutId); _hideMaleVrmOverlay();
+                            console.warn('男生VRM解析失败:', err2); initializeSoldier(createSimpleSoldier());
+                        });
+                }).catch(function(err) {
+                    // 回退直接用 loader（旧行为）
+                    var loaderFb = new THREE.GLTFLoader();
+                    loaderFb.load(defaultMaleVrm, _onMaleGltf, undefined,
                     function(err) {
-                        clearTimeout(timeoutId);
+                        clearTimeout(maleTimeoutId);
+                        clearTimeout(_maleSkipShowTimer);
                         _hideMaleVrmOverlay();
                         console.warn('男生VRM加载失败，尝试在线模型:', err);
                         // 回退：在线Soldier模型
                         loader.load(
                     'https://threejs.org/examples/models/gltf/Soldier.glb',
                     function(gltf) {
-                        clearTimeout(timeoutId);
                         console.log('✅ 在线士兵模型加载成功');
                         
                         const soldierModel = gltf.scene;
@@ -5945,7 +6377,8 @@
                     }
                 ); // 在线模型 loader.load 结束
                     } // 男生VRM失败回退结束
-                );   // 男生VRM loader.load 结束
+                );   // loaderFb.load 结束
+                }); // catch 结束
             } else {
                 console.log('⚠️ GLTFLoader不可用，使用简单模型');
                 const simpleSoldier = createSimpleSoldier();
@@ -7090,19 +7523,19 @@
             }
             const t = _gameIdleT;
             if (walkSpeed > 0.04) {
-                // ── 跑步颠簸（三角洲风格）──
-                // 上下弹跳：双倍频 sin（每走一步上下一次）
-                const targetY    = Math.sin(walkCycle * 2) * 0.052 * walkSpeed;
-                // 侧倾：单倍频 sin（左右交替迈步）
-                const targetRoll = Math.sin(walkCycle)     * 0.024 * walkSpeed;
+                // ── 行走颠簸（幅度减小约40%）──
+                const targetY    = Math.sin(walkCycle * 2) * 0.030 * walkSpeed;
+                const targetRoll = Math.sin(walkCycle)     * 0.013 * walkSpeed;
                 _camBobY    += (targetY    - _camBobY)    * 0.25;
                 _camBobRoll += (targetRoll - _camBobRoll) * 0.25;
             } else {
                 // ── 静止呼吸摇晃（极轻）──
-                const breathY    = Math.sin(t * 1.1) * 0.004 + Math.sin(t * 0.53 + 0.7) * 0.002;
-                const breathRoll = Math.sin(t * 0.9) * 0.006;
-                _camBobY    += (breathY    - _camBobY)    * 0.06;
-                _camBobRoll += (breathRoll - _camBobRoll) * 0.06;
+                const breathY    = Math.sin(t * 1.1) * 0.003 + Math.sin(t * 0.53 + 0.7) * 0.0015;
+                const breathRoll = Math.sin(t * 0.9) * 0.004;
+                // 停步后快速回正：walkSpeed越小lerp越快
+                const lerpBack = walkSpeed < 0.01 ? 0.22 : 0.09;
+                _camBobY    += (breathY    - _camBobY)    * lerpBack;
+                _camBobRoll += (breathRoll - _camBobRoll) * lerpBack;
             }
         }
         
@@ -7374,9 +7807,11 @@
         //   大腿：rx=X屈伸, ry=Z内外旋, rz=Y内收外展
         //   小腿(膝)：rx=用户Y屈曲(两侧同值不取反)
         //   踝：rx=X背屈, ry=Y内翻
-        //   右侧镜像：rx取反(negate X)，ry/rz同号
+        //   右侧：全部用 (t+0.5)%1 相位偏移，与左侧完全对称
         const _D2R = Math.PI / 180;
-        const _KT  = [0.00, 0.12, 0.22, 0.35, 0.55, 0.85]; // 6帧时间节点
+        // ★ 均匀6帧时间节点：右侧用(t+0.5)%1时，插值结果精确为左侧的半周期偏移
+        //   非均匀节点会导致相位偏移误差 → 右腿看起来更快/更慢 → 跛脚
+        const _KT  = [0/6, 1/6, 2/6, 3/6, 4/6, 5/6];
         function _mkKF(v) { return _KT.map((t, i) => [t, v[i] * _D2R]); }
         // 关键帧线性插值（循环）
         function _kfI(t, kf) {
@@ -7389,47 +7824,50 @@
             const v1 = (i + 1 < n) ? kf[i + 1][1] : kf[0][1];
             return v0 + (v1 - v0) * Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
         }
-        // 骨盆
-        const _KHipRx = _mkKF([12, 8, 5, 3, 6, 10]);
-        const _KHipRy = _mkKF([-6, -2, 2, 8, 4, -4]);
-        const _KHipRz = _mkKF([4, 6, 2, -2, -4, 1]);
-        // 脊椎底（Spine1）
-        const _KSp1Rx = _mkKF([3, 4, 2, 1, 2, 3]);
-        const _KSp1Ry = _mkKF([-1, 0, 1, 2, 1, -1]);
-        const _KSp1Rz = _mkKF([0, 1, 0, -1, -2, 0]);
-        // 脊椎中（Spine2）
-        const _KSp2Rx = _mkKF([2, 2, 1, 0, 1, 2]);
-        const _KSp2Ry = _mkKF([-2, 0, 1, 2, 1, -1]);
-        const _KSp2Rz = _mkKF([-1, 0, 1, 2, 1, -1]);
-        // 胸廓（Spine3）
-        const _KSp3Rx = _mkKF([1, 2, 0, -1, 0, 1]);
-        const _KSp3Ry = _mkKF([-3, -1, 1, 4, 2, -2]);
-        const _KSp3Rz = _mkKF([-2, -1, 0, 3, 2, -2]);
+        // 骨盆（全局运动，不做左右镜像）
+        // ★ 反对称设计：val[i] = -val[i+3]，使 (t+0.5) 相位下值为负
+        const _KHipRx = _mkKF([8, 6, 4, 8, 6, 4]);     // 轻微前倾（常量）
+        const _KHipRy = _mkKF([-5, -2, 3, 5, 2, -3]);   // 骨盆Y旋（左腿前→骨盆左转）
+        const _KHipRz = _mkKF([2, 5, 2, -2, -5, -2]);   // 侧倾（支撑脚侧下沉）
+        // 脊椎（随骨盆反向旋转，抵消上半身晃动）
+        const _KSp1Rx = _mkKF([3, 3, 2, 3, 3, 2]);
+        const _KSp1Ry = _mkKF([-2, 0, 2, -2, 0, 2]);    // 与骨盆同步（脊椎底小幅）
+        const _KSp1Rz = _mkKF([0, 1, -1, 0, 1, -1]);
+        const _KSp2Rx = _mkKF([2, 2, 1, 2, 2, 1]);
+        const _KSp2Ry = _mkKF([-2, 0, 2, -2, 0, 2]);
+        const _KSp2Rz = _mkKF([-1, 0, 1, -1, 0, 1]);
+        const _KSp3Rx = _mkKF([1, 2, 0, 1, 2, 0]);
+        const _KSp3Ry = _mkKF([-3, 0, 3, -3, 0, 3]);    // 胸廓反向于骨盆
+        const _KSp3Rz = _mkKF([-2, 0, 2, -2, 0, 2]);
         // 颈部
-        const _KNkRx  = _mkKF([-5, -6, -4, -2, -3, -5]);
-        const _KNkRy  = _mkKF([-2, -1, 0, 2, 1, -1]);
-        const _KNkRz  = _mkKF([0, 1, 1, -1, -2, 0]);
-        // 锁骨（左，右取反rx）
-        const _KShoRx = _mkKF([5, 3, 0, -5, -3, 2]);
-        const _KShoRy = _mkKF([2, 1, 0, -2, -1, 1]);
-        // 上臂（左）前后摆 / 侧摆 / 肘部上下抬落
-        // 注：rx=前后（纵深，背后视角不可见），rz=上下抬落（背后视角最明显）
-        const _KArmRx = _mkKF([-65, -30, 10, 70, 50, -20]);
-        const _KArmRy = _mkKF([5, 3, 0, -5, -3, 2]);
-        // 肘部抬落偏移量（相对基础rz：正=肘抬起，负=肘沉降；幅度放大提升背后视角可见度）
-        // A:手臂向前→肘抬起 +0.58, D:手臂向后→肘沉降 -0.52
-        const _KArmElevD = _mkKF([0.58, 0.32, 0.05, -0.52, -0.30, 0.25]);
-        // 前臂肘关节角度（rx）：向前摆时更弯，向后摆时略伸
-        const _KFaRx = _mkKF([1.90, 1.75, 1.60, 1.38, 1.50, 1.72]);
-        // 大腿（左）屈伸/内外旋/内收外展
-        const _KLegRx = _mkKF([45, 30, -15, -10, 70, 45]);
-        const _KLegRy = _mkKF([0, 5, 10, -5, -8, 0]);
-        const _KLegRz = _mkKF([-5, -8, -3, 2, 6, -4]);
-        // 小腿屈曲（两侧同值，rx）
-        const _KKneRx = _mkKF([22, 38, 5, 105, 35, 22]);
-        // 踝关节
-        const _KFtRx  = _mkKF([3, 12, -25, -8, 6, 3]);
-        const _KFtRy  = _mkKF([0, 2, -1, 0, 1, 0]);
+        const _KNkRx  = _mkKF([-5, -4, -4, -5, -4, -4]);
+        const _KNkRy  = _mkKF([-2, 0, 2, -2, 0, 2]);
+        const _KNkRz  = _mkKF([0, 1, -1, 0, 1, -1]);
+        // ★ 锁骨/肩（左；右侧用(t+0.5)%1）
+        // 反对称：val[i]=-val[i+3]，右臂前摆时右锁骨前屈
+        const _KShoRx = _mkKF([-4, -2, 3, 4, 2, -3]);
+        const _KShoRy = _mkKF([2, 1, -2, -2, -1, 2]);
+        // ★ 上臂（左；右侧用(t+0.5)%1）
+        // t=0: 左腿向前 → 左臂向后(-40°)，自然对侧摆臂
+        // 反对称：_kfI(t+0.5, _KArmRx) = -_kfI(t, _KArmRx) 精确成立
+        const _KArmRx = _mkKF([-40, -18, 28, 40, 18, -28]);
+        const _KArmRy = _mkKF([4, 2, -4, -4, -2, 4]);
+        // 肘部抬落delta（臂向后时肘抬起+可见；臂向前时肘下沉）
+        const _KArmElevD = _mkKF([0.28, 0.14, -0.08, -0.28, -0.14, 0.08]);
+        // 前臂（左；右侧用(t+0.5)%1）：臂后伸时肘弯曲更多，前摆时略伸
+        const _KFaRx = _mkKF([1.80, 1.72, 1.58, 1.75, 1.67, 1.53]);
+        // ★ 大腿（左；右侧全部用(t+0.5)%1——rx/ry/rz均反对称）
+        // t=0: 左腿最前+38°；t=0.5: 右腿最前(左-38°)
+        // 严格反对称：_kfI(t+0.5,_KLegRx)= -_kfI(t,_KLegRx) ← 均匀节点+反对称值保证
+        const _KLegRx = _mkKF([38, 8, -35, -38, -8, 35]);  // 屈(+)/伸(-)
+        const _KLegRy = _mkKF([4, 2, -3, -4, -2, 3]);       // 外旋(+)/内旋(-)
+        const _KLegRz = _mkKF([-3, -6, -2, 3, 6, 2]);        // 展(-)/收(+)
+        // 小腿（左；右侧用(t+0.5)%1；非反对称，两侧均正值）
+        // t=2/6(=-35°,蹬地期): 小腿弯曲少；t=3/6(推进离地): 大弯曲75°清脚
+        const _KKneRx = _mkKF([12, 8, 20, 75, 48, 18]);
+        // 踝关节（左；右侧用(t+0.5)%1；反对称）
+        const _KFtRx  = _mkKF([8, 4, -22, -8, 4, 14]);   // 背屈(+)/跖屈(-)
+        const _KFtRy  = _mkKF([2, 1, -1, -2, -1, 1]);     // 内翻(+)/外翻(-)
         // ──────────────────────────────────────────────────────────────────
 
         // ══ 通用VRM骨骼姿势驱动（适用于所有VRM模型） ══
@@ -7503,38 +7941,32 @@
                         _kfI(t, _KNkRx), _kfI(t, _KNkRy), _kfI(t, _KNkRz), al);
                     _animBones('j_bip_c_head', 2 * _D2R, 0, 0, al); // 恒定微前倾2°视线保持前方
 
-                    // ── 锁骨（左rx正→后摆; 右镜像取反）──
-                    const shoRx = _kfI(t, _KShoRx), shoRy = _kfI(t, _KShoRy);
-                    _animBones('j_bip_l_shoulder',  shoRx,  shoRy, 0, al);
-                    _animBones('j_bip_r_shoulder', -shoRx,  shoRy, 0, al);
+                    // ★ tr = 右侧半周期偏移（所有右侧骨骼统一使用）
+                    const tr = (t + 0.5) % 1;
 
-                    // ── 上臂：rx=前后摆（纵深）, rz=肘部抬落（背后可见）──
-                    // _vrmArmRzSign: VRM1.x=+1, VRM0.x=-1（rz轴反向）
-                    // _vrmArmRxSign: VRM1.x=+1, VRM0.x=-1（rx前后摆方向反向）
-                    const lArmRx = _kfI(t, _KArmRx), lArmRy = _kfI(t, _KArmRy);
-                    const armElevD = _kfI(t, _KArmElevD);
+                    // ── 锁骨（右侧全相位偏移，与左侧完全对称）──
+                    _animBones('j_bip_l_shoulder', _kfI(t,  _KShoRx), _kfI(t,  _KShoRy), 0, al);
+                    _animBones('j_bip_r_shoulder', _kfI(tr, _KShoRx), _kfI(tr, _KShoRy), 0, al);
+
+                    // ── 上臂：rx=前后摆, rz=肘部抬落（右侧全相位偏移）──
                     const _s2 = _vrmArmRzSign;
                     const _s3 = _vrmArmRxSign;
-                    _animBones('j_bip_l_upperarm',  _s3 * lArmRx,  lArmRy, _s2 * (-0.95 + armElevD), al);
-                    _animBones('j_bip_r_upperarm', _s3 * (-lArmRx),  lArmRy, _s2 * (+0.95 + armElevD), al);
-                    // ── 前臂：随摆动相位轻微屈伸（向前多弯，向后略伸）──
-                    const faRx = _kfI(t, _KFaRx);
-                    _animBones('j_bip_l_lowerarm', faRx, 0, _s2 * (-0.20), al);
-                    _animBones('j_bip_r_lowerarm', faRx, 0, _s2 * (+0.20), al);
+                    _animBones('j_bip_l_upperarm', _s3 * _kfI(t,  _KArmRx), _kfI(t,  _KArmRy), _s2 * (-0.95 + _kfI(t,  _KArmElevD)), al);
+                    _animBones('j_bip_r_upperarm', _s3 * _kfI(tr, _KArmRx), _kfI(tr, _KArmRy), _s2 * (+0.95 + _kfI(tr, _KArmElevD)), al);
+                    // ── 前臂（右侧相位偏移）──
+                    _animBones('j_bip_l_lowerarm', _kfI(t,  _KFaRx), 0, _s2 * (-0.20), al);
+                    _animBones('j_bip_r_lowerarm', _kfI(tr, _KFaRx), 0, _s2 * (+0.20), al);
 
-                    // ── 大腿（左正→右取反rx；VRM0.x腿部rx轴反向用_vrmLegRxSign修正）──
-                    const lLgRx = _kfI(t, _KLegRx), lLgRy = _kfI(t, _KLegRy), lLgRz = _kfI(t, _KLegRz);
+                    // ── 大腿（右腿用t，左腿用tr：右腿公式经测试正常，左腿镜像之）──
                     const _sL = _vrmLegRxSign;
-                    _animBones('j_bip_l_upperleg',  _sL * lLgRx,  lLgRy, lLgRz, al);
-                    _animBones('j_bip_r_upperleg', _sL * (-lLgRx), lLgRy, lLgRz, al);
-                    // ── 小腿屈曲（两侧同值；VRM0.x取反使膝盖向正确方向弯折）──
-                    const kneRx = _kfI(t, _KKneRx);
-                    _animBones('j_bip_l_lowerleg', _sL * kneRx, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', _sL * kneRx, 0, 0, al);
-                    // ── 踝关节（右取反rx；VRM0.x整体取反）──
-                    const lFtRx = _kfI(t, _KFtRx), lFtRy = _kfI(t, _KFtRy);
-                    _animBones('j_bip_l_foot',  _sL * lFtRx,  lFtRy, 0, al);
-                    _animBones('j_bip_r_foot', _sL * (-lFtRx), lFtRy, 0, al);
+                    _animBones('j_bip_l_upperleg', _sL * _kfI(tr, _KLegRx), _kfI(tr, _KLegRy), _kfI(tr, _KLegRz), al);
+                    _animBones('j_bip_r_upperleg', _sL * _kfI(t,  _KLegRx), _kfI(t,  _KLegRy), _kfI(t,  _KLegRz), al);
+                    // ── 小腿（同上交换）──
+                    _animBones('j_bip_l_lowerleg', _sL * _kfI(tr, _KKneRx), 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', _sL * _kfI(t,  _KKneRx), 0, 0, al);
+                    // ── 踝关节（同上交换）──
+                    _animBones('j_bip_l_foot', _sL * _kfI(tr, _KFtRx), _kfI(tr, _KFtRy), 0, al);
+                    _animBones('j_bip_r_foot', _sL * _kfI(t,  _KFtRx), _kfI(t,  _KFtRy), 0, al);
 
                     // 猫耳随步伐弹跳（无猫耳模型自动跳过）
                     const earB = Math.sin(cycle * 2) * 0.10 * spd01;
@@ -7643,34 +8075,29 @@
                 // ── 颈/头 ──
                 bl(neck, _kfI(t, _KNkRx), _kfI(t, _KNkRy), _kfI(t, _KNkRz));
                 bl(head, 2 * _D2R, 0, 0);
-                // ── 锁骨 ──
-                const shoRx2 = _kfI(t, _KShoRx), shoRy2 = _kfI(t, _KShoRy);
-                bl(lSho,  shoRx2,  shoRy2, 0);
-                bl(rSho, -shoRx2,  shoRy2, 0);
-                // ── 上臂：rx=前后摆, rz=肘部抬落（背后可见的泵动）──
-                // _vrmArmRxSign: VRM0.x=-1修正前后摆方向
-                const lArmRx2 = _kfI(t, _KArmRx), lArmRy2 = _kfI(t, _KArmRy);
-                const armElevD2 = _kfI(t, _KArmElevD);
+                // ★ tr2 = 右侧半周期偏移（humanoid API路径，与_animBones路径逻辑完全一致）
+                const tr2 = (t + 0.5) % 1;
+
+                // ── 锁骨（右侧全相位偏移）──
+                bl(lSho, _kfI(t,   _KShoRx), _kfI(t,   _KShoRy), 0);
+                bl(rSho, _kfI(tr2, _KShoRx), _kfI(tr2, _KShoRy), 0);
+                // ── 上臂（右侧全相位偏移）──
                 const _s4 = _vrmArmRxSign;
-                bl(lArm,  _s4 * lArmRx2,  lArmRy2, -0.95 + armElevD2);
-                bl(rArm, _s4 * (-lArmRx2),  lArmRy2, +0.95 + armElevD2);
-                // ── 前臂：随摆动相位轻微屈伸 ──
-                const faRx2 = _kfI(t, _KFaRx);
-                bl(lFa, faRx2, 0, -0.20);
-                bl(rFa, faRx2, 0, +0.20);
-                // ── 大腿（_vrmLegRxSign修正VRM0.x腿部rx方向）──
-                const lLgRx2 = _kfI(t, _KLegRx), lLgRy2 = _kfI(t, _KLegRy), lLgRz2 = _kfI(t, _KLegRz);
+                bl(lArm,  _s4 * _kfI(t,   _KArmRx), _kfI(t,   _KArmRy), -0.95 + _kfI(t,   _KArmElevD));
+                bl(rArm,  _s4 * _kfI(tr2, _KArmRx), _kfI(tr2, _KArmRy), +0.95 + _kfI(tr2, _KArmElevD));
+                // ── 前臂（右侧相位偏移）──
+                bl(lFa, _kfI(t,   _KFaRx), 0, -0.20);
+                bl(rFa, _kfI(tr2, _KFaRx), 0, +0.20);
+                // ── 大腿（右腿用t，左腿用tr2：与_animBones路径保持一致）──
                 const _sL2 = _vrmLegRxSign;
-                bl(lLeg,  _sL2 * lLgRx2,  lLgRy2, lLgRz2);
-                bl(rLeg, _sL2 * (-lLgRx2), lLgRy2, lLgRz2);
-                // ── 小腿（两侧同值；VRM0.x取反）──
-                const kneRx2 = _kfI(t, _KKneRx);
-                bl(lKnee, _sL2 * kneRx2, 0, 0);
-                bl(rKnee, _sL2 * kneRx2, 0, 0);
-                // ── 踝关节（VRM0.x取反）──
-                const lFtRx2 = _kfI(t, _KFtRx), lFtRy2 = _kfI(t, _KFtRy);
-                bl(lFoot,  _sL2 * lFtRx2,  lFtRy2, 0);
-                bl(rFoot, _sL2 * (-lFtRx2), lFtRy2, 0);
+                bl(lLeg, _sL2 * _kfI(tr2, _KLegRx), _kfI(tr2, _KLegRy), _kfI(tr2, _KLegRz));
+                bl(rLeg, _sL2 * _kfI(t,   _KLegRx), _kfI(t,   _KLegRy), _kfI(t,   _KLegRz));
+                // ── 小腿（同上交换）──
+                bl(lKnee, _sL2 * _kfI(tr2, _KKneRx), 0, 0);
+                bl(rKnee, _sL2 * _kfI(t,   _KKneRx), 0, 0);
+                // ── 踝关节（同上交换）──
+                bl(lFoot, _sL2 * _kfI(tr2, _KFtRx), _kfI(tr2, _KFtRy), 0);
+                bl(rFoot, _sL2 * _kfI(t,   _KFtRx), _kfI(t,   _KFtRy), 0);
 
             } else {
                 // ══ 待机动画（与主菜单完全相同的多骨骼富动画）══
@@ -7819,15 +8246,17 @@
             if (wx.useExpFog) scene.fog = new THREE.FogExp2(fogHex, 0.098);
             else if (wx.fogFar > wx.fogNear + 1) scene.fog = new THREE.Fog(fogHex, wx.fogNear, wx.fogFar);
             else scene.fog = null;
+            // 室内时隐藏降水粒子（雨雪不应在屋内落下）
+            const _outdoors = !_isPlayerIndoors();
             if (_weatherRain) {
                 _weatherRain.material.opacity = wx.rainOp;
                 _weatherRain.material.transparent = true;
-                _weatherRain.visible = wx.rainOp > 0.02;
+                _weatherRain.visible = _outdoors && wx.rainOp > 0.02;
             }
             if (_weatherSnow) {
                 _weatherSnow.material.opacity = wx.snowOp;
                 _weatherSnow.material.transparent = true;
-                _weatherSnow.visible = wx.snowOp > 0.02;
+                _weatherSnow.visible = _outdoors && wx.snowOp > 0.02;
             }
         }
         function applyWeatherInstant(w) {
@@ -7887,6 +8316,22 @@
                     applyWeatherInstant(weatherType);
                 }
             }
+        }
+        // 判断玩家是否在室内（教学楼/食堂内，用于隐藏降水粒子）
+        function _isPlayerIndoors() {
+            if (!soldier) return false;
+            const px = soldier.position.x, pz = soldier.position.z;
+            // B1 教学楼
+            if (px >= BLDG_X1 - 0.5 && px <= BLDG_X2 + 0.5 && pz >= BLDG_Z1 - 0.5 && pz <= BLDG_Z2 + 0.8) return true;
+            // B2 教学楼（X: -20~20, Z: -70~-53）
+            if (px >= -21 && px <= 21 && pz >= -71 && pz <= -52) return true;
+            // B3 教学楼（X: -100~-58, Z: -70~-53）
+            if (px >= -101 && px <= -57 && pz >= -71 && pz <= -52) return true;
+            // B4 教学楼（X: 58~100, Z: -70~-53）
+            if (px >= 57 && px <= 101 && pz >= -71 && pz <= -52) return true;
+            // 食堂（X: -22~22, Z: -40~-20）
+            if (px >= -23 && px <= 23 && pz >= -41 && pz <= -19) return true;
+            return false;
         }
         function updateWeather(dt) {
             updateWeatherStateMachine(dt);
@@ -8006,7 +8451,18 @@
             }
             if (_cloudGroup) {
                 _cloudGroup.visible = dayFactor > 0.12;
-                _cloudGroup.position.x = Math.sin(gameTime * Math.PI * 2) * 10;
+                // 每朵云子 Group 独立漂移（dtSec 为本帧真实秒数）
+                const _cdt = (typeof dtSec === 'number' && dtSec > 0 && dtSec < 2) ? dtSec : 0.016;
+                _cloudGroup.children.forEach(function(cg) {
+                    if (!cg.userData || !cg.userData.vx) return;
+                    cg.position.x += cg.userData.vx * _cdt;
+                    cg.position.z += cg.userData.vz * _cdt;
+                    // 超出范围后从另一侧循环出现
+                    if (cg.position.x > 160) cg.position.x = -160;
+                    if (cg.position.x < -160) cg.position.x = 160;
+                    if (cg.position.z > 60) cg.position.z = -145;
+                    if (cg.position.z < -145) cg.position.z = 60;
+                });
             }
             if (window._fantasyDome) {
                 window._fantasyDome.visible = dayFactor > 0.14;

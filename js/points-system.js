@@ -698,14 +698,16 @@ class PointsSystem {
      */
     getDailyTasks(studentId = this.currentUser) {
         if (!studentId) return [];
-        
-        return this.pointsData.dailyTasks.map(task => {
-            const completed = this.isTaskCompleted(studentId, task.id);
-            return {
-                ...task,
-                completed: completed
-            };
-        });
+
+        const tasks = this.pointsData.dailyTasks || [
+            { id: 'login', name: '每日登录', points: 5, description: '每天登录系统获得积分' },
+            { id: 'homework', name: '完成作业', points: 10, description: '按时完成当天作业' },
+            { id: 'reading', name: '阅读30分钟', points: 8, description: '课外阅读30分钟' }
+        ];
+        return tasks.map(task => ({
+            ...task,
+            completed: this.isTaskCompleted(studentId, task.id)
+        }));
     }
 }
 

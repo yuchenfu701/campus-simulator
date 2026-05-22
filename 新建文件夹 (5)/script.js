@@ -286,12 +286,38 @@ function createCardElement(card, instanceId, location = 'hand') {
                 
                 console.log('createCardElement: Bound click event for order/location card:', card.name);
             } else {
-                // 单位卡可以拖拽
+                // 单位卡可以拖拽（桌面端）
                 cardElement.draggable = true;
                 cardElement.style.cursor = 'grab';
                 cardElement.style.pointerEvents = 'auto';
                 cardElement.addEventListener('dragstart', handleDragStart);
                 cardElement.addEventListener('dragend', handleDragEnd);
+                // 点击出牌（双击支持桌面端，单击支持移动端）
+                let clickTimer = null;
+                cardElement.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // 双击出牌（桌面）或单击出牌（触屏）
+                    const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+                    if (isTouchDevice) {
+                        if (gameState && gameState.currentPlayer === 1) {
+                            playCardToSupport(cardElement);
+                        } else {
+                            showMessage('不是你的回合！');
+                        }
+                    } else {
+                        if (clickTimer) {
+                            clearTimeout(clickTimer);
+                            clickTimer = null;
+                            if (gameState && gameState.currentPlayer === 1) {
+                                playCardToSupport(cardElement);
+                            } else {
+                                showMessage('不是你的回合！');
+                            }
+                        } else {
+                            clickTimer = setTimeout(() => { clickTimer = null; }, 300);
+                        }
+                    }
+                });
                 console.log('createCardElement: Bound drag events for unit card:', card.name, 'type:', cardType);
             }
         }

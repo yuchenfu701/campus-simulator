@@ -949,7 +949,17 @@
     <div class="party-slots" id="partySlots">
       <!-- filled by JS -->
     </div>
-    <button class="party-start-btn" onclick="partyStartGame()">▶ 一起进入游戏</button>
+    <!-- 邀请好友区域（仅队长可见） -->
+    <div id="partyInviteRow" style="display:none;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--text-lo);margin-bottom:8px;">邀请好友加入队伍</div>
+      <div style="display:flex;gap:8px;">
+        <input id="partyInviteInput" placeholder="搜索昵称 / 用户ID" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-size:13px;font-family:inherit;outline:none;" />
+        <button onclick="doPartyInviteSearch()" style="padding:10px 16px;border:none;border-radius:10px;background:rgba(249,115,22,.25);color:var(--orange);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;">搜索邀请</button>
+      </div>
+      <div id="partySearchResults" style="margin-top:8px;max-height:160px;overflow-y:auto;"></div>
+    </div>
+    <div id="partyStatusMsg" style="font-size:12px;color:var(--text-lo);text-align:center;margin-bottom:12px;min-height:18px;"></div>
+    <button class="party-start-btn" id="partyStartBtn" onclick="partyStartGame()">▶ 一起进入游戏</button>
   </div>
 </div>
 
@@ -1214,13 +1224,20 @@ function reloadCharacter(){
                     try{ VRMUtils.combineSkeletons(gltf.scene); }catch(e){}
                     // VRM0.x（男生等）需要 rotateVRM0 将朝向修正为面向镜头（scene.rotation.y = π）
                     // VRM1.0（女生等）rotateVRM0 内部检查 metaVersion 后跳过，scene.rotation.y 保持 0
+                    // 直接从GLTF扩展检测VRM版本（不依赖rotateVRM0的副作用，更可靠）
+                    const _gExt = (gltf.parser && gltf.parser.json && gltf.parser.json.extensions) || {};
+                    const _isVRM0x = !!_gExt['VRM']; // VRM0.x有'VRM'扩展，VRM1.x有'VRMC_vrm'
                     try{ VRMUtils.rotateVRM0(vrm); }catch(e){}
-                    _vrmBaseRotY = vrm.scene.rotation.y; // 记录基准旋转供动画循环叠加鼠标偏移
+                    // VRM0.x可能rotateVRM0失败，手动确保朝向
+                    if (_isVRM0x && Math.abs(vrm.scene.rotation.y) < 0.1) vrm.scene.rotation.y = Math.PI;
+                    _vrmBaseRotY = vrm.scene.rotation.y;
+                    // VRM0.x normalized bones rz轴与VRM1.x相反：
+                    //   VRM0.x → rz=+1.0 垂手，VRM1.x → rz=-1.0 垂手
+                    window._menuVrmArmSign = _isVRM0x ? -1 : 1;
+                    console.log('✅ VRM版本检测: ' + (_isVRM0x ? 'VRM0.x(男生)' : 'VRM1.x(女生)') + ' armSign=' + window._menuVrmArmSign);
                     vrm.scene.position.set(0, 0, 0);
                     scene.add(vrm.scene);
-                    // 手臂初始化由动画循环的 getNormalizedBoneNode 路径统一处理
-                    // （rawHumanBones 在 VRM0.x 中 rz 轴方向相反，会把手臂举起来，不要用）
-                    console.log('✅ VRM 加载成功');
+                    console.log('✅ VRM 加载成功（armSign=' + window._menuVrmArmSign + '）');
                 }, p => {
                     if(p.total) console.log('VRM:', Math.round(p.loaded/p.total*100)+'%');
                 }, err => {
@@ -1327,11 +1344,13 @@ document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.
             const hipSway    = Math.sin(it * 0.52 + 1.5) * 0.015;
 
             // 手臂：自然垂下 + 微漂 + 肩部前后 + 呼吸
-            if(lArm){ lArm.rotation.z=-1.0+armDL; lArm.rotation.x=-0.04+breath*0.3+shoulderFB; }
-            if(rArm){ rArm.rotation.z= 1.0-armDR; rArm.rotation.x=-0.04+breath*0.3-shoulderFB; }
+            // _menuVrmArmSign: VRM0.x=-1（rz正=垂手），VRM1.x=+1（rz负=垂手）
+            const _as = window._menuVrmArmSign || 1;
+            if(lArm){ lArm.rotation.z=_as*(-1.0)+armDL; lArm.rotation.x=-0.04+breath*0.3+shoulderFB; }
+            if(rArm){ rArm.rotation.z=_as*( 1.0)-armDR; rArm.rotation.x=-0.04+breath*0.3-shoulderFB; }
             // 小臂：弯曲 + 腕部微扭
-            if(lFa){ lFa.rotation.z=-0.15+armDL*0.25; lFa.rotation.x=0.08+wristL; lFa.rotation.y=wristL*0.5; }
-            if(rFa){ rFa.rotation.z= 0.15-armDR*0.25; rFa.rotation.x=0.08+wristR; rFa.rotation.y=-wristR*0.5; }
+            if(lFa){ lFa.rotation.z=_as*(-0.15)+armDL*0.25; lFa.rotation.x=0.08+wristL; lFa.rotation.y=wristL*0.5; }
+            if(rFa){ rFa.rotation.z=_as*( 0.15)-armDR*0.25; rFa.rotation.x=0.08+wristR; rFa.rotation.y=-wristR*0.5; }
             // 头部：张望 + 鼠标 + 低头
             if(head){ head.rotation.y=headTurn; head.rotation.x=headNod-0.05; }
             if(neck){ neck.rotation.y=headTurn*0.35; neck.rotation.x=headNod*0.3; }
@@ -1438,9 +1457,36 @@ function loadPointsData(){
     updateAvatarPreview(st,ps);
 
     ps.updateLeaderboard();
-    const lb=ps.getLeaderboard(3);
-    updateRankList(lb,ud.userId);
-    updateUserRank(ps,ud.userId);
+    // 先用本地数据渲染，再异步拉 Supabase 排行榜覆盖（解决其他用户0分问题）
+    updateRankList(ps.getLeaderboard(3), ud.userId);
+    updateUserRank(ps, ud.userId);
+    (async function fetchCloudLeaderboard(){
+        try{
+            const db = await apiClient.getDB();
+            const {data, error} = await db.from('users')
+                .select('user_id, name, points')
+                .order('points', {ascending: false})
+                .limit(50);
+            if(error || !data || !data.length) return;
+            const cloudLb = data.map((r,i)=>({
+                rank: i+1,
+                name: r.name || '玩家',
+                totalPoints: r.points || 0,
+                userId: r.user_id
+            }));
+            updateRankList(cloudLb.slice(0,3), ud.userId);
+            // 同时把云端积分同步回本地，避免下次仍显示0
+            data.forEach(r => {
+                if(r.user_id !== ud.userId && ps.pointsData.students[r.user_id]){
+                    ps.pointsData.students[r.user_id].totalEarned = r.points||0;
+                    ps.pointsData.students[r.user_id].points = r.points||0;
+                }
+            });
+            // 更新本地排行榜缓存
+            ps.updateLeaderboard();
+            updateUserRank(ps, ud.userId);
+        }catch(e){ console.warn('排行榜云端拉取失败:', e.message); }
+    })();
 }
 
 function updateUserRank(ps,userId){
@@ -1548,15 +1594,34 @@ function startGame(){
 }
 function closeMapSelect(){
     document.getElementById('map-select-overlay').classList.add('hidden');
+    _partyMode=false;
 }
-function enterMap(type){
+async function enterMap(type){
     closeMapSelect();
-    // Ensure party_size is set (default 1 if not in party mode)
-    if(!localStorage.getItem('party_size')) localStorage.setItem('party_size','1');
-    if(type==='3d'){window.location.href='校园企业家，教学楼小副本/index.html';return;}
-    const started=localStorage.getItem('game_started');
-    if(!started){localStorage.setItem('game_started','true');window.location.href='梦核校园最新力作(2).html';}
-    else{window.location.href='index.html';}
+    const mapUrl=type==='3d'?'校园企业家，教学楼小副本/index.html'
+        :(localStorage.getItem('game_started')?'index.html':'梦核校园最新力作(2).html');
+    if(type!=='3d') localStorage.setItem('game_started','true');
+
+    // 组队模式：通知所有已接受的成员一起进入
+    if(_partyMode){
+        _partyMode=false;
+        const party=getParty();
+        const accepted=(party&&party.members||[]).filter(m=>m.status==='accepted');
+        if(accepted.length){
+            const ud=_ud();
+            localStorage.setItem('campus_party_game',JSON.stringify({partyId:party.partyId,mapType:type}));
+            const msg=JSON.stringify({type:'party_start',partyId:party.partyId,mapType:type,mapUrl});
+            try{
+                await Promise.all(accepted.map(m=>apiClient.sendMessage(ud.userId,m.userId,msg)));
+            }catch(e){console.warn('party_start 发送失败',e);}
+        } else {
+            localStorage.removeItem('campus_party_game');
+        }
+    } else {
+        localStorage.removeItem('campus_party_game');
+    }
+    localStorage.setItem('party_size','1');
+    window.location.href=mapUrl;
 }
 
 function logout(){
@@ -1578,59 +1643,108 @@ function logout(){
 /* ═══════════════════════════════════════
    PARTY SYSTEM
 ═══════════════════════════════════════ */
-function getParty(){return JSON.parse(localStorage.getItem('campus_party')||'{"members":[]}');}
-function saveParty(p){localStorage.setItem('campus_party',JSON.stringify(p));}
+// ══════════════════════════════════════════
+//  组队系统（Supabase Realtime 跨用户版）
+// ══════════════════════════════════════════
+
+function getParty(){return JSON.parse(localStorage.getItem('campus_party')||'null');}
+function saveParty(p){if(p) localStorage.setItem('campus_party',JSON.stringify(p)); else localStorage.removeItem('campus_party');}
+
+function _ensurePartyAsLeader(){
+    let party=getParty();
+    if(!party||party.leaderId!==(_ud().userId)){
+        const ud=_ud();
+        party={
+            partyId:'party_'+Date.now(),
+            leaderId:ud.userId,
+            leaderName:ud.nickname||ud.name||'队长',
+            leaderAvatar:ud.avatar||'👤',
+            isLeader:true,
+            members:[]
+        };
+        saveParty(party);
+    }
+    return party;
+}
+function _ud(){return JSON.parse(localStorage.getItem('campus_user')||'{}');}
 
 function openPartyPanel(){
+    const existing=getParty();
+    // 只有当没有队伍、或自己就是队长时才初始化为队长
+    if(!existing || existing.leaderId===_ud().userId) _ensurePartyAsLeader();
     renderPartySlots();
     document.getElementById('partyPanel').classList.add('open');
 }
 function closePartyPanel(){document.getElementById('partyPanel').classList.remove('open');}
 
 function renderPartySlots(){
-    const party=getParty();
+    const party=getParty()||{members:[]};
     const members=party.members||[];
-    const ud=JSON.parse(localStorage.getItem('campus_user')||'{}');
+    const ud=_ud();
+    const isLeader=party.isLeader||(party.leaderId===ud.userId);
     const slots=document.getElementById('partySlots');
     slots.innerHTML='';
 
-    // Slot 0 = self (always filled)
-    const selfSlot=document.createElement('div');
-    selfSlot.className='party-slot filled';
-    selfSlot.innerHTML=`
-        <div class="slot-avatar">${ud.avatar||'👤'}</div>
-        <div class="slot-name">${(ud.nickname||'我').substring(0,6)}</div>
-        <div class="slot-action" style="color:var(--orange);font-size:10px;">队长</div>`;
-    slots.appendChild(selfSlot);
+    // Slot 0 = 队长
+    const leaderSlot=document.createElement('div');
+    leaderSlot.className='party-slot filled';
+    leaderSlot.innerHTML=`
+        <div class="slot-avatar">${isLeader?(ud.avatar||'👤'):(party.leaderAvatar||'👤')}</div>
+        <div class="slot-name">${(isLeader?(ud.nickname||ud.name||'我'):(party.leaderName||'队长')).substring(0,6)}</div>
+        <div class="slot-action" style="color:var(--orange);font-size:10px;">👑 队长</div>`;
+    slots.appendChild(leaderSlot);
 
-    // Slots 1-2 = party members or empty
+    // Slots 1-2 = 成员
     for(let i=0;i<2;i++){
         const m=members[i];
         const slot=document.createElement('div');
         if(m){
+            const statusColor=m.status==='accepted'?'#4ade80':m.status==='declined'?'#f87171':'#facc15';
+            const statusText=m.status==='accepted'?'✓ 已接受':m.status==='declined'?'✗ 已拒绝':'⏳ 等待中';
             slot.className='party-slot filled';
             slot.innerHTML=`
                 <div class="slot-avatar">${m.avatar||'🧑'}</div>
                 <div class="slot-name">${(m.name||'好友').substring(0,6)}</div>
-                <div class="slot-filled-action" onclick="kickPartyMember(${i})">✕ 移除</div>`;
+                <div style="font-size:10px;color:${statusColor};margin-bottom:2px;">${statusText}</div>
+                ${isLeader?`<div class="slot-filled-action" onclick="kickPartyMember(${i})">✕ 移除</div>`:''}`;
         } else {
             slot.className='party-slot';
-            slot.innerHTML=`
-                <div class="slot-avatar">➕</div>
-                <div class="slot-name">邀请好友</div>
-                <div class="slot-action">点击选择</div>`;
-            slot.onclick=()=>openFriendPicker();
+            slot.innerHTML=`<div class="slot-avatar" style="font-size:20px;opacity:.5;">➕</div><div class="slot-name">等待加入</div>`;
         }
         slots.appendChild(slot);
     }
 
-    // Update 3D scene party characters
+    // 邀请区域（仅队长）
+    const inviteRow=document.getElementById('partyInviteRow');
+    if(inviteRow) inviteRow.style.display=isLeader?'block':'none';
+
+    // 状态文字
+    const statusMsg=document.getElementById('partyStatusMsg');
+    if(statusMsg){
+        if(isLeader){
+            const accepted=members.filter(m=>m.status==='accepted').length;
+            statusMsg.textContent=members.length?`队伍共 ${1+members.length} 人，${accepted} 人已接受`:'搜索好友并邀请他们加入队伍';
+        } else {
+            statusMsg.textContent=`你已加入 ${party.leaderName||'队长'} 的队伍，等待进入游戏…`;
+        }
+    }
+
+    // 开始按钮状态
+    const startBtn=document.getElementById('partyStartBtn');
+    if(startBtn){
+        const hasAccepted=members.some(m=>m.status==='accepted');
+        startBtn.style.opacity=isLeader?'1':'0.4';
+        startBtn.style.pointerEvents=isLeader?'all':'none';
+        startBtn.textContent=isLeader?(hasAccepted?'▶ 一起进入游戏':'▶ 单独进入游戏'):'⏳ 等待队长开始';
+    }
+
     if(window.refreshPartyChars) window.refreshPartyChars();
     renderPartyMemberCards();
 }
 
 function kickPartyMember(idx){
     const party=getParty();
+    if(!party) return;
     party.members.splice(idx,1);
     saveParty(party);
     renderPartySlots();
@@ -1641,74 +1755,101 @@ function renderPartyMemberCards(){
     const row=document.getElementById('partyMembersRow');
     if(!row) return;
     row.innerHTML='';
-    (party.members||[]).forEach((m,i)=>{
+    if(!party) return;
+    (party.members||[]).filter(m=>m.status==='accepted').forEach((m,i)=>{
         const card=document.createElement('div');
         card.className='party-member-card';
         card.innerHTML=`
             <div class="party-member-avatar">${m.avatar||'🧑'}</div>
-            <div class="party-member-name">${m.name||'好友'}</div>
-            <div class="party-member-kick" onclick="kickPartyMember(${i})">✕ 移除</div>`;
+            <div class="party-member-name">${m.name||'好友'}</div>`;
         row.appendChild(card);
     });
 }
 
-function openFriendPicker(){
-    const list=document.getElementById('friendPickerList');
-    // Load friends from campus_friends or show a name entry fallback
-    let friends=[];
+// ── 搜索并邀请好友 ──
+async function doPartyInviteSearch(){
+    const kw=(document.getElementById('partyInviteInput')||{}).value||'';
+    if(!kw.trim()){showToast('请输入昵称或用户ID');return;}
+    const results=document.getElementById('partySearchResults');
+    results.innerHTML='<div style="color:var(--text-lo);font-size:12px;padding:8px;">搜索中…</div>';
     try{
-        const raw=localStorage.getItem('campus_friends');
-        if(raw) friends=JSON.parse(raw);
-    }catch(e){}
-
-    const party=getParty();
-    const partyIds=(party.members||[]).map(m=>m.userId);
-
-    if(!friends.length){
-        list.innerHTML=`<div class="fp-empty">暂无好友<br><br>
-            <input id="fpManualName" placeholder="输入好友昵称" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-size:14px;text-align:center;" />
-            <button style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:10px;background:rgba(249,115,22,.25);color:var(--orange);font-weight:700;cursor:pointer;font-family:inherit;" onclick="addManualFriend()">邀请加入</button>
-        </div>`;
-    } else {
-        list.innerHTML='';
-        friends.filter(f=>!partyIds.includes(f.userId)).forEach(f=>{
+        const res=await apiClient.searchUsers(kw.trim());
+        const myId=_ud().userId;
+        const party=getParty()||{members:[]};
+        const memberIds=(party.members||[]).map(m=>m.userId);
+        const users=(res.data||[]).filter(u=>u.userId!==myId&&!memberIds.includes(u.userId));
+        if(!users.length){results.innerHTML='<div style="color:var(--text-lo);font-size:12px;padding:8px;">未找到用户</div>';return;}
+        results.innerHTML='';
+        users.forEach(u=>{
             const div=document.createElement('div');
             div.className='fp-friend';
             div.innerHTML=`
-                <div class="fp-avatar">${f.avatar||'👤'}</div>
-                <div class="fp-info"><div class="fp-name">${f.name||f.nickname||'好友'}</div><div class="fp-uid">ID: ${f.userId||'—'}</div></div>
-                <button class="fp-add-btn" onclick='addFriendToParty(${JSON.stringify(f)})'>+ 邀请</button>`;
-            list.appendChild(div);
+                <div class="fp-avatar">${u.avatar||'👤'}</div>
+                <div class="fp-info"><div class="fp-name">${u.name||u.userId}</div><div class="fp-uid">ID: ${u.userId}</div></div>
+                <button class="fp-add-btn" style="white-space:nowrap;" onclick="sendPartyInvite('${u.userId}','${(u.name||u.userId).replace(/'/g,'')}','${(u.avatar||'👤').replace(/'/g,'')}')">邀请</button>`;
+            results.appendChild(div);
         });
-        if(!list.children.length) list.innerHTML='<div class="fp-empty">好友已全部在队伍中</div>';
-    }
-    document.getElementById('friendPicker').classList.add('open');
-}
-function closeFriendPicker(){document.getElementById('friendPicker').classList.remove('open');}
-
-function addManualFriend(){
-    const name=(document.getElementById('fpManualName')||{}).value||'';
-    if(!name.trim()){return;}
-    addFriendToParty({userId:'guest_'+Date.now(),name:name.trim(),avatar:'🧑',skinIdx:0});
+    }catch(e){results.innerHTML='<div style="color:#f87171;font-size:12px;padding:8px;">搜索失败，请重试</div>';}
 }
 
-function addFriendToParty(f){
-    const party=getParty();
-    if((party.members||[]).length>=2){alert('队伍已满（最多3人）');return;}
+async function sendPartyInvite(toUserId,toName,toAvatar){
+    const party=_ensurePartyAsLeader();
+    if((party.members||[]).length>=2){showToast('队伍已满（最多3人）');return;}
+    const ud=_ud();
+    // 添加到本地 pending 状态
     party.members=party.members||[];
-    party.members.push({userId:f.userId||f.id,name:f.name||f.nickname||'好友',avatar:f.avatar||'🧑',skinIdx:f.skinIdx||0});
+    if(party.members.some(m=>m.userId===toUserId)){showToast('已邀请该用户');return;}
+    party.members.push({userId:toUserId,name:toName,avatar:toAvatar,status:'pending'});
     saveParty(party);
-    closeFriendPicker();
     renderPartySlots();
+    // 发送邀请消息
+    try{
+        await apiClient.sendMessage(ud.userId,toUserId,JSON.stringify({
+            type:'party_invite',
+            partyId:party.partyId,
+            leaderName:party.leaderName,
+            leaderAvatar:party.leaderAvatar
+        }));
+        showToast('✅ 邀请已发送！等待对方接受…');
+    }catch(e){
+        showToast('发送失败：'+e.message);
+    }
+    document.getElementById('partySearchResults').innerHTML='';
+    document.getElementById('partyInviteInput').value='';
 }
+
+// ── 接收对方接受/拒绝的回调（由 message-notifier 调用）──
+window.handlePartyMessage=function(data,msg){
+    const party=getParty();
+    if(!party||party.partyId!==data.partyId) return;
+    const m=party.members.find(m=>m.userId===msg.from_user_id);
+    if(!m) return;
+    if(data.type==='party_accept'){
+        m.status='accepted';
+        if(data.userName) m.name=data.userName;
+        if(data.userAvatar) m.avatar=data.userAvatar;
+    } else if(data.type==='party_decline'){
+        m.status='declined';
+    }
+    saveParty(party);
+    renderPartySlots();
+};
 
 function partyStartGame(){
-    closePartyPanel();
     const party=getParty();
-    const size=1+(party.members||[]).length;
-    localStorage.setItem('party_size',String(size));
-    document.getElementById('map-select-overlay').classList.remove('hidden');
+    const ud=_ud();
+    if(party&&party.isLeader||(party&&party.leaderId===ud.userId)){
+        // 队长：打开地图选择
+        _partyMode=true;
+        document.getElementById('map-select-overlay').classList.remove('hidden');
+        closePartyPanel();
+    }
 }
+let _partyMode=false;
+
+// ── 旧版兼容 ──
+function openFriendPicker(){}
+function closeFriendPicker(){}
 
 /* ═══════════════════════════════════════
    AUTO SAVE

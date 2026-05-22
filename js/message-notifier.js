@@ -108,7 +108,7 @@
         setTimeout(() => el.remove(), 290);
     }
 
-    function showNotification(senderName, senderAvatar, content, senderId) {
+    function showNotification(senderName, senderAvatar, content, senderId, badge) {
         const toast = document.createElement('div');
         toast.className = 'msg-notify-toast';
         toast.innerHTML = `
@@ -116,7 +116,7 @@
             <div class="mn-body">
                 <div class="mn-header">
                     <span class="mn-name">${escHtml(senderName || senderId)}</span>
-                    <span class="mn-badge">私信</span>
+                    <span class="mn-badge">${escHtml(badge||'私信')}</span>
                 </div>
                 <div class="mn-text">${escHtml(content)}</div>
             </div>
@@ -141,6 +141,94 @@
         setTimeout(() => removeToast(toast), 6000);
     }
 
+    /* ── 党通知 Toast ── */
+    function showSystemToast(text, color) {
+        const t = document.createElement('div');
+        t.className = 'msg-notify-toast';
+        t.style.cssText = `border-color:${color||'rgba(249,115,22,.5)'};pointer-events:none;cursor:default;`;
+        t.innerHTML = `<div class="mn-body"><div class="mn-text" style="color:#fff;font-size:14px;">${escHtml(text)}</div></div>`;
+        wrap.appendChild(t);
+        setTimeout(() => removeToast(t), 4000);
+    }
+
+    function showPartyInviteToast(msg, msgData) {
+        const toast = document.createElement('div');
+        toast.className = 'msg-notify-toast';
+        toast.style.cssText = 'border-color:rgba(139,92,246,.6);cursor:default;pointer-events:all;';
+        toast.innerHTML = `
+            <div class="mn-avatar">${escHtml(msg.from_user_avatar||'👤')}</div>
+            <div class="mn-body">
+                <div class="mn-header">
+                    <span class="mn-name">${escHtml(msg.from_user_name||msg.from_user_id)}</span>
+                    <span class="mn-badge">组队邀请</span>
+                </div>
+                <div class="mn-text">邀请你一起进游戏！</div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button style="flex:1;padding:6px;border-radius:8px;border:none;background:rgba(34,197,94,.25);color:#4ade80;font-size:12px;font-weight:700;cursor:pointer;" id="paccept_${escHtml(msgData.partyId||'')}">✓ 接受</button>
+                    <button style="flex:1;padding:6px;border-radius:8px;border:none;background:rgba(239,68,68,.15);color:#f87171;font-size:12px;font-weight:700;cursor:pointer;" id="pdecline_${escHtml(msgData.partyId||'')}">✗ 拒绝</button>
+                </div>
+            </div>
+            <button class="mn-close" title="关闭">✕</button>`;
+
+        toast.querySelector('[id^="paccept_"]').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const ud = JSON.parse(localStorage.getItem('campus_user')||'{}');
+            localStorage.setItem('campus_party', JSON.stringify({
+                partyId: msgData.partyId,
+                leaderId: msg.from_user_id,
+                leaderName: msg.from_user_name||msg.from_user_id,
+                leaderAvatar: msg.from_user_avatar||'👤',
+                isLeader: false,
+                members: []
+            }));
+            if (typeof apiClient !== 'undefined') {
+                apiClient.sendMessage(currentUserId, msg.from_user_id, JSON.stringify({
+                    type: 'party_accept',
+                    partyId: msgData.partyId,
+                    userId: currentUserId,
+                    userName: ud.nickname||ud.name||currentUserId,
+                    userAvatar: ud.avatar||'👤'
+                })).catch(()=>{});
+            }
+            removeToast(toast);
+            showSystemToast('✅ 已加入队伍！等待队长开始游戏…', 'rgba(34,197,94,.5)');
+        });
+
+        toast.querySelector('[id^="pdecline_"]').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof apiClient !== 'undefined') {
+                apiClient.sendMessage(currentUserId, msg.from_user_id, JSON.stringify({
+                    type: 'party_decline',
+                    partyId: msgData.partyId
+                })).catch(()=>{});
+            }
+            removeToast(toast);
+        });
+
+        toast.querySelector('.mn-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeToast(toast);
+        });
+
+        wrap.appendChild(toast);
+        setTimeout(() => removeToast(toast), 30000);
+    }
+
+    function handlePartyStart(msgData) {
+        const mapUrl = msgData.mapUrl || '校园企业家，教学楼小副本/index.html';
+        localStorage.setItem('campus_party_game', JSON.stringify({
+            partyId: msgData.partyId,
+            mapType: msgData.mapType || '3d'
+        }));
+        const t = document.createElement('div');
+        t.className = 'msg-notify-toast';
+        t.style.cssText = 'border-color:rgba(249,115,22,.6);cursor:pointer;';
+        t.innerHTML = `<div class="mn-body"><div class="mn-text" style="color:#fff;font-size:15px;font-weight:700;">🎮 队长开始了游戏，正在进入…</div></div>`;
+        t.addEventListener('click', () => { window.location.href = mapUrl; });
+        wrap.appendChild(t);
+        setTimeout(() => { window.location.href = mapUrl; }, 2500);
+    }
+
     /* ── 订阅 ── */
     const notifiedIds = new Set();
 
@@ -158,6 +246,30 @@
                     const id = msg.id || msg._id || '';
                     if (id && notifiedIds.has(id)) return;
                     if (id) notifiedIds.add(id);
+
+                    // 解析是否为组队系统消息
+                    let msgData = null;
+                    try { if (msg.content && msg.content[0]==='{') msgData = JSON.parse(msg.content); } catch(e) {}
+
+                    if (msgData && msgData.type === 'party_invite') {
+                        showPartyInviteToast(msg, msgData);
+                        return;
+                    }
+                    if (msgData && msgData.type === 'party_accept') {
+                        if (window.handlePartyMessage) window.handlePartyMessage(msgData, msg);
+                        showNotification(msg.from_user_name||msg.from_user_id, msg.from_user_avatar||'👤', '✅ 接受了你的组队邀请', msg.from_user_id, '组队');
+                        return;
+                    }
+                    if (msgData && msgData.type === 'party_decline') {
+                        if (window.handlePartyMessage) window.handlePartyMessage(msgData, msg);
+                        showNotification(msg.from_user_name||msg.from_user_id, msg.from_user_avatar||'👤', '❌ 拒绝了你的组队邀请', msg.from_user_id, '组队');
+                        return;
+                    }
+                    if (msgData && msgData.type === 'party_start') {
+                        handlePartyStart(msgData);
+                        return;
+                    }
+                    if (msgData && msgData.type) return; // 跳过其他系统消息
 
                     // 如果当前已在与此人的聊天页则跳过
                     const fp = new URLSearchParams(window.location.search).get('friendId');

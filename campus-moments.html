@@ -92,17 +92,24 @@
         }
         .composer-textarea:focus{border-color:rgba(139,92,246,.6);}
         .composer-textarea::placeholder{color:rgba(255,255,255,.35);}
-        .composer-img-row{
-            display:flex;align-items:center;gap:10px;margin-top:12px;
+        .composer-img-row{margin-top:12px;}
+        .img-upload-zone{
+            border:2px dashed rgba(139,92,246,.4);border-radius:12px;
+            padding:14px;text-align:center;cursor:pointer;transition:all .2s;
+            background:rgba(139,92,246,.05);position:relative;
         }
-        .composer-img-label{font-size:13px;color:rgba(255,255,255,.5);white-space:nowrap;}
-        .composer-img-input{
-            flex:1;padding:9px 12px;background:rgba(255,255,255,.07);
-            border:1px solid rgba(255,255,255,.15);border-radius:10px;
-            color:white;font-size:13px;outline:none;transition:border-color .2s;
+        .img-upload-zone:hover,.img-upload-zone.drag-over{
+            border-color:#8b5cf6;background:rgba(139,92,246,.12);
         }
-        .composer-img-input:focus{border-color:rgba(139,92,246,.5);}
-        .composer-img-input::placeholder{color:rgba(255,255,255,.3);}
+        .img-upload-zone .hint{font-size:13px;color:rgba(255,255,255,.45);pointer-events:none;}
+        .img-upload-zone img.preview{
+            max-width:100%;max-height:150px;border-radius:8px;
+            display:none;margin-top:8px;
+        }
+        .clear-img-btn{
+            display:none;margin-top:6px;background:none;border:none;
+            color:rgba(220,100,100,.8);cursor:pointer;font-size:12px;
+        }
         .composer-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
         .composer-emoji-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;}
         .cp-emoji{font-size:20px;cursor:pointer;padding:4px;border-radius:7px;transition:background .15s;}
@@ -243,10 +250,18 @@
         <textarea class="composer-textarea" id="postText" placeholder="分享你的校园生活、学习感悟、有趣瞬间..."></textarea>
         <!-- 快速表情 -->
         <div class="composer-emoji-row" id="cpEmojiRow"></div>
-        <!-- 图片 -->
+        <!-- 图片上传 -->
         <div class="composer-img-row">
-            <span class="composer-img-label">🖼️ 图片URL</span>
-            <input class="composer-img-input" id="postImg" placeholder="粘贴图片链接（可选）">
+            <div class="img-upload-zone" id="momImgZone"
+                onclick="document.getElementById('momImgInput').click()"
+                ondragover="event.preventDefault();this.classList.add('drag-over')"
+                ondragleave="this.classList.remove('drag-over')"
+                ondrop="handleMomImgDrop(event)">
+                <div class="hint" id="momImgHint">🖼️ 点击选图 / 拖入图片 / Ctrl+V 粘贴</div>
+                <img class="preview" id="momImgPreview">
+                <input type="file" id="momImgInput" accept="image/*" style="display:none" onchange="handleMomImgFile(this.files[0])">
+            </div>
+            <button class="clear-img-btn" id="momClearBtn" onclick="clearMomImage()">✕ 移除图片</button>
         </div>
         <div class="composer-footer">
             <button class="cancel-btn" onclick="closeComposer()">取消</button>
@@ -294,26 +309,83 @@ function openComposer() {
 }
 function closeComposer() {
     document.getElementById('composerOverlay').classList.remove('open');
+    clearMomImage();
 }
 function overlayClick(e) {
     if (e.target === document.getElementById('composerOverlay')) closeComposer();
 }
 
+// ── 图片处理 ─────────────────────────────────────────────
+let _momImgData = '';
+function _compressMomImg(file, maxW, maxH, q) {
+    return new Promise(res => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let w = img.width, h = img.height;
+            if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+            if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            res(c.toDataURL('image/jpeg', q));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+        img.src = url;
+    });
+}
+async function handleMomImgFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const data = await _compressMomImg(file, 900, 900, 0.78);
+    if (!data) return;
+    _momImgData = data;
+    const p = document.getElementById('momImgPreview');
+    p.src = data; p.style.display = 'block';
+    document.getElementById('momImgHint').style.display = 'none';
+    document.getElementById('momClearBtn').style.display = 'inline-block';
+}
+function handleMomImgDrop(e) {
+    e.preventDefault();
+    document.getElementById('momImgZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleMomImgFile(file);
+}
+function clearMomImage() {
+    _momImgData = '';
+    const p = document.getElementById('momImgPreview');
+    p.src = ''; p.style.display = 'none';
+    document.getElementById('momImgHint').style.display = 'block';
+    document.getElementById('momClearBtn').style.display = 'none';
+    document.getElementById('momImgInput').value = '';
+}
+// 粘贴图片支持
+document.addEventListener('paste', async function(e) {
+    const overlay = document.getElementById('composerOverlay');
+    if (!overlay || !overlay.classList.contains('open')) return;
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            await handleMomImgFile(item.getAsFile());
+            break;
+        }
+    }
+});
+
 async function submitPost() {
-    const text    = document.getElementById('postText').value.trim();
-    const imgUrl  = document.getElementById('postImg').value.trim();
+    const text = document.getElementById('postText').value.trim();
     if (!text) { alert('请输入内容'); return; }
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = '发布中...';
 
-    // 内容编码：若有图片则追加特殊分隔符
-    const content = imgUrl ? `${text}\n---img---\n${imgUrl}` : text;
+    const content = _momImgData ? `${text}\n---img---\n${_momImgData}` : text;
 
     try {
         await apiClient.createPost(currentUserId, content, currentName, currentAvatar, 'moments');
         document.getElementById('postText').value = '';
-        document.getElementById('postImg').value  = '';
+        clearMomImage();
         closeComposer();
         await loadMoments();
     } catch (e) {

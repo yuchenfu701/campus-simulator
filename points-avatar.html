@@ -246,10 +246,9 @@ function vrmSVG(){
 
 const SUITS=[
   // ── 默认3D角色（免费，永久解锁）──
-  {id:'skin_vrm_girl',name:'默认女生',r:'common',price:0,desc:'默认女生3D角色，完整跑步/滑铲/待机动画，永久免费',vrmFile:'models/女生.vrm',isDefault:true},
-  {id:'skin_vrm_boy', name:'默认男生',r:'common',price:0,desc:'默认男生3D角色，完整跑步/滑铲/待机动画，永久免费',vrmFile:'models/男的.vrm',isDefault:true},
+  {id:'skin_vrm_girl',name:'默认女生',r:'common',price:0,desc:'默认女生3D角色，完整跑步/滑铲/待机动画，永久免费',vrmFile:'角色建模/女生.vrm',isDefault:true},
+  {id:'skin_vrm_boy', name:'默认男生',r:'common',price:0,desc:'默认男生3D角色，完整跑步/滑铲/待机动画，永久免费',vrmFile:'角色建模/男的.vrm',isDefault:true},
   // ── 程序生成皮肤 ──
-  {id:'skin_0',  name:'夏日制服',r:'common',price:0,   desc:'清爽夏日，白衬衫配藏青裤，永久免费',si:0,isDefault:true},
   {id:'skin_1',  name:'冬季大衣',r:'rare',  price:50,  desc:'深冬暖意，深蓝校服配金色领带',si:1},
   {id:'skin_2',  name:'运动健将',r:'rare',  price:80,  desc:'活力四射，红色运动全套出战',si:2},
   {id:'skin_3',  name:'精英正装',r:'epic',  price:150, desc:'盛装出席，深色正装配金领带',si:3},
@@ -257,14 +256,14 @@ const SUITS=[
   {id:'skin_5',  name:'星夜幻影',r:'legend',price:500, desc:'虚空之子，深紫星辰战袍',si:5},
   {id:'skin_6',  name:'金色荣耀',r:'legend',price:800, desc:'终极传说，金黑配色至尊装备',si:6},
   // ── 特殊VRM套装 ──
-  {id:'skin_vrm_lieqi',name:'猎奇套装',r:'epic',price:150,desc:'3D写实VRM人物模型，史诗品质，真实全身角色扮演套装',vrmFile:'models/player.vrm'},
+  {id:'skin_vrm_lieqi',name:'猎奇套装',r:'epic',price:150,desc:'3D写实VRM人物模型，史诗品质，真实全身角色扮演套装',vrmFile:'角色建模/猎奇.vrm'},
 ];
 const RARITY_NAMES={common:'普通',rare:'稀有',epic:'史诗',legend:'传说'};
 const RARITY_COLORS={common:'#9ca3af',rare:'#60a5fa',epic:'#c084fc',legend:'#f59e0b'};
 
 function getOwned(){return JSON.parse(localStorage.getItem('campus_cosmetics')||'{}');}
-function getEquippedSkin(){return (JSON.parse(localStorage.getItem('campus_equipped')||'{}')).skin||'skin_0';}
-function isOwned(id){return id==='skin_0'||id==='skin_vrm_girl'||id==='skin_vrm_boy'||!!getOwned()[id];}
+function getEquippedSkin(){return (JSON.parse(localStorage.getItem('campus_equipped')||'{}')).skin||'skin_vrm_girl';}
+function isOwned(id){return id==='skin_vrm_girl'||id==='skin_vrm_boy'||!!getOwned()[id];}
 
 function equip(id){
   const suit=SUITS.find(s=>s.id===id);

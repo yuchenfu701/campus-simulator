@@ -1283,15 +1283,29 @@
             }
         });
         
-        // 点击屏幕跳跃（添加防抖）
+        // 点击/触摸屏幕跳跃（添加防抖）
         let lastClickTime = 0;
-        gameArea.addEventListener('click', (e) => {
+        function handleJumpTouch(e) {
+            e.preventDefault();
             const now = Date.now();
             if (now - lastClickTime > JUMP_COOLDOWN) {
                 lastClickTime = now;
                 jump();
             }
-        });
+        }
+        gameArea.addEventListener('click', handleJumpTouch);
+        gameArea.addEventListener('touchstart', handleJumpTouch, { passive: false });
+
+        // 移动端：添加固定跳跃按钮
+        const isMobileRun = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        if (isMobileRun) {
+            const jumpBtn = document.createElement('button');
+            jumpBtn.textContent = '跳！';
+            jumpBtn.style.cssText = 'position:fixed;bottom:24px;right:24px;width:80px;height:80px;border-radius:50%;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:22px;font-weight:bold;cursor:pointer;z-index:9999;box-shadow:0 4px 20px rgba(102,126,234,.5);touch-action:manipulation;';
+            document.body.appendChild(jumpBtn);
+            jumpBtn.addEventListener('touchstart', handleJumpTouch, { passive: false });
+            jumpBtn.addEventListener('click', handleJumpTouch);
+        }
         
         // 创建背景粒子
         function createBackgroundParticles() {
