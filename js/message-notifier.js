@@ -269,6 +269,14 @@
                         handlePartyStart(msgData);
                         return;
                     }
+                    if (msgData && (msgData.type === 'party_mode_change' || msgData.type === 'party_ready_update')) {
+                        if (window.handlePartyMessage) window.handlePartyMessage(msgData, msg);
+                        return;
+                    }
+                    if (msgData && msgData.type === 'party_ready') {
+                        if (window.handlePartyMessage) window.handlePartyMessage(msgData, msg);
+                        return;
+                    }
                     if (msgData && msgData.type) return; // 跳过其他系统消息
 
                     // 如果当前已在与此人的聊天页则跳过

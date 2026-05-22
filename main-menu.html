@@ -949,6 +949,14 @@
     <div class="party-slots" id="partySlots">
       <!-- filled by JS -->
     </div>
+    <!-- 模式选择（仅队长可见） -->
+    <div id="partyModeRow" style="display:none;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--text-lo);margin-bottom:8px;">🗺️ 选择游戏模式</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button class="party-mode-btn" id="modeBtn3d" onclick="selectPartyMode('3d')" style="padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--text-hi);font-size:13px;cursor:pointer;transition:all .2s;">🏫 3D教学楼</button>
+        <button class="party-mode-btn" id="modeBtn2d" onclick="selectPartyMode('2d')" style="padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--text-hi);font-size:13px;cursor:pointer;transition:all .2s;">🎮 2D校园</button>
+      </div>
+    </div>
     <!-- 邀请好友区域（仅队长可见） -->
     <div id="partyInviteRow" style="display:none;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--text-lo);margin-bottom:8px;">邀请好友加入队伍</div>
@@ -959,6 +967,7 @@
       <div id="partySearchResults" style="margin-top:8px;max-height:160px;overflow-y:auto;"></div>
     </div>
     <div id="partyStatusMsg" style="font-size:12px;color:var(--text-lo);text-align:center;margin-bottom:12px;min-height:18px;"></div>
+    <div id="partyReadyStatus" style="font-size:12px;color:var(--text-lo);text-align:center;margin-bottom:8px;min-height:16px;"></div>
     <button class="party-start-btn" id="partyStartBtn" onclick="partyStartGame()">▶ 一起进入游戏</button>
   </div>
 </div>
@@ -1699,8 +1708,8 @@ function renderPartySlots(){
         const m=members[i];
         const slot=document.createElement('div');
         if(m){
-            const statusColor=m.status==='accepted'?'#4ade80':m.status==='declined'?'#f87171':'#facc15';
-            const statusText=m.status==='accepted'?'✓ 已接受':m.status==='declined'?'✗ 已拒绝':'⏳ 等待中';
+            const statusColor=m.status==='accepted'?(m.ready?'#4ade80':'#facc15'):m.status==='declined'?'#f87171':'#facc15';
+            const statusText=m.status==='accepted'?(m.ready?'✅ 已准备':'⏳ 未准备'):m.status==='declined'?'✗ 已拒绝':'⏳ 等待中';
             slot.className='party-slot filled';
             slot.innerHTML=`
                 <div class="slot-avatar">${m.avatar||'🧑'}</div>
@@ -1740,6 +1749,18 @@ function renderPartySlots(){
 
     if(window.refreshPartyChars) window.refreshPartyChars();
     renderPartyMemberCards();
+    updatePartyHud();
+    // 显示/隐藏模式选择行
+    const modeRow = document.getElementById('partyModeRow');
+    if (modeRow) modeRow.style.display = isLeader ? 'block' : 'none';
+    // 刷新模式按钮高亮
+    if (isLeader && party.selectedMode) {
+        document.querySelectorAll('.party-mode-btn').forEach(b => {
+            b.style.background = b.id === 'modeBtn'+party.selectedMode ? 'rgba(139,92,246,.35)' : 'rgba(255,255,255,.07)';
+            b.style.borderColor = b.id === 'modeBtn'+party.selectedMode ? 'rgba(139,92,246,.7)' : 'rgba(255,255,255,.15)';
+            b.style.color = b.id === 'modeBtn'+party.selectedMode ? '#c084fc' : 'var(--text-hi)';
+        });
+    }
 }
 
 function kickPartyMember(idx){
@@ -1822,6 +1843,32 @@ async function sendPartyInvite(toUserId,toName,toAvatar){
 window.handlePartyMessage=function(data,msg){
     const party=getParty();
     if(!party||party.partyId!==data.partyId) return;
+
+    // 成员端：接收队长广播的模式变更
+    if(data.type==='party_mode_change'){
+        const ud2=_ud();
+        if(party.leaderId!==ud2.userId){
+            party.selectedMode=data.mode;
+            saveParty(party);
+            updatePartyHud();
+            showToast('队长已选择：'+(data.modeName||data.mode));
+        }
+        return;
+    }
+
+    // 成员端：接收队长广播的准备状态汇总
+    if(data.type==='party_ready_update'){
+        const ud2=_ud();
+        if(party.leaderId!==ud2.userId){
+            party.remoteReadyCount=data.readyCount;
+            party.remoteTotalMembers=data.totalMembers;
+            if(data.selectedMode) party.selectedMode=data.selectedMode;
+            saveParty(party);
+            updatePartyHud();
+        }
+        return;
+    }
+
     const m=party.members.find(m=>m.userId===msg.from_user_id);
     if(!m) return;
     if(data.type==='party_accept'){
@@ -1830,19 +1877,150 @@ window.handlePartyMessage=function(data,msg){
         if(data.userAvatar) m.avatar=data.userAvatar;
     } else if(data.type==='party_decline'){
         m.status='declined';
+    } else if(data.type==='party_ready'){
+        m.ready=data.ready;
+        saveParty(party);
+        renderPartySlots();
+        updatePartyHud();
+        // 队长广播 ready_update 给所有成员
+        const accepted=party.members.filter(m=>m.status==='accepted');
+        const readyCount=accepted.filter(m=>m.ready).length;
+        const ud2=_ud();
+        const readyMsg=JSON.stringify({
+            type:'party_ready_update',
+            partyId:party.partyId,
+            readyCount,
+            totalMembers:accepted.length,
+            selectedMode:party.selectedMode||''
+        });
+        Promise.all(accepted.map(m2=>apiClient.sendMessage(ud2.userId,m2.userId,readyMsg).catch(()=>{}))).catch(()=>{});
+        return;
     }
     saveParty(party);
     renderPartySlots();
 };
 
+// ── 队长选择模式 ──
+async function selectPartyMode(mode) {
+    const party = getParty();
+    if (!party) return;
+    const ud = _ud();
+    if (party.leaderId !== ud.userId) return; // 仅队长
+    party.selectedMode = mode;
+    saveParty(party);
+    renderPartySlots();
+    updatePartyHud();
+    // 高亮选中按钮
+    document.querySelectorAll('.party-mode-btn').forEach(b => {
+        b.style.background = b.id === 'modeBtn'+mode ? 'rgba(139,92,246,.35)' : 'rgba(255,255,255,.07)';
+        b.style.borderColor = b.id === 'modeBtn'+mode ? 'rgba(139,92,246,.7)' : 'rgba(255,255,255,.15)';
+        b.style.color = b.id === 'modeBtn'+mode ? '#c084fc' : 'var(--text-hi)';
+    });
+    // 广播给所有已接受成员
+    const modeNames = {'3d':'🏫 3D教学楼','2d':'🎮 2D校园'};
+    const accepted = (party.members||[]).filter(m=>m.status==='accepted');
+    if (accepted.length) {
+        const msgContent = JSON.stringify({type:'party_mode_change', partyId:party.partyId, mode, modeName:modeNames[mode]||mode});
+        try {
+            await Promise.all(accepted.map(m=>apiClient.sendMessage(ud.userId,m.userId,msgContent)));
+        } catch(e) { console.warn('party_mode_change 发送失败', e); }
+    }
+    showToast('✅ 已选择：' + (modeNames[mode]||mode));
+}
+
+// ── 成员点准备 ──
+async function togglePartyReady() {
+    const party = getParty();
+    if (!party) return;
+    const ud = _ud();
+    party.isReady = !party.isReady;
+    saveParty(party);
+    updatePartyHud();
+    try {
+        await apiClient.sendMessage(ud.userId, party.leaderId, JSON.stringify({
+            type: 'party_ready',
+            partyId: party.partyId,
+            userId: ud.userId,
+            ready: party.isReady
+        }));
+    } catch(e) { console.warn('party_ready 发送失败', e); }
+}
+
+// ── 退出队伍 ──
+function leaveParty() {
+    if (!confirm('确定退出队伍？')) return;
+    saveParty(null);
+    updatePartyHud();
+    renderPartyMemberCards();
+}
+
+// ── 队长从 HUD 点开始 ──
+function partyLeaderStart() {
+    const party = getParty();
+    const ud = _ud();
+    if (!party || party.leaderId !== ud.userId) return;
+    if (!party.selectedMode) { showToast('请先在组队面板选择游戏模式'); openPartyPanel(); return; }
+    _partyMode = true;
+    enterMap(party.selectedMode);
+}
+
+// ── 右下角 HUD 更新 ──
+function updatePartyHud() {
+    const party = getParty();
+    const hud = document.getElementById('party-hud');
+    if (!hud) return;
+
+    if (!party) { hud.style.display='none'; return; }
+    const ud = _ud();
+    const isLeader = party.leaderId === ud.userId;
+    const accepted = (party.members||[]).filter(m=>m.status==='accepted');
+    // 成员端：只要在队伍里就显示；队长端：有人接受了才显示
+    if (isLeader && accepted.length === 0) { hud.style.display='none'; return; }
+    if (!isLeader && !party.leaderId) { hud.style.display='none'; return; }
+
+    hud.style.display = 'block';
+    const modeNames = {'3d':'🏫 3D教学楼','2d':'🎮 2D校园'};
+    document.getElementById('phudMode').textContent = party.selectedMode ? (modeNames[party.selectedMode]||party.selectedMode) : '🗺️ 待选择模式';
+
+    if (isLeader) {
+        const readyCount = accepted.filter(m=>m.ready).length;
+        const total = accepted.length;
+        document.getElementById('phudReady').textContent = total > 0 ? `${readyCount} / ${total} 成员已准备` : '';
+        document.getElementById('phudReadyBtn').style.display = 'none';
+        const startBtn = document.getElementById('phudStartBtn');
+        startBtn.style.display = 'block';
+        const allReady = total > 0 && readyCount >= total && !!party.selectedMode;
+        startBtn.style.opacity = allReady ? '1' : '0.4';
+        startBtn.style.pointerEvents = allReady ? 'all' : 'none';
+        startBtn.style.background = allReady ? 'rgba(34,197,94,.5)' : 'rgba(34,197,94,.2)';
+    } else {
+        const rc = party.remoteReadyCount !== undefined ? party.remoteReadyCount : 0;
+        const rt = party.remoteTotalMembers || 0;
+        document.getElementById('phudReady').textContent = rt > 0 ? `${rc} / ${rt} 已准备` : '等待队友…';
+        const readyBtn = document.getElementById('phudReadyBtn');
+        readyBtn.style.display = 'block';
+        readyBtn.textContent = party.isReady ? '✅ 已准备（点击取消）' : '准备';
+        readyBtn.style.background = party.isReady ? 'rgba(34,197,94,.3)' : 'rgba(99,102,241,.35)';
+        readyBtn.style.color = party.isReady ? '#4ade80' : '#a5b4fc';
+        document.getElementById('phudStartBtn').style.display = 'none';
+    }
+}
+
 function partyStartGame(){
     const party=getParty();
     const ud=_ud();
-    if(party&&party.isLeader||(party&&party.leaderId===ud.userId)){
-        // 队长：打开地图选择
-        _partyMode=true;
-        document.getElementById('map-select-overlay').classList.remove('hidden');
-        closePartyPanel();
+    if(party&&(party.isLeader||(party.leaderId===ud.userId))){
+        if(!party.selectedMode){
+            // 没有选模式才打开地图选择
+            _partyMode=true;
+            document.getElementById('map-select-overlay').classList.remove('hidden');
+            closePartyPanel();
+        } else {
+            // 已有选模式，直接开始
+            closePartyPanel();
+            _partyMode=true;
+            enterMap(party.selectedMode);
+        }
     }
 }
 let _partyMode=false;
@@ -1869,6 +2047,9 @@ setInterval(autoSave,30000);
 window.addEventListener('DOMContentLoaded',()=>{
     loadUserInfo();
     renderPartyMemberCards();
+    updatePartyHud();
+    // 每10秒轮询一次队伍状态（确保HUD刷新）
+    setInterval(updatePartyHud, 10000);
 
     // 把自己写入本地已知用户注册表（供好友搜索离线使用）
     (function registerLocalUser(){
@@ -1923,5 +2104,25 @@ window.addEventListener('DOMContentLoaded',()=>{
     })();
 });
 </script>
+
+<!-- 组队右下角 HUD -->
+<div id="party-hud" style="
+  display:none; position:fixed; bottom:16px; right:16px; z-index:1200;
+  background:rgba(10,15,30,0.92); border:1px solid rgba(139,92,246,.4);
+  border-radius:16px; padding:14px 16px; min-width:180px;
+  backdrop-filter:blur(12px); box-shadow:0 8px 32px rgba(0,0,0,.4);">
+  <div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:6px;letter-spacing:1px;">👥 队伍状态</div>
+  <div id="phudMode" style="font-size:13px;color:#c084fc;font-weight:700;margin-bottom:8px;">🗺️ 待选择模式</div>
+  <div id="phudReady" style="font-size:12px;color:rgba(255,255,255,.7);margin-bottom:10px;"></div>
+  <button id="phudReadyBtn" onclick="togglePartyReady()" style="
+    display:none; width:100%; padding:9px; border-radius:10px; border:none;
+    background:rgba(99,102,241,.35); color:#a5b4fc; font-size:13px;
+    font-weight:700; cursor:pointer; transition:all .2s; margin-bottom:6px;">准备</button>
+  <button id="phudStartBtn" onclick="partyLeaderStart()" style="
+    display:none; width:100%; padding:9px; border-radius:10px; border:none;
+    background:rgba(34,197,94,.3); color:#4ade80; font-size:13px;
+    font-weight:700; cursor:pointer; transition:all .2s;">▶ 开始游戏</button>
+  <div style="font-size:11px;color:rgba(255,255,255,.25);text-align:center;margin-top:6px;cursor:pointer;" onclick="leaveParty()">退出队伍</div>
+</div>
 </body>
 </html>
