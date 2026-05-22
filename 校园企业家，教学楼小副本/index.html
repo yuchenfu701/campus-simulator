@@ -5956,7 +5956,8 @@
                             x: soldier.position.x,
                             y: soldier.position.y,
                             z: soldier.position.z,
-                            ry: soldier.rotation.y
+                            ry: soldier.rotation.y,
+                            ws: walkSpeed          // 行走速度，供对方动画使用
                         }});
                     }, 250);
 
@@ -5978,32 +5979,78 @@
                 if (!scene) return;
                 var entry = _partyOtherPlayers[p.userId];
                 if (!entry) {
+                    // ── 颜色（根据 userId 确定性哈希）──
                     var hue = 0;
                     for (var ci=0; ci<(p.userId||'').length; ci++) hue = (hue*31 + p.userId.charCodeAt(ci)) & 0xffffff;
-                    var color = (hue & 0x7f7f7f) | 0x606060;
+                    var color   = (hue & 0x7f7f7f) | 0x606060;
+                    var skinCol = 0xffe0b2;
+                    var matBody = new THREE.MeshLambertMaterial({color: color});
+                    var matSkin = new THREE.MeshLambertMaterial({color: skinCol});
+
                     var grp = new THREE.Group();
-                    var bodyM = new THREE.Mesh(
-                        new THREE.CylinderGeometry(0.22, 0.22, 1.0, 8),
-                        new THREE.MeshLambertMaterial({color: color})
-                    );
-                    bodyM.position.y = 0.9; bodyM.castShadow = true; grp.add(bodyM);
-                    var headM = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.22, 8, 8),
-                        new THREE.MeshLambertMaterial({color: 0xffe0b2})
-                    );
-                    headM.position.y = 1.65; headM.castShadow = true; grp.add(headM);
+
+                    // ── 躯干 ──
+                    var bodyM = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.20, 0.72, 8), matBody);
+                    bodyM.position.y = 1.06; bodyM.castShadow = true; grp.add(bodyM);
+
+                    // ── 头 ──
+                    var headM = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), matSkin);
+                    headM.position.y = 1.62; headM.castShadow = true; grp.add(headM);
+
+                    // ── 腿（用 pivot group 以髋部为旋转中心）──
+                    function makeLegPivot(xOff) {
+                        var pivot = new THREE.Group();
+                        pivot.position.set(xOff, 0.72, 0);   // 髋部高度
+                        var legM = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.075, 0.07, 0.62, 6),
+                            matBody.clone()
+                        );
+                        legM.position.y = -0.31;              // 向下悬挂
+                        legM.castShadow = true;
+                        pivot.add(legM);
+                        grp.add(pivot);
+                        return pivot;
+                    }
+                    var lLegPivot = makeLegPivot(-0.11);
+                    var rLegPivot = makeLegPivot( 0.11);
+
+                    // ── 手臂（用 pivot group 以肩部为旋转中心）──
+                    function makeArmPivot(xOff) {
+                        var pivot = new THREE.Group();
+                        pivot.position.set(xOff, 1.35, 0);   // 肩膀高度
+                        var armM = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.055, 0.05, 0.54, 6),
+                            matBody.clone()
+                        );
+                        armM.position.y = -0.27;
+                        armM.castShadow = true;
+                        pivot.add(armM);
+                        grp.add(pivot);
+                        return pivot;
+                    }
+                    var lArmPivot = makeArmPivot(-0.27);
+                    var rArmPivot = makeArmPivot( 0.27);
+
                     scene.add(grp);
 
                     var lbl = document.createElement('div');
                     lbl.style.cssText = 'position:fixed;z-index:500;pointer-events:none;color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 3px #000;background:rgba(0,0,0,.55);padding:2px 7px;border-radius:6px;display:none;white-space:nowrap;';
                     lbl.textContent = p.userName || p.userId;
                     document.body.appendChild(lbl);
-                    entry = _partyOtherPlayers[p.userId] = {mesh:grp, label:lbl, lastSeen:Date.now()};
+                    entry = _partyOtherPlayers[p.userId] = {
+                        mesh: grp, label: lbl, lastSeen: Date.now(),
+                        lLegPivot: lLegPivot, rLegPivot: rLegPivot,
+                        lArmPivot: lArmPivot, rArmPivot: rArmPivot,
+                        walkPhase: 0, ws: 0, _py: p.y
+                    };
                 }
                 entry.mesh.position.set(p.x, p.y, p.z);
                 entry.mesh.rotation.y = p.ry || 0;
+                entry.ws = p.ws || 0;
+                entry._py = p.y;
                 entry.lastSeen = Date.now();
 
+                // 名牌投影
                 if (camera && renderer) {
                     var hp = new THREE.Vector3(p.x, p.y + 1.95, p.z);
                     hp.project(camera);
@@ -6017,6 +6064,30 @@
                         entry.label.style.display = 'none';
                     }
                 }
+            }
+
+            // 每帧驱动远程玩家的行走动画
+            function _tickRemotePlayers(dt) {
+                Object.values(_partyOtherPlayers).forEach(function(entry) {
+                    var ws = entry.ws || 0;
+                    // 根据接收到的行走速度推进本地步态相位
+                    if (ws > 0.02) {
+                        entry.walkPhase += dt * ws * 2.3; // 2.3 步/秒 匹配本地步频
+                    }
+                    var ph  = entry.walkPhase * Math.PI * 2;
+                    var spd = Math.min(ws, 1.0);
+                    var swing = Math.sin(ph) * 0.55 * spd;
+
+                    if (entry.lLegPivot) entry.lLegPivot.rotation.x =  swing;
+                    if (entry.rLegPivot) entry.rLegPivot.rotation.x = -swing;
+                    if (entry.lArmPivot) entry.lArmPivot.rotation.x = -swing * 0.55;
+                    if (entry.rArmPivot) entry.rArmPivot.rotation.x =  swing * 0.55;
+
+                    // 上下颠簸（步频2倍，两步一个循环）
+                    if (entry.mesh && ws > 0.02) {
+                        entry.mesh.position.y = entry._py + Math.abs(Math.sin(ph * 2)) * 0.045 * spd;
+                    }
+                });
             }
 
             // 先创建备用简单士兵模型
@@ -7726,6 +7797,9 @@
 
             // 更新VRM骨骼姿势（必须在moveSoldier后，才能读到当前帧walkSpeed）
             if (_isVrm) _updateVrmPose();
+
+            // 驱动联机远程玩家行走动画
+            _tickRemotePlayers(deltaTime);
 
             // 渲染场景
             renderer.render(scene, camera);
