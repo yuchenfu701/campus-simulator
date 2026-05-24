@@ -1629,7 +1629,10 @@ async function enterMap(type){
     } else {
         localStorage.removeItem('campus_party_game');
     }
-    localStorage.setItem('party_size','1');
+    // party_size = 自己(1) + 已接受成员数，供地图内出生点错开使用
+    const _partyForSize = getParty();
+    const _acceptedCount = (_partyForSize && _partyForSize.members || []).filter(m=>m.status==='accepted').length;
+    localStorage.setItem('party_size', String(1 + _acceptedCount));
     window.location.href=mapUrl;
 }
 
