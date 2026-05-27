@@ -5982,6 +5982,29 @@
             });
         }
 
+        // 联机远程玩家数据（提升至外层作用域，供 animate() 访问）
+        var _partyOtherPlayers = {};
+
+        // 每帧驱动远程玩家的行走动画（外层作用域，animate() 可直接调用）
+        function _tickRemotePlayers(dt) {
+            Object.values(_partyOtherPlayers).forEach(function(entry) {
+                var ws = entry.ws || 0;
+                if (ws > 0.02) {
+                    entry.walkPhase += dt * ws * 2.3;
+                }
+                var ph  = entry.walkPhase * Math.PI * 2;
+                var spd = Math.min(ws, 1.0);
+                var swing = Math.sin(ph) * 0.55 * spd;
+                if (entry.lLegPivot) entry.lLegPivot.rotation.x =  swing;
+                if (entry.rLegPivot) entry.rLegPivot.rotation.x = -swing;
+                if (entry.lArmPivot) entry.lArmPivot.rotation.x = -swing * 0.55;
+                if (entry.rArmPivot) entry.rArmPivot.rotation.x =  swing * 0.55;
+                if (entry.mesh && ws > 0.02) {
+                    entry.mesh.position.y = entry._py + Math.abs(Math.sin(ph * 2)) * 0.045 * spd;
+                }
+            });
+        }
+
         // 加载士兵模型
         function loadSoldier() {
             // 玩家起始位置：根据组队人数分配不重叠的出生点
@@ -6047,7 +6070,7 @@
             //  组队实时位置同步（Supabase Realtime Broadcast）
             // ══════════════════════════════════════════
             var _partyChannel = null;
-            var _partyOtherPlayers = {};
+            // _partyOtherPlayers 已提升至外层作用域（loadSoldier 上方）
 
             function _initPartySync() {
                 var partyGame = null;
@@ -6187,29 +6210,7 @@
                 }
             }
 
-            // 每帧驱动远程玩家的行走动画
-            function _tickRemotePlayers(dt) {
-                Object.values(_partyOtherPlayers).forEach(function(entry) {
-                    var ws = entry.ws || 0;
-                    // 根据接收到的行走速度推进本地步态相位
-                    if (ws > 0.02) {
-                        entry.walkPhase += dt * ws * 2.3; // 2.3 步/秒 匹配本地步频
-                    }
-                    var ph  = entry.walkPhase * Math.PI * 2;
-                    var spd = Math.min(ws, 1.0);
-                    var swing = Math.sin(ph) * 0.55 * spd;
-
-                    if (entry.lLegPivot) entry.lLegPivot.rotation.x =  swing;
-                    if (entry.rLegPivot) entry.rLegPivot.rotation.x = -swing;
-                    if (entry.lArmPivot) entry.lArmPivot.rotation.x = -swing * 0.55;
-                    if (entry.rArmPivot) entry.rArmPivot.rotation.x =  swing * 0.55;
-
-                    // 上下颠簸（步频2倍，两步一个循环）
-                    if (entry.mesh && ws > 0.02) {
-                        entry.mesh.position.y = entry._py + Math.abs(Math.sin(ph * 2)) * 0.045 * spd;
-                    }
-                });
-            }
+            // _tickRemotePlayers 已提升至外层作用域（loadSoldier 上方）
 
             // 先创建备用简单士兵模型
             function createSimpleSoldier() {
