@@ -4231,6 +4231,43 @@
                 const trim=new THREE.Mesh(new THREE.BoxGeometry(13.2,0.14,0.66),pillarM);
                 trim.position.set(0,4.73,GATE_Z); scene.add(trim);
             })();
+
+            // ── 广场装饰喷泉（主路中央，旗杆前方）──
+            (function addFountain(){
+                const FX=0, FZ=46; // 位于主路正中，旗杆（Z=55）前9m
+                const stone=new THREE.MeshLambertMaterial({color:0xc8c0b4});
+                const water=new THREE.MeshLambertMaterial({color:0x4aa8d8,transparent:true,opacity:0.65});
+                // 外围花岗岩池边（圆形近似：8边形）
+                for(let i=0;i<8;i++){
+                    const a=i*Math.PI/4, a2=(i+1)*Math.PI/4;
+                    const r=2.6;
+                    const mx=(Math.cos(a)+Math.cos(a2))/2*r, mz=(Math.sin(a)+Math.sin(a2))/2*r;
+                    const segW=Math.sqrt(Math.pow((Math.cos(a2)-Math.cos(a))*r,2)+Math.pow((Math.sin(a2)-Math.sin(a))*r,2));
+                    const seg=new THREE.Mesh(new THREE.BoxGeometry(segW,0.25,0.22),stone);
+                    seg.position.set(FX+mx,0.12,FZ+mz); seg.rotation.y=-a-Math.PI/8; scene.add(seg);
+                }
+                // 水面（平面）
+                const pool=new THREE.Mesh(new THREE.CircleGeometry(2.4,12),water);
+                pool.rotation.x=-Math.PI/2; pool.position.set(FX,0.06,FZ); scene.add(pool);
+                // 中央台座
+                const base1=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.52,0.55,10),stone);
+                base1.position.set(FX,0.28,FZ); scene.add(base1);
+                const base2=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.38,0.35,10),stone);
+                base2.position.set(FX,0.73,FZ); scene.add(base2);
+                // 中央水盘
+                const basin=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.5,0.12,12),stone);
+                basin.position.set(FX,1.00,FZ); scene.add(basin);
+                // 水盘水面
+                const bWater=new THREE.Mesh(new THREE.CircleGeometry(0.60,12),water);
+                bWater.rotation.x=-Math.PI/2; bWater.position.set(FX,1.07,FZ); scene.add(bWater);
+                // 喷泉管（细圆柱）
+                const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.55,6),stone);
+                pipe.position.set(FX,1.40,FZ); scene.add(pipe);
+                // 喷水顶（浅蓝球体）
+                const spray=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,5),
+                    new THREE.MeshLambertMaterial({color:0x88d4f0,transparent:true,opacity:0.75}));
+                spray.position.set(FX,1.72,FZ); scene.add(spray);
+            })();
         }
 
         // ══════════════════════════════════════════════════════════════════════
