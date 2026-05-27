@@ -5281,11 +5281,12 @@
                     if (dx < roomX1 + 0.55 || dz < roomZ1 + 0.45 || dz > roomZ2 - 0.55) continue;
 
                     const top = new THREE.Mesh(new THREE.BoxGeometry(dD, 0.04, dW), deskMat);
-                    top.position.set(dx, yBase + dH, dz);
+                    top.position.set(dx, yBase + dH + 0.02, dz); // 桌面顶部
                     shRoom(top); scene.add(top);
+                    // 蓝色边框下移至桌面底部，避免与桌面共面 z-fighting
                     const tEdge = new THREE.Mesh(new THREE.BoxGeometry(dD + 0.04, 0.04, dW + 0.04),
                         new THREE.MeshLambertMaterial({ color: 0x2a6090 }));
-                    tEdge.position.set(dx, yBase + dH - 0.001, dz);
+                    tEdge.position.set(dx, yBase + dH, dz); // 严格在 top 正下方，无重叠
                     shRoom(tEdge); scene.add(tEdge);
                     const cbox = new THREE.Mesh(new THREE.BoxGeometry(dD * 0.85, 0.1, dW * 0.85));
                     cbox.position.set(dx, yBase + dH, dz); cbox.visible = false;
@@ -5541,9 +5542,19 @@
             // ── 走廊踢脚线（南北两侧）──
             const skirtH=0.18, skirtD=0.05;
             const skirtMat=new THREE.MeshLambertMaterial({color:0x8a7e72});
-            // 南侧踢脚线
-            const skN=new THREE.Mesh(new THREE.BoxGeometry(corrLen, skirtH, skirtD), skirtMat);
-            skN.position.set(BLDG_X1+corrLen/2, yB+skirtH/2, BLDG_Z2-skirtD/2); scene.add(skN);
+            // 南侧踢脚线（地面层入口处留缺口，避免视觉"门槛"）
+            const ENTR_HW = 2.7; // 入口半宽（ENTR_W/2=2.5 + 余量）
+            if (floorIdx === 0) {
+                const skNL_len = -ENTR_HW - BLDG_X1;
+                const skNL=new THREE.Mesh(new THREE.BoxGeometry(skNL_len,skirtH,skirtD),skirtMat);
+                skNL.position.set(BLDG_X1+skNL_len/2, yB+skirtH/2, BLDG_Z2-skirtD/2); scene.add(skNL);
+                const skNR_len = STAIR_X - ENTR_HW;
+                const skNR=new THREE.Mesh(new THREE.BoxGeometry(skNR_len,skirtH,skirtD),skirtMat);
+                skNR.position.set(ENTR_HW+skNR_len/2, yB+skirtH/2, BLDG_Z2-skirtD/2); scene.add(skNR);
+            } else {
+                const skN=new THREE.Mesh(new THREE.BoxGeometry(corrLen, skirtH, skirtD), skirtMat);
+                skN.position.set(BLDG_X1+corrLen/2, yB+skirtH/2, BLDG_Z2-skirtD/2); scene.add(skN);
+            }
             // 走廊隔墙北侧踢脚线（走廊一侧）
             const skS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, skirtH, skirtD), skirtMat);
             skS.position.set(BLDG_X1+corrLen/2, yB+skirtH/2, CORR_Z+skirtD/2); scene.add(skS);
@@ -5552,16 +5563,31 @@
             {
                 const wH=1.05, wD=0.04;
                 const wainMat=new THREE.MeshLambertMaterial({color:0x6e6860});
-                // 南墙（走廊外壁）
-                const wpN=new THREE.Mesh(new THREE.BoxGeometry(corrLen, wH, wD), wainMat);
-                wpN.position.set(BLDG_X1+corrLen/2, yB+wH/2, BLDG_Z2-skirtD-wD/2); scene.add(wpN);
-                // 走廊隔墙北侧
+                const capMat=new THREE.MeshLambertMaterial({color:0xa09888});
+                // 南墙（走廊外壁）：地面层在正门入口处留缺口，避免1.05m高"门槛"遮挡
+                if (floorIdx === 0) {
+                    const wNL=BLDG_X1, wNR=STAIR_X;
+                    // 西段
+                    const wLlen = -ENTR_HW - wNL;
+                    const wpNL=new THREE.Mesh(new THREE.BoxGeometry(wLlen,wH,wD),wainMat);
+                    wpNL.position.set(wNL+wLlen/2, yB+wH/2, BLDG_Z2-skirtD-wD/2); scene.add(wpNL);
+                    const capNL=new THREE.Mesh(new THREE.BoxGeometry(wLlen,0.05,wD+0.01),capMat);
+                    capNL.position.set(wNL+wLlen/2, yB+wH+0.025, BLDG_Z2-skirtD-wD/2); scene.add(capNL);
+                    // 东段
+                    const wRlen = wNR - ENTR_HW;
+                    const wpNR=new THREE.Mesh(new THREE.BoxGeometry(wRlen,wH,wD),wainMat);
+                    wpNR.position.set(ENTR_HW+wRlen/2, yB+wH/2, BLDG_Z2-skirtD-wD/2); scene.add(wpNR);
+                    const capNR=new THREE.Mesh(new THREE.BoxGeometry(wRlen,0.05,wD+0.01),capMat);
+                    capNR.position.set(ENTR_HW+wRlen/2, yB+wH+0.025, BLDG_Z2-skirtD-wD/2); scene.add(capNR);
+                } else {
+                    const wpN=new THREE.Mesh(new THREE.BoxGeometry(corrLen,wH,wD),wainMat);
+                    wpN.position.set(BLDG_X1+corrLen/2, yB+wH/2, BLDG_Z2-skirtD-wD/2); scene.add(wpN);
+                    const capN=new THREE.Mesh(new THREE.BoxGeometry(corrLen,0.05,wD+0.01),capMat);
+                    capN.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, BLDG_Z2-skirtD-wD/2); scene.add(capN);
+                }
+                // 走廊隔墙北侧（无入口，全段）
                 const wpS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, wH, wD), wainMat);
                 wpS.position.set(BLDG_X1+corrLen/2, yB+wH/2, CORR_Z+skirtD+wD/2); scene.add(wpS);
-                // 腰线上沿压条（亮色收口）
-                const capMat=new THREE.MeshLambertMaterial({color:0xa09888});
-                const capN=new THREE.Mesh(new THREE.BoxGeometry(corrLen, 0.05, wD+0.01), capMat);
-                capN.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, BLDG_Z2-skirtD-wD/2); scene.add(capN);
                 const capS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, 0.05, wD+0.01), capMat);
                 capS.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, CORR_Z+skirtD+wD/2); scene.add(capS);
             }
