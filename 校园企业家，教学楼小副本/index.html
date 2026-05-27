@@ -3860,6 +3860,98 @@
             }
 
             // ── 星光（已移至addDetailMeshes() InstancedMesh系统，此处留空）
+
+            // ── 校园家具：石凳、垃圾桶、自行车架 ──
+            (function addCampusFurniture(){
+                // 石凳材质
+                const seatM=new THREE.MeshLambertMaterial({color:0xb8b0a8});
+                const legM =new THREE.MeshLambertMaterial({color:0x9c9488});
+                function addBench(bx,bz,ry){
+                    const cs=Math.cos(ry),sn=Math.sin(ry);
+                    function rp(ox,oz){return[bx+ox*cs-oz*sn, bz+ox*sn+oz*cs];}
+                    // 坐板
+                    const seat=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.09,0.42),seatM);
+                    seat.position.set(bx,0.47,bz); seat.rotation.y=ry; scene.add(seat);
+                    // 靠背
+                    const back=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.36,0.07),seatM);
+                    const [bkx,bkz]=rp(0,-0.17);
+                    back.position.set(bkx,0.72,bkz); back.rotation.y=ry; scene.add(back);
+                    // 两条腿
+                    [-0.52,0.52].forEach(ox=>{
+                        const [lx,lz]=rp(ox,0);
+                        const leg=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.46,0.40),legM);
+                        leg.position.set(lx,0.23,lz); leg.rotation.y=ry; scene.add(leg);
+                    });
+                }
+                // 花坛旁石凳（广场入口区）
+                addBench(-15, 14.8, 0);   addBench( 15, 14.8, 0);
+                addBench(-26, 14.8, 0);   addBench( 26, 14.8, 0);
+                // 主路两侧石凳
+                addBench(-8, 24, Math.PI/2);   addBench( 8, 24, Math.PI/2);
+                addBench(-8, 36, Math.PI/2);   addBench( 8, 36, Math.PI/2);
+                addBench(-8, 48, Math.PI/2);   addBench( 8, 48, Math.PI/2);
+                // 旗杆区石凳
+                addBench(-14, 52, 0);  addBench( 14, 52, 0);
+                addBench(-14, 58, 0);  addBench( 14, 58, 0);
+
+                // 垃圾桶（绿色圆柱）
+                const binM=new THREE.MeshLambertMaterial({color:0x2d7230});
+                const lidM=new THREE.MeshLambertMaterial({color:0x1e5424});
+                function addTrashBin(x,z){
+                    const b=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.20,0.78,8),binM);
+                    b.position.set(x,0.39,z); scene.add(b);
+                    const l=new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.27,0.06,8),lidM);
+                    l.position.set(x,0.81,z); scene.add(l);
+                }
+                addTrashBin(-11,14);  addTrashBin(11,14);
+                addTrashBin(-7, 26);  addTrashBin( 7,26);
+                addTrashBin(-7, 40);  addTrashBin( 7,40);
+                addTrashBin(-7, 54);  addTrashBin( 7,54);
+                // 建筑门口两侧
+                addTrashBin(-4, 10.5); addTrashBin( 4, 10.5);
+
+                // 自行车停车架
+                const rackM=new THREE.MeshLambertMaterial({color:0x6e7070});
+                function addBikeRack(bx,bz,ry){
+                    const cs=Math.cos(ry),sn=Math.sin(ry);
+                    function rp(ox,oz){return[bx+ox*cs-oz*sn, bz+ox*sn+oz*cs];}
+                    // 顶部横管
+                    const rail=new THREE.Mesh(new THREE.BoxGeometry(3.8,0.06,0.06),rackM);
+                    rail.position.set(bx,0.92,bz); rail.rotation.y=ry; scene.add(rail);
+                    // 底部横管
+                    const rail2=new THREE.Mesh(new THREE.BoxGeometry(3.8,0.06,0.06),rackM);
+                    rail2.position.set(bx,0.42,bz); rail2.rotation.y=ry; scene.add(rail2);
+                    // 竖向插槽（每0.48m一个）
+                    for(let i=-1.68;i<=1.7;i+=0.48){
+                        const [lx,lz]=rp(i,0);
+                        const s=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.92,0.52),rackM);
+                        s.position.set(lx,0.46,lz); s.rotation.y=ry; scene.add(s);
+                    }
+                }
+                addBikeRack(-28, 8, 0);
+                addBikeRack(-28, 4, 0);
+                addBikeRack( 28, 8, 0);
+                addBikeRack( 28, 4, 0);
+
+                // 校门门柱（主路南端 BLDG_Z2+13）
+                const pillarM=new THREE.MeshLambertMaterial({color:0xf0ece2});
+                const beamM  =new THREE.MeshLambertMaterial({color:0xc41010});
+                const GATE_Z=BLDG_Z2+13;
+                [-6.5,6.5].forEach(px=>{
+                    // 主柱
+                    const p=new THREE.Mesh(new THREE.BoxGeometry(1.1,5.2,1.1),pillarM);
+                    p.position.set(px,2.6,GATE_Z); scene.add(p);
+                    // 柱顶帽
+                    const cap=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.30,1.4),pillarM);
+                    cap.position.set(px,5.35,GATE_Z); scene.add(cap);
+                });
+                // 门楣横梁（红色）
+                const beam=new THREE.Mesh(new THREE.BoxGeometry(13.0,0.55,0.60),beamM);
+                beam.position.set(0,5.05,GATE_Z); scene.add(beam);
+                // 门楣下沿线脚（白色）
+                const trim=new THREE.Mesh(new THREE.BoxGeometry(13.2,0.14,0.66),pillarM);
+                trim.position.set(0,4.73,GATE_Z); scene.add(trim);
+            })();
         }
 
         // ══════════════════════════════════════════════════════════════════════
