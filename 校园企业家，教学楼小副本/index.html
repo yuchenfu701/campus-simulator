@@ -6310,8 +6310,8 @@
                 const _isMobilePortrait = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
                     && window.innerWidth < window.innerHeight;
                 if (_isMobilePortrait) {
-                    cameraVerticalAngle = -0.22;   // ≈ -12.6°，向下俯视走廊
-                    camera.fov = 54;               // 缩小竖屏FOV，减少上方天空穿透
+                    cameraVerticalAngle = -0.04;   // ≈ -2.3°，轻微向下，避免仰头看天
+                    camera.fov = 65;               // 竖屏FOV适度缩小(默认70)，减少顶部天空穿透
                     camera.updateProjectionMatrix();
                 }
                 updateCameraRotation();
@@ -8043,12 +8043,13 @@
         // t=0: 左腿向前 → 左臂向后，自然对侧摆臂
         const _KArmRx = _mkKF([-38, -18, 28, 38, 18, -28]);  // ±38°跑步摆臂（避免过度张臂）
         const _KArmRy = _mkKF([4, 2, -4, -4, -2, 4]);
-        // 肘部抬落delta（臂向后时肘抬起+可见；臂向前时肘下沉）
-        const _KArmElevD = _mkKF([0.28, 0.14, -0.08, -0.28, -0.14, 0.08]);
-        // 前臂（左；右侧用(t+0.5)%1）：臂后伸时肘弯曲更多，前摆时略伸
-        // 修复：原值 1.58-1.80 是弧度，但 _mkKF 当度数处理 → 肘只弯 1.7°，手臂成"木桨"
-        // 正确值应为 70-92°，让肘关节在走路中有可见的自然弯曲
-        const _KFaRx = _mkKF([78, 72, 68, 92, 84, 74]);  // 臂前摆时68-78°，后伸时84-92°
+        // 肘部抬落delta（臂向后时肘抬起+可见；臂向前时肘下沉）±16°
+        const _KArmElevD = _mkKF([16, 8, -5, -16, -8, 5]);
+        // 前臂 rx = 扭转轴(pronation/supination)，应接近休息值≈5°，不是弯曲轴
+        // 修复：原值78-92°把手扭转了80°，手朝向完全错误
+        const _KFaRx = _mkKF([5, 4, 3, 5, 4, 3]);        // rotation.x ≈ rest，手朝向正确
+        // 肘关节屈曲 rz：臂前摆时约-30°（稍弯），臂后伸时约-50°（多弯），自然走路弧度
+        const _KFaRz = _mkKF([-50, -43, -30, -50, -43, -30]);
         // ★ 大腿（左；右侧全部用(t+0.5)%1——rx/ry/rz均反对称）
         // t=0: 右腿最前+45°；t=0.5: 左腿最前(右-45°)
         const _KLegRx = _mkKF([45, 18, -38, -45, -18, 38]);  // 屈(+)/伸(-) 步幅自然
@@ -8118,21 +8119,28 @@
                     const spd01 = Math.min(spd, 1.0);
                     // 归一化相位 [0,1)：walkCycle为弧度，除以2π转换
                     const t = (((cycle / (Math.PI * 2)) % 1) + 1) % 1;
+                    // ── 方向修正（向左/右/后独立动画）──
+                    const _mvLnD = moveDirection.length() || 0.01;
+                    const _mFwdD =  -moveDirection.z / _mvLnD;  // +1=前,-1=后
+                    const _mSidD =   moveDirection.x / _mvLnD;  // +1=右,-1=左
+                    const _pumpD = 1.0 - Math.abs(_mSidD) * 0.55; // 横移时臂前后摆幅减小
+                    const _sLnD  = _mSidD * 0.05 * spd01;         // 侧倾（向右为正）
+                    const _bLnD  = Math.max(0, -_mFwdD) * 0.06;   // 向后走时额外后仰
 
                     // ── 骨盆 ──
                     _animBones('j_bip_c_hips',
-                        _kfI(t, _KHipRx), _kfI(t, _KHipRy), _kfI(t, _KHipRz), al);
+                        _kfI(t, _KHipRx), _kfI(t, _KHipRy), _kfI(t, _KHipRz) + _sLnD, al);
                     // ── 脊椎（3段分层，相对父骨骼自然叠加）──
                     _animBones('j_bip_c_spine',
-                        _kfI(t, _KSp1Rx), _kfI(t, _KSp1Ry), _kfI(t, _KSp1Rz), al);
+                        _kfI(t, _KSp1Rx) - _bLnD, _kfI(t, _KSp1Ry), _kfI(t, _KSp1Rz) + _sLnD * 1.5, al);
                     _animBones('j_bip_c_chest',
-                        _kfI(t, _KSp2Rx), _kfI(t, _KSp2Ry), _kfI(t, _KSp2Rz), al);
+                        _kfI(t, _KSp2Rx) - _bLnD, _kfI(t, _KSp2Ry), _kfI(t, _KSp2Rz) + _sLnD, al);
                     _animBones('j_bip_c_upperchest',
                         _kfI(t, _KSp3Rx), _kfI(t, _KSp3Ry), _kfI(t, _KSp3Rz), al);
                     // ── 颈/头 ──
                     _animBones('j_bip_c_neck',
                         _kfI(t, _KNkRx), _kfI(t, _KNkRy), _kfI(t, _KNkRz), al);
-                    _animBones('j_bip_c_head', 2 * _D2R, 0, 0, al); // 恒定微前倾2°视线保持前方
+                    _animBones('j_bip_c_head', 2 * _D2R + _bLnD * 0.5, 0, 0, al); // 后退时头微抬
 
                     // ★ tr = 右侧半周期偏移（所有右侧骨骼统一使用）
                     const tr = (t + 0.5) % 1;
@@ -8144,11 +8152,11 @@
                     // ── 上臂：rx=前后摆, rz=肘部抬落（右侧全相位偏移）──
                     const _s2 = _vrmArmRzSign;
                     const _s3 = _vrmArmRxSign;
-                    _animBones('j_bip_l_upperarm', _s3 * _kfI(t,  _KArmRx), _kfI(t,  _KArmRy), _s2 * (-0.95 + _kfI(t,  _KArmElevD)), al);
-                    _animBones('j_bip_r_upperarm', _s3 * _kfI(tr, _KArmRx), _kfI(tr, _KArmRy), _s2 * (+0.95 + _kfI(tr, _KArmElevD)), al);
-                    // ── 前臂（右侧相位偏移）──
-                    _animBones('j_bip_l_lowerarm', _kfI(t,  _KFaRx), 0, _s2 * (-0.20), al);
-                    _animBones('j_bip_r_lowerarm', _kfI(tr, _KFaRx), 0, _s2 * (+0.20), al);
+                    _animBones('j_bip_l_upperarm', _s3 * _kfI(t,  _KArmRx) * _pumpD, _kfI(t,  _KArmRy), _s2 * (-0.95 + _kfI(t,  _KArmElevD)), al);
+                    _animBones('j_bip_r_upperarm', _s3 * _kfI(tr, _KArmRx) * _pumpD, _kfI(tr, _KArmRy), _s2 * (+0.95 + _kfI(tr, _KArmElevD)), al);
+                    // ── 前臂：rx=近零(扭转轴保持自然)，rz=肘关节屈曲 ──
+                    _animBones('j_bip_l_lowerarm', _kfI(t,  _KFaRx), 0, _s2 * _kfI(t,  _KFaRz), al);
+                    _animBones('j_bip_r_lowerarm', _kfI(tr, _KFaRx), 0, _s2 * _kfI(tr, _KFaRz), al);
 
                     // ── 大腿（右腿用t，左腿用tr：右腿公式经测试正常，左腿镜像之）──
                     const _sL = _vrmLegRxSign;
@@ -8247,10 +8255,11 @@
                 if (lKnee) { bl(lKnee,  0.14, 0,  0.00); }
                 if (rLeg)  { bl(rLeg,  -0.48, 0, -0.07); }
                 if (rKnee) { bl(rKnee,  1.25, 0,  0.00); }
-                if (lArm)  { bl(lArm,   0.35, 0, -0.65); }
-                if (rArm)  { bl(rArm,   0.35, 0, +0.65); }
-                if (lFa)   { bl(lFa,    0.50, 0, -0.18); }
-                if (rFa)   { bl(rFa,    0.50, 0, +0.18); }
+                const _sSld = _vrmArmRzSign;
+                if (lArm)  { bl(lArm,   0.35, 0, _sSld * (-0.65)); }
+                if (rArm)  { bl(rArm,   0.35, 0, _sSld * (+0.65)); }
+                if (lFa)   { bl(lFa,    0.50, 0, _sSld * (-0.18)); }
+                if (rFa)   { bl(rFa,    0.50, 0, _sSld * (+0.18)); }
                 return;
             }
 
@@ -8258,16 +8267,23 @@
                 // ══ 奔跑动画 v9（6帧生物力学关键帧）══
                 const spd01 = Math.min(spd, 1.0);
                 const t = (((cycle / (Math.PI * 2)) % 1) + 1) % 1;
+                // ── 方向修正（向左/右/后独立动画）──
+                const _mvLnV = moveDirection.length() || 0.01;
+                const _mFwdV =  -moveDirection.z / _mvLnV;
+                const _mSidV =   moveDirection.x / _mvLnV;
+                const _pumpV = 1.0 - Math.abs(_mSidV) * 0.55;
+                const _sLnV  = _mSidV * 0.05 * spd01;
+                const _bLnV  = Math.max(0, -_mFwdV) * 0.06;
 
                 // ── 骨盆 ──
-                bl(hips,  _kfI(t, _KHipRx), _kfI(t, _KHipRy), _kfI(t, _KHipRz));
+                bl(hips,  _kfI(t, _KHipRx), _kfI(t, _KHipRy), _kfI(t, _KHipRz) + _sLnV);
                 // ── 脊椎 ──
-                bl(spine,  _kfI(t, _KSp1Rx), _kfI(t, _KSp1Ry), _kfI(t, _KSp1Rz));
-                bl(spine2, _kfI(t, _KSp2Rx), _kfI(t, _KSp2Ry), _kfI(t, _KSp2Rz));
+                bl(spine,  _kfI(t, _KSp1Rx) - _bLnV, _kfI(t, _KSp1Ry), _kfI(t, _KSp1Rz) + _sLnV * 1.5);
+                bl(spine2, _kfI(t, _KSp2Rx) - _bLnV, _kfI(t, _KSp2Ry), _kfI(t, _KSp2Rz) + _sLnV);
                 bl(spine3, _kfI(t, _KSp3Rx), _kfI(t, _KSp3Ry), _kfI(t, _KSp3Rz));
                 // ── 颈/头 ──
                 bl(neck, _kfI(t, _KNkRx), _kfI(t, _KNkRy), _kfI(t, _KNkRz));
-                bl(head, 2 * _D2R, 0, 0);
+                bl(head, 2 * _D2R + _bLnV * 0.5, 0, 0);
                 // ★ tr2 = 右侧半周期偏移（humanoid API路径，与_animBones路径逻辑完全一致）
                 const tr2 = (t + 0.5) % 1;
 
@@ -8275,12 +8291,13 @@
                 bl(lSho, _kfI(t,   _KShoRx), _kfI(t,   _KShoRy), 0);
                 bl(rSho, _kfI(tr2, _KShoRx), _kfI(tr2, _KShoRy), 0);
                 // ── 上臂（右侧全相位偏移）──
-                const _s4 = _vrmArmRxSign;
-                bl(lArm,  _s4 * _kfI(t,   _KArmRx), _kfI(t,   _KArmRy), -0.95 + _kfI(t,   _KArmElevD));
-                bl(rArm,  _s4 * _kfI(tr2, _KArmRx), _kfI(tr2, _KArmRy), +0.95 + _kfI(tr2, _KArmElevD));
-                // ── 前臂（右侧相位偏移）──
-                bl(lFa, _kfI(t,   _KFaRx), 0, -0.20);
-                bl(rFa, _kfI(tr2, _KFaRx), 0, +0.20);
+                const _s4  = _vrmArmRxSign;
+                const _sRz = _vrmArmRzSign;   // 修复：原来缺少此符号，VRM0.x手臂会水平抬起
+                bl(lArm,  _s4 * _kfI(t,   _KArmRx) * _pumpV, _kfI(t,   _KArmRy), _sRz * (-0.95 + _kfI(t,   _KArmElevD)));
+                bl(rArm,  _s4 * _kfI(tr2, _KArmRx) * _pumpV, _kfI(tr2, _KArmRy), _sRz * (+0.95 + _kfI(tr2, _KArmElevD)));
+                // ── 前臂：rx≈0(扭转轴)，rz=肘关节屈曲 ──
+                bl(lFa, _kfI(t,   _KFaRx), 0, _sRz * _kfI(t,   _KFaRz));
+                bl(rFa, _kfI(tr2, _KFaRx), 0, _sRz * _kfI(tr2, _KFaRz));
                 // ── 大腿（右腿用t，左腿用tr2：与_animBones路径保持一致）──
                 const _sL2 = _vrmLegRxSign;
                 bl(lLeg, _sL2 * _kfI(tr2, _KLegRx), _kfI(tr2, _KLegRy), _kfI(tr2, _KLegRz));
@@ -8309,11 +8326,12 @@
                 const spineLean = 0.04 + Math.sin(it * 0.44 + 0.3) * 0.015;
 
                 // 手臂：自然垂下 + 微漂 + 呼吸起伏
-                bl(lArm, -0.04 + breath * 0.3, 0, -1.0 + armDL);
-                bl(rArm, -0.04 + breath * 0.3, 0,  1.0 - armDR);
+                const _sIRz = _vrmArmRzSign;
+                bl(lArm, -0.04 + breath * 0.3, 0, _sIRz * (-1.0 + armDL));
+                bl(rArm, -0.04 + breath * 0.3, 0, _sIRz * (+1.0 - armDR));
                 // 小臂：自然弯曲，跟随手臂漂移
-                bl(lFa,  0.08, 0, -0.15 + armDL * 0.25);
-                bl(rFa,  0.08, 0,  0.15 - armDR * 0.25);
+                bl(lFa,  0.08, 0, _sIRz * (-0.15 + armDL * 0.25));
+                bl(rFa,  0.08, 0, _sIRz * (+0.15 - armDR * 0.25));
                 // 腿自然站立
                 bl(lLeg,  0, 0,  weight * 0.04);
                 bl(rLeg,  0, 0, -weight * 0.04);
