@@ -5094,6 +5094,66 @@
             // 建筑前广场地砖（南侧入口区域）
             vb((BX1+BX2)/2, 0.004, BZ2+4, 22, 0.01, 8, 0xd5cbb8, 1);
 
+            // ── 入口装饰（仅中高配）──────────────────────────────────────────
+            if (window._gfxTier !== 'low') {
+                const ENTR_W = 5.0, ENTR_H = 3.8;
+
+                // 入口立柱（左右各一，紧贴南墙）
+                vb(-ENTR_W/2 - 0.35, (ENTR_H + 0.5)/2, BZ2 + 0.18, 0.52, ENTR_H + 0.5, 0.52, 0xd2cbbf);
+                vb( ENTR_W/2 + 0.35, (ENTR_H + 0.5)/2, BZ2 + 0.18, 0.52, ENTR_H + 0.5, 0.52, 0xd2cbbf);
+                // 柱帽
+                vb(-ENTR_W/2 - 0.35, ENTR_H + 0.5, BZ2 + 0.18, 0.72, 0.18, 0.72, 0xc0b8ac);
+                vb( ENTR_W/2 + 0.35, ENTR_H + 0.5, BZ2 + 0.18, 0.72, 0.18, 0.72, 0xc0b8ac);
+
+                // 门廊顶板（雨棚）
+                vb(0, ENTR_H + 0.25, BZ2 + 0.3, ENTR_W + 1.8, 0.35, 0.9, 0xb0a89c);
+                // 顶板前缘装饰线
+                vb(0, ENTR_H + 0.08, BZ2 + 0.72, ENTR_W + 1.8, 0.12, 0.06, 0x4a7eb5);
+
+                // 入口台阶（3级，由外向内逐渐升高）
+                for (let s = 0; s < 3; s++) {
+                    const sh = (s + 1) * 0.14;
+                    vb(0, sh/2, BZ2 + 0.28 + s * 0.52, ENTR_W + s * 1.2 + 1.6, sh, 0.52, 0xc8c0b0);
+                }
+
+                // 入口两侧花坛（各一个）
+                [[-8.0], [8.0]].forEach(([px]) => {
+                    // 花坛基座（砖红）
+                    vb(px, 0.24, BZ2 + 3.8, 3.4, 0.48, 1.8, 0x8a6040);
+                    // 花坛顶部土壤（深棕）
+                    vb(px, 0.46, BZ2 + 3.8, 3.1, 0.08, 1.5, 0x4a3220);
+                    // 绿植灌木（4棵）
+                    for (let fi = 0; fi < 4; fi++) {
+                        const fx = px - 1.15 + fi * 0.78;
+                        vb(fx, 0.62, BZ2 + 3.8, 0.30, 0.42, 0.30, 0x2e6e30);  // 主干
+                        vb(fx, 0.90, BZ2 + 3.8, 0.50, 0.22, 0.50, 0x3a9040);  // 冠顶
+                    }
+                });
+
+                // 旗杆（两根，立于广场）
+                [[-5.5], [5.5]].forEach(([px]) => {
+                    vb(px, 5.2, BZ2 + 10.5, 0.14, 10.4, 0.14, 0xd0c8b8);   // 杆身
+                    vb(px, 0.15, BZ2 + 10.5, 0.55, 0.30, 0.55, 0xa09080);   // 底座
+                    vb(px + 1.1, 9.4, BZ2 + 10.5, 2.0, 0.80, 0.04, 0xdd1111);  // 红旗
+                    vb(px + 1.35, 9.7, BZ2 + 10.5, 0.48, 0.32, 0.05, 0xffdd00); // 黄色五角（简化）
+                });
+
+                // 建筑正面腰线（外墙装饰横带）
+                for (let f = 1; f < NUM_FLOORS; f++) {
+                    vb((BX1+BX2)/2, f * FLOOR_H - 0.1, BZ2 + WT/2, BX2-BX1, 0.22, WT + 0.02, 0x4a7eb5);
+                }
+                // 顶部女儿墙装饰线
+                vb((BX1+BX2)/2, TH + 0.14, BZ2 + WT/2, BX2-BX1, 0.28, WT + 0.02, 0x3a6ea8);
+
+                // 建筑名牌（正门上方）
+                vb(0, ENTR_H + 0.85, BZ2 + 0.06, 5.8, 0.70, 0.12, 0x1a3a6e);   // 深蓝底板
+                vb(0, ENTR_H + 0.85, BZ2 + 0.02, 5.4, 0.50, 0.13, 0xf0e8d0);   // 米白内牌
+                // 名牌文字（用小方块模拟三个汉字"教学楼"）
+                for (let c = 0; c < 3; c++) {
+                    vb(-0.85 + c * 0.85, ENTR_H + 0.85, BZ2 - 0.02, 0.55, 0.38, 0.08, 0x1a3a6e);
+                }
+            }
+
             initMainDoorCollision();
             console.log('✅ 教学楼建造完成！共 '+NUM_FLOORS+' 层，每层 3 间教室，合计 '+(NUM_FLOORS*3)+' 间教室');
             console.log('📐 建筑尺寸：'+(BX2-BX1)+'m × '+(BZ2-BZ1)+'m × '+TH+'m（宽×深×高）');
@@ -5483,6 +5543,67 @@
             // 走廊隔墙北侧踢脚线（走廊一侧）
             const skS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, skirtH, skirtD), skirtMat);
             skS.position.set(BLDG_X1+corrLen/2, yB+skirtH/2, CORR_Z+skirtD/2); scene.add(skS);
+
+            // ── 走廊腰线护墙板（1.05m高深色贴墙板，增强立体感）──
+            {
+                const wH=1.05, wD=0.04;
+                const wainMat=new THREE.MeshLambertMaterial({color:0x6e6860});
+                // 南墙（走廊外壁）
+                const wpN=new THREE.Mesh(new THREE.BoxGeometry(corrLen, wH, wD), wainMat);
+                wpN.position.set(BLDG_X1+corrLen/2, yB+wH/2, BLDG_Z2-skirtD-wD/2); scene.add(wpN);
+                // 走廊隔墙北侧
+                const wpS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, wH, wD), wainMat);
+                wpS.position.set(BLDG_X1+corrLen/2, yB+wH/2, CORR_Z+skirtD+wD/2); scene.add(wpS);
+                // 腰线上沿压条（亮色收口）
+                const capMat=new THREE.MeshLambertMaterial({color:0xa09888});
+                const capN=new THREE.Mesh(new THREE.BoxGeometry(corrLen, 0.05, wD+0.01), capMat);
+                capN.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, BLDG_Z2-skirtD-wD/2); scene.add(capN);
+                const capS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, 0.05, wD+0.01), capMat);
+                capS.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, CORR_Z+skirtD+wD/2); scene.add(capS);
+            }
+
+            // ── 储物柜组（仅中高配，南墙内侧，避开入口门洞）──
+            if (window._gfxTier !== 'low') {
+                const lkColors=[0x5080c8,0xd86840,0x48a868,0xe0b830,0x9858b8,0x3898b8];
+                const lkW=0.44, lkH=1.72, lkD=0.34;
+                const lkGroups=[
+                    {sx: BLDG_X1+0.6, cnt:6},   // 最西段
+                    {sx: BLDG_X1+4.5, cnt:5},   // 西段
+                    {sx: BLDG_X1+15,  cnt:5},   // 中段（避开入口X≈0）
+                    {sx: BLDG_X1+22,  cnt:6}    // 东段
+                ];
+                lkGroups.forEach(({sx, cnt}) => {
+                    for (let li=0; li<cnt; li++) {
+                        const lx = sx + li*(lkW+0.06);
+                        if (lx > -2.5 && lx < 3.5) return; // 跳过入口通道
+                        const colIdx = (Math.round(lx*3)+li*2+floorIdx*3) % 6;
+                        const lkMat=new THREE.MeshLambertMaterial({color:lkColors[colIdx]});
+                        // 柜体
+                        const lk=new THREE.Mesh(new THREE.BoxGeometry(lkW-0.02, lkH, lkD), lkMat);
+                        lk.position.set(lx, yB+lkH/2, BLDG_Z2-lkD/2-0.05); scene.add(lk);
+                        // 柜门分割线（用深色细板模拟）
+                        const divMat=new THREE.MeshLambertMaterial({color:0x303030});
+                        const div=new THREE.Mesh(new THREE.BoxGeometry(lkW-0.02, 0.025, lkD+0.01), divMat);
+                        div.position.set(lx, yB+lkH*0.50, BLDG_Z2-lkD/2-0.04); scene.add(div);
+                        // 拉手（小灰块）
+                        const hmMat=new THREE.MeshLambertMaterial({color:0xa0a0a0});
+                        const hm=new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.05), hmMat);
+                        hm.position.set(lx+lkW*0.30, yB+lkH*0.74, BLDG_Z2-lkD-0.07); scene.add(hm);
+                        const hm2=new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.05), hmMat);
+                        hm2.position.set(lx+lkW*0.30, yB+lkH*0.27, BLDG_Z2-lkD-0.07); scene.add(hm2);
+                    }
+                });
+            }
+
+            // ── 走廊顶部LED灯带（补充方灯之间的照明条）──
+            {
+                const stripMat=new THREE.MeshBasicMaterial({color:0xfff6e0});
+                for (let x=BLDG_X1+3.5; x<STAIR_X-1; x+=7) {
+                    // 在现有方灯之间加一根细长灯带
+                    const strip=new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.03, 1.40), stripMat);
+                    strip.position.set(x+3.5, lgY-0.06, cZ); scene.add(strip);
+                }
+            }
         }
 
         // ─── 旧函数（已被 createRoomContents 替代，保留空壳兼容旧引用）───
@@ -6194,6 +6315,14 @@
                 // 初始化相机和士兵朝向
                 cameraHorizontalAngle = 0;
                 cameraVerticalAngle = 0;
+                // 竖屏手机：初始视角向下倾，避免透过屋顶看到CSS天空背景
+                const _isMobilePortrait = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+                    && window.innerWidth < window.innerHeight;
+                if (_isMobilePortrait) {
+                    cameraVerticalAngle = -0.22;   // ≈ -12.6°，向下俯视走廊
+                    camera.fov = 54;               // 缩小竖屏FOV，减少上方天空穿透
+                    camera.updateProjectionMatrix();
+                }
                 updateCameraRotation();
                 soldier.rotation.y = cameraHorizontalAngle;
                 
@@ -6778,6 +6907,11 @@
             // 应用重力，除非在穿墙模式下
             if (!isNoclipMode) {
                 verticalVelocity -= GRAVITY * deltaTime;
+            }
+            // 意外飞天保护：非飞行/穿墙时若玩家超出建筑顶部则强制归地
+            if (!isFlying && !isNoclipMode && soldier.position.y > NUM_FLOORS * FLOOR_H + 2) {
+                soldier.position.y = GROUND_LEVEL;
+                verticalVelocity = 0;
             }
             
             // 更新垂直位置
