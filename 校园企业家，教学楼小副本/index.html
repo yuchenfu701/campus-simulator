@@ -3618,6 +3618,130 @@
                 }
             });
 
+            // ── 宣传栏（主路两侧，每20m一组）──
+            if (!window._skipVisualMesh) (function addBulletinBoards(){
+                const postM  =new THREE.MeshLambertMaterial({color:0x404858});
+                const frameM =new THREE.MeshLambertMaterial({color:0x1a3870});
+                const surfM  =new THREE.MeshLambertMaterial({color:0xf4f0e8});
+                const headerM=new THREE.MeshLambertMaterial({color:0xcc2222});
+                function addBoard(bx,bz,ry){
+                    const cs=Math.cos(ry),sn=Math.sin(ry);
+                    function rp(ox,oz){return[bx+ox*cs-oz*sn, bz+ox*sn+oz*cs];}
+                    // 支柱（双柱）
+                    [-0.85,0.85].forEach(ox=>{
+                        const [px,pz]=rp(ox,0);
+                        const pole=new THREE.Mesh(new THREE.BoxGeometry(0.08,2.4,0.08),postM);
+                        pole.position.set(px,1.2,pz); scene.add(pole);
+                    });
+                    // 深蓝外框
+                    const frame=new THREE.Mesh(new THREE.BoxGeometry(2.0,1.35,0.10),frameM);
+                    frame.position.set(bx,1.97,bz); frame.rotation.y=ry; scene.add(frame);
+                    // 白色展示面
+                    const surf=new THREE.Mesh(new THREE.BoxGeometry(1.88,1.14,0.06),surfM);
+                    const [sx,sz]=rp(0,-0.04);
+                    surf.position.set(sx,1.95,sz); surf.rotation.y=ry; scene.add(surf);
+                    // 红色标题条
+                    const hdr=new THREE.Mesh(new THREE.BoxGeometry(1.88,0.22,0.07),headerM);
+                    const [hx,hz]=rp(0,-0.03);
+                    hdr.position.set(hx,2.58,hz); hdr.rotation.y=ry; scene.add(hdr);
+                }
+                // 主路两侧宣传栏
+                addBoard(-10, 20, 0);   addBoard(10, 20, 0);
+                addBoard(-10, 34, 0);   addBoard(10, 34, 0);
+                addBoard(-10, 48, 0);   addBoard(10, 48, 0);
+            })();
+
+            // ── 操场健身器材区（东侧，跑道外） ──
+            if (!window._skipVisualMesh) (function addFitnessArea(){
+                const steelM=new THREE.MeshLambertMaterial({color:0x5588cc});
+                const yellowM=new THREE.MeshLambertMaterial({color:0xddaa22});
+                const padM  =new THREE.MeshLambertMaterial({color:0x444444});
+                // 地垫基础
+                plane(72, 0.046, 78, 14, 6, 0x3a3a3a);
+                // 单杠
+                function addHBar(x,z){
+                    const pole1=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,2.4,6),steelM);
+                    pole1.position.set(x-0.4,1.2,z); scene.add(pole1);
+                    const pole2=pole1.clone(); pole2.position.set(x+0.4,1.2,z); scene.add(pole2);
+                    const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.9,6),yellowM);
+                    bar.rotation.z=Math.PI/2; bar.position.set(x,2.35,z); scene.add(bar);
+                }
+                addHBar(67, 76); addHBar(67, 79); addHBar(67, 82); // 单杠×3
+                // 双杠
+                function addPBar(x,z){
+                    [-0.5,0.5].forEach(ox=>{
+                        const p=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.8,6),steelM);
+                        p.position.set(x+ox,0.9,z); scene.add(p);
+                    });
+                    [-1.2,1.2].forEach(oz=>{
+                        const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,1.1,6),yellowM);
+                        bar.rotation.x=Math.PI/2; bar.position.set(x,1.75,z+oz); scene.add(bar);
+                    });
+                }
+                addPBar(72, 76); addPBar(72, 80); // 双杠×2
+                // 转腰器（腰腹训练）
+                const wMat=new THREE.MeshLambertMaterial({color:0xcc4400});
+                const wp=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.9,6),steelM);
+                wp.position.set(77,0.45,78); scene.add(wp);
+                const wd=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.08,12),wMat);
+                wd.position.set(77,0.92,78); scene.add(wd);
+                // 凉亭顶（健身区遮阳棚）
+                const roofM=new THREE.MeshLambertMaterial({color:0x1a7a3a,side:THREE.DoubleSide});
+                const roof=new THREE.Mesh(new THREE.BoxGeometry(16,0.12,7),roofM);
+                roof.position.set(72,2.85,79); scene.add(roof);
+                [-7.5,7.5].forEach(ox=>{[-2.8,2.8].forEach(oz=>{
+                    const col=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.10,2.85,6),padM);
+                    col.position.set(72+ox,1.42,79+oz); scene.add(col);
+                });});
+            })();
+
+            // ── B1外墙空调外机（南立面 + 东西侧墙）──
+            if (!window._skipVisualMesh) (function addACUnits(){
+                const bodyM=new THREE.MeshLambertMaterial({color:0xe4e0da});
+                const ventM=new THREE.MeshLambertMaterial({color:0x7a7870});
+                const pipM =new THREE.MeshLambertMaterial({color:0xb0b4aa});
+                const ZS=BLDG_Z2+WALL_T+0.15; // 南立面外侧 z ≈ 9.4
+                // 每层每个窗间隔柱位放一台（F1、F2、F3各一排，跳过正门口±2.5m）
+                for(let fl=0;fl<NUM_FLOORS;fl++){
+                    const yC = fl*FLOOR_H + 2.4;
+                    for(let xi=-3;xi<=3;xi++){
+                        if(xi===0) continue; // 跳过门口中轴
+                        const ax=xi*5.2; // 大致窗间距
+                        if(Math.abs(ax)<3.0) continue;
+                        // 主机箱体
+                        const body=new THREE.Mesh(new THREE.BoxGeometry(0.76,0.55,0.30),bodyM);
+                        body.position.set(ax,yC,ZS); scene.add(body);
+                        // 百叶散热格
+                        const vent=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.12,0.32),ventM);
+                        vent.position.set(ax,yC-0.19,ZS); scene.add(vent);
+                        // 铜管（细管）
+                        const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.42,4),pipM);
+                        pipe.rotation.z=Math.PI/2;
+                        pipe.position.set(ax+0.2,yC+0.3,ZS-0.02); scene.add(pipe);
+                    }
+                }
+            })();
+
+            // ── B1南立面校名牌匾 ──
+            if (!window._skipVisualMesh) (function addSchoolSign(){
+                const sZ=BLDG_Z2+WALL_T+0.08;
+                const sY=FLOOR_H*NUM_FLOORS-0.9; // 顶层腰线下
+                // 深蓝底板
+                const bkM=new THREE.MeshLambertMaterial({color:0x0e2a5a});
+                const bk=new THREE.Mesh(new THREE.BoxGeometry(8.8,0.70,0.12),bkM);
+                bk.position.set(0,sY,sZ); scene.add(bk);
+                // 金色面板（略小，制造凹入感）
+                const glM=new THREE.MeshLambertMaterial({color:0xd4a820});
+                const gl=new THREE.Mesh(new THREE.BoxGeometry(8.6,0.56,0.10),glM);
+                gl.position.set(0,sY,sZ+0.02); scene.add(gl);
+                // 腰线装饰线（蓝色装饰带，重用）
+                const lnM=new THREE.MeshLambertMaterial({color:0x1a3870});
+                [-4.6,4.6].forEach(lx=>{
+                    const ln=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.72,0.14),lnM);
+                    ln.position.set(lx,sY,sZ); scene.add(ln);
+                });
+            })();
+
             initBldgDoorBarriers();
             console.log('🏫 大校园建造完成！4栋教学楼+食堂+办公楼+厕所');
             if (window._skipVisualMesh) ensureCampusAthleticFieldPlanes();
