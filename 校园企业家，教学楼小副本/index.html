@@ -4959,7 +4959,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v41'; // v41：樱花树/花坛花朵/喷泉动画水体+涟漪
+        const MAP_VER = 'campus_v42'; // v42：B1屋顶设施（楼梯出口房、水箱、空调外机、通信天线）
 
         function _dbOpen(cb) {
             try {
@@ -5435,6 +5435,62 @@
             wbc(BX1-WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2);
             vb(BX2+WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2, wallMat);
             wbc(BX2+WT/2, TH+0.7, slabCZ, WT, 1.05, BD+WT*2);
+
+            // ── B1屋顶设施（楼梯出口房、水箱、空调外机、通信天线）──
+            if (!window._skipVisualMesh) (function addRoofDetails(){
+                const RY = TH + 0.35; // 屋顶面Y（楼板顶+防水层）
+                const roofWallM = new THREE.MeshLambertMaterial({color:0xdfd9d0});
+                const roofM     = new THREE.MeshLambertMaterial({color:0xc8c2b8});
+                const steelM    = new THREE.MeshLambertMaterial({color:0x828288});
+                const acBodyM   = new THREE.MeshLambertMaterial({color:0xe4e0d8});
+                const acVentM   = new THREE.MeshLambertMaterial({color:0xaaa8a0});
+                const tankM     = new THREE.MeshLambertMaterial({color:0x6a6878});
+                const doorM     = new THREE.MeshLambertMaterial({color:0x4a5468});
+
+                // ─ 楼梯间出口小屋（东侧楼梯间顶部，可独立进出屋顶）
+                const sHX = (STAIR_X + BX2) / 2;  // X=17
+                const sHW = BX2 - STAIR_X - 0.3;  // ≈5.7m
+                const sHH = 2.2, sHD = 4.5, sHZ = (BZ1+BZ2)/2;
+                // 墙体
+                const stH=new THREE.Mesh(new THREE.BoxGeometry(sHW,sHH,sHD),roofWallM);
+                stH.position.set(sHX, RY+sHH/2, sHZ); stH.receiveShadow=true; scene.add(stH);
+                // 屋顶（悬挑5cm）
+                const stR=new THREE.Mesh(new THREE.BoxGeometry(sHW+0.2,0.14,sHD+0.2),roofM);
+                stR.position.set(sHX, RY+sHH+0.07, sHZ); scene.add(stR);
+                // 西面门（朝向主屋顶）
+                const stD=new THREE.Mesh(new THREE.BoxGeometry(0.07,1.9,1.1),doorM);
+                stD.position.set(STAIR_X+0.06, RY+0.95, sHZ); scene.add(stD);
+
+                // ─ 空调外机组（南侧内，4台成排）
+                [-9, -4, 1, 6].forEach(ax => {
+                    const body=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.82,0.72),acBodyM);
+                    body.position.set(ax, RY+0.41, 6.2); scene.add(body);
+                    const vent=new THREE.Mesh(new THREE.BoxGeometry(0.88,0.52,0.10),acVentM);
+                    vent.position.set(ax, RY+0.56, 6.61); scene.add(vent);
+                    const top=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.07,0.62),acVentM);
+                    top.position.set(ax, RY+0.84, 6.2); scene.add(top);
+                });
+
+                // ─ 水箱（西北侧）：4腿支架 + 圆柱水箱 + 盖板
+                const legH=1.75, LX=-13, LZ=1;
+                [[-0.7,-0.65],[0.7,-0.65],[-0.7,0.65],[0.7,0.65]].forEach(([ox,oz])=>{
+                    const lg=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.07,legH,6),steelM);
+                    lg.position.set(LX+ox, RY+legH/2, LZ+oz); scene.add(lg);
+                });
+                const tk=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.05,2.1,12),tankM);
+                tk.position.set(LX, RY+legH+1.05, LZ); scene.add(tk);
+                const tkLid=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.0,0.10,12),steelM);
+                tkLid.position.set(LX, RY+legH+2.1+0.05, LZ); scene.add(tkLid);
+
+                // ─ 通信天线桅杆（西端屋顶角）
+                const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,5.8,6),steelM);
+                mast.position.set(-17.5, RY+2.9, -4); scene.add(mast);
+                // 横臂×2
+                const arm=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.05,0.05),steelM);
+                arm.position.set(-17.5, RY+5.5, -4); scene.add(arm);
+                const arm2=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,1.3),steelM);
+                arm2.position.set(-17.5, RY+5.1, -4); scene.add(arm2);
+            })();
 
             // 1F 走廊地面（与楼上同材质纹理，避免整块高亮纯色）
             if (!window._skipVisualMesh) {
