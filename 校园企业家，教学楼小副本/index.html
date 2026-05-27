@@ -8213,18 +8213,23 @@
             // 驱动联机远程玩家行走动画
             _tickRemotePlayers(deltaTime);
 
-            // 自适应阴影相机：跟踪玩家位置，让阴影纹素集中于玩家附近
+            // 自适应阴影相机：跟踪玩家位置，保留时间系统设置的光源方向
             if (_sunLight && _sunLight.castShadow && soldier && window._gfxTier !== 'low') {
                 const _sp = soldier.position;
-                // 保持光源方向不变（offset固定），只平移整个光源+目标
-                const _lightOX = -72, _lightOZ = 108; // 原始偏移
-                _sunLight.position.set(_sp.x + _lightOX, 78, _sp.z + _lightOZ);
-                _sunLight.target.position.set(_sp.x, 0, _sp.z);
+                // 读取 updateSunLightFromTime 刚刚设置的光源位置/目标（本帧已更新）
+                const _lpX = _sunLight.position.x, _lpZ = _sunLight.position.z;
+                const _tgY = _sunLight.target.position.y; // 原始目标高度(18)
+                // 方向偏移 = 光源位置 - 原始目标 (0, 18, 20)
+                const _odx = _lpX - _sunLight.target.position.x;
+                const _odz = _lpZ - _sunLight.target.position.z;
+                // 将光源+目标整体平移至以玩家XZ为中心（保持方向角不变）
+                _sunLight.target.position.set(_sp.x, _tgY, _sp.z);
+                _sunLight.position.set(_sp.x + _odx, _sunLight.position.y, _sp.z + _odz);
                 _sunLight.target.updateMatrixWorld();
-                // 缩小阴影视锥：高画质45m / 中画质30m 覆盖半径
-                const _sr = window._gfxTier === 'high' ? 45 : 30;
+                // 缩小阴影视锥（高画质45m / 中画质32m 覆盖半径）—— 只设置一次
+                const _sr = window._gfxTier === 'high' ? 45 : 32;
                 const _sc = _sunLight.shadow.camera;
-                if (Math.abs(_sc.right - _sr) > 0.5) { // 避免每帧都触发更新
+                if (Math.abs(_sc.right - _sr) > 0.5) {
                     _sc.left = -_sr; _sc.right = _sr; _sc.top = _sr; _sc.bottom = -_sr;
                     _sc.updateProjectionMatrix();
                 }
