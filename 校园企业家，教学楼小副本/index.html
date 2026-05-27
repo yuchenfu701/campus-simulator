@@ -3977,6 +3977,21 @@
             sunCoreMesh._noMerge = true; // 不透明球体会被 mergeStaticMeshes 烘焙进缓存，下次加载再建新太阳 → 天上两颗黄球
             _sunVisual.add(sunCoreMesh);
             _sunVisual.userData.coronaRings = [];
+            // ── 日冕光晕（叠加混合球壳，无 GPU 后处理）──
+            [[22, 0xffdd66, 0.28], [36, 0xffaa33, 0.13], [62, 0xff8822, 0.055]].forEach(([r, col, op]) => {
+                const cr = new THREE.Mesh(
+                    new THREE.SphereGeometry(r, 12, 8),
+                    new THREE.MeshBasicMaterial({
+                        color: col, transparent: true, opacity: op, fog: false,
+                        depthTest: false, depthWrite: false,
+                        blending: THREE.AdditiveBlending, side: THREE.FrontSide
+                    })
+                );
+                cr.renderOrder = 4;
+                cr._noMerge = true;
+                _sunVisual.add(cr);
+                _sunVisual.userData.coronaRings.push(cr);
+            });
             _sunVisual.visible = true;
             scene.add(_sunVisual);
 
@@ -4019,6 +4034,44 @@
             cloudGlow.rotation.x=-Math.PI/2; cloudGlow.position.set(0,18.2,0); fantasyDome.add(cloudGlow);
 
             } // 闭合 if (!_moonPhaseTex)；否则后续树木/远景整段被包进该 if，脚本大括号错位 → 末尾语法错误、初始化卡住
+
+            // ── 渐变天穹（顶部到地平线双色渐变，取代 scene.background 实色）──
+            if (!window._skyDome) {
+                const _sgeo = new THREE.SphereGeometry(480, 20, 14);
+                const _smat = new THREE.ShaderMaterial({
+                    uniforms: {
+                        topColor:     { value: new THREE.Color(0.02, 0.03, 0.10) },
+                        horizonColor: { value: new THREE.Color(0.04, 0.06, 0.14) },
+                    },
+                    vertexShader: [
+                        'varying float vH;',
+                        'void main(){',
+                        '  vH=normalize(position).y;',
+                        '  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);',
+                        '}'
+                    ].join('\n'),
+                    fragmentShader: [
+                        'varying float vH;',
+                        'uniform vec3 topColor;',
+                        'uniform vec3 horizonColor;',
+                        'void main(){',
+                        '  float t=clamp(vH,0.0,1.0);',
+                        '  gl_FragColor=vec4(mix(horizonColor,topColor,pow(t,0.48)),1.0);',
+                        '}'
+                    ].join('\n'),
+                    side: THREE.BackSide,
+                    depthTest: false,
+                    depthWrite: false,
+                    fog: false
+                });
+                _smat._isDynamic = true;
+                const _sdome = new THREE.Mesh(_sgeo, _smat);
+                _sdome._noMerge = true;
+                _sdome.renderOrder = -10;
+                _sdome.frustumCulled = false;
+                scene.add(_sdome);
+                window._skyDome = _sdome;
+            }
 
             // ── 喷泉水体 + 涟漪动画元素（每次都重建，不受缓存影响；石质结构在 skipMergedExtras 后的 addFountain 中）──
             if (!window._fountainInited) {
@@ -9020,6 +9073,11 @@
             scene.background = bg;
             const hx = '#' + ('000000' + bg.getHex().toString(16)).slice(-6);
             document.body.style.background = 'linear-gradient(to bottom,' + hx + ' 0%,' + hx + ' 100%)';
+            // 同步天穹（非晴天时使用平面色，消除彩色边缘 artifact）
+            if (window._skyDome) {
+                window._skyDome.material.uniforms.topColor.value.copy(bg);
+                window._skyDome.material.uniforms.horizonColor.value.copy(bg);
+            }
             const fogHex = new THREE.Color(wx.fogR, wx.fogG, wx.fogB).getHex();
             if (wx.useExpFog) scene.fog = new THREE.FogExp2(fogHex, 0.098);
             else if (wx.fogFar > wx.fogNear + 1) scene.fog = new THREE.Fog(fogHex, wx.fogNear, wx.fogFar);
@@ -9180,6 +9238,14 @@
             cold.lerp(warm, Math.min(1, wb * 0.82));
             _sunLight.color.copy(cold);
             _sunLight.intensity = dayFactor * 1.35 + 0.12;
+            // 日冕光晕强度：低日位（黄昏/黎明）最亮，正午略弱
+            if (_sunVisual && _sunVisual.userData.coronaRings && _sunVisual.userData.coronaRings.length) {
+                const horizonGlow = Math.max(0, 1 - Math.abs(sunH - 0.18) / 0.45); // 接近地平线时强
+                const baseOps = [0.28, 0.13, 0.055];
+                _sunVisual.userData.coronaRings.forEach((cr, i) => {
+                    if (cr.material) cr.material.opacity = baseOps[i] * (0.6 + horizonGlow * 0.6) * dayFactor;
+                });
+            }
             if (_hemiLight) {
                 _hemiLight.intensity = 0.08 + 0.42 * dayFactor;
                 _hemiLight.color.setHex(0x9eb8e0);
@@ -9270,6 +9336,22 @@
                 const df = getDayFactor(gameTime);
                 if (df < 0.05) scene.fog = new THREE.Fog(_skyLerpColor.getHex(), 400, 1200);
                 else scene.fog = null;
+                // ── 渐变天穹：顶色=天空色，地平线色=加白/加暖 ──
+                if (window._skyDome) {
+                    const _u = window._skyDome.material.uniforms;
+                    _u.topColor.value.copy(_skyLerpColor);
+                    const _hc = _skyLerpColor.clone();
+                    // 白天：地平线偏白（大气散射）
+                    _hc.lerp(new THREE.Color(0.68, 0.78, 0.90), df * 0.50);
+                    // 黄昏/黎明：地平线橙红
+                    const _g = ((gameTime % 1) + 1) % 1;
+                    const _wb = Math.max(
+                        Math.max(0, 1 - Math.abs(_g - 0.73) / 0.07),  // 傍晚
+                        Math.max(0, 1 - Math.abs(_g - 0.246) / 0.075) // 黎明
+                    );
+                    _hc.lerp(new THREE.Color(0.92, 0.48, 0.12), _wb * 0.65 * Math.min(1, df * 5));
+                    _u.horizonColor.value.copy(_hc);
+                }
             } else if (weatherState === 'active' && weatherType !== 'clear') {
                 _skyLerpColor = null;
             }
