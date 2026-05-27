@@ -194,25 +194,134 @@
     <!-- 楼层指示器 -->
     <div id="floor-indicator">1F</div>
 
-    <!-- 地图加载进度提示 -->
-    <div id="map-loading" style="
-        position:fixed; inset:0; background:rgba(5,14,36,0.92); z-index:9999;
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        color:#b8e0ff; font-family:'Microsoft YaHei',sans-serif; gap:18px;">
-        <div style="font-size:22px; font-weight:bold; letter-spacing:2px;">🏫 校园加载中</div>
-        <div id="load-hint" style="font-size:14px; color:#7dd4ff; min-height:22px;">初始化…</div>
-        <div style="width:280px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-            <div id="load-bar" style="width:0%; height:100%; background:linear-gradient(90deg,#3a7bd5,#7dd4ff); border-radius:3px; transition:width 0.4s;"></div>
+    <!-- 地图加载进度提示（背景视频就绪后将video元素的src填入即可） -->
+    <div id="map-loading">
+        <!-- 背景视频插槽（AI生成后将src填入，目前显示CSS渐变） -->
+        <video id="load-bg-video" autoplay muted loop playsinline
+            style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.45;display:none;">
+            <!-- <source src="../assets/loading-bg.mp4" type="video/mp4"> -->
+        </video>
+        <!-- 粒子装饰层 -->
+        <div class="load-particles" id="load-particles"></div>
+        <!-- 内容层 -->
+        <div class="load-content">
+            <!-- 校徽圆圈动画 -->
+            <div class="load-emblem">
+                <div class="load-emblem-ring"></div>
+                <div class="load-emblem-ring load-emblem-ring2"></div>
+                <span class="load-emblem-icon">🏫</span>
+            </div>
+            <div class="load-title">校园漫游</div>
+            <div class="load-subtitle" id="load-hint">初始化…</div>
+            <div class="load-bar-wrap">
+                <div id="load-bar" class="load-bar-fill"></div>
+            </div>
+            <div class="load-tip">首次加载约3-5秒 · 之后从缓存快速读取</div>
+            <button id="skip-vrm-btn" onclick="window._skipVrmLoad&&window._skipVrmLoad()" class="load-skip-btn" style="display:none;">
+                ⏩ 跳过角色加载，直接进入
+            </button>
         </div>
-        <div style="font-size:11px; color:#5588aa; margin-top:8px;">首次加载约3-5秒，之后将从缓存快速读取</div>
-        <button id="skip-vrm-btn" onclick="window._skipVrmLoad&&window._skipVrmLoad()" style="
-            display:none; margin-top:8px; padding:8px 22px;
-            background:rgba(80,160,255,0.18); color:#7dd4ff;
-            border:1px solid rgba(80,160,255,0.4); border-radius:8px;
-            font-size:13px; cursor:pointer; letter-spacing:1px;">
-            ⏩ 跳过角色加载，直接进入
-        </button>
     </div>
+    <style>
+    #map-loading {
+        position:fixed; inset:0; z-index:9999;
+        display:flex; align-items:center; justify-content:center;
+        background:linear-gradient(135deg, #050e24 0%, #0a1840 40%, #0d2860 70%, #061428 100%);
+        font-family:'Microsoft YaHei',sans-serif;
+        overflow:hidden;
+    }
+    /* 动态粒子 */
+    .load-particles { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+    @keyframes floatUp {
+        0%   { transform:translateY(0) scale(1); opacity:0.7; }
+        100% { transform:translateY(-100vh) scale(0.4); opacity:0; }
+    }
+    .load-particle {
+        position:absolute; bottom:-10px; border-radius:50%;
+        background:rgba(100,180,255,0.55);
+        animation:floatUp linear infinite;
+    }
+    /* 内容层 */
+    .load-content {
+        position:relative; z-index:2;
+        display:flex; flex-direction:column; align-items:center; gap:16px;
+    }
+    /* 校徽动画 */
+    .load-emblem { position:relative; width:88px; height:88px; margin-bottom:4px; }
+    @keyframes spinRing { to { transform:rotate(360deg); } }
+    @keyframes spinRing2 { to { transform:rotate(-360deg); } }
+    .load-emblem-ring {
+        position:absolute; inset:0; border-radius:50%;
+        border:2.5px solid transparent;
+        border-top-color:#5abbff; border-right-color:#3a7bd5;
+        animation:spinRing 1.8s linear infinite;
+    }
+    .load-emblem-ring2 {
+        inset:8px;
+        border-top-color:transparent; border-right-color:transparent;
+        border-bottom-color:#7dd4ff; border-left-color:#2a5bc0;
+        animation:spinRing2 2.4s linear infinite;
+    }
+    .load-emblem-icon {
+        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+        font-size:38px;
+    }
+    /* 标题 */
+    .load-title {
+        font-size:28px; font-weight:bold; letter-spacing:6px;
+        color:#e0f4ff;
+        text-shadow:0 0 24px rgba(80,180,255,0.7), 0 2px 6px rgba(0,0,0,0.6);
+    }
+    /* 副标题 */
+    .load-subtitle {
+        font-size:13px; color:#7dd4ff; min-height:20px;
+        letter-spacing:1px; opacity:0.88;
+    }
+    /* 进度条 */
+    .load-bar-wrap {
+        width:300px; height:5px;
+        background:rgba(255,255,255,0.08);
+        border-radius:3px; overflow:hidden;
+        box-shadow:0 0 10px rgba(60,130,255,0.3);
+    }
+    .load-bar-fill {
+        width:0%; height:100%; border-radius:3px;
+        background:linear-gradient(90deg,#2a6ad5,#7dd4ff,#b0e8ff);
+        transition:width 0.5s ease;
+        box-shadow:0 0 8px rgba(120,200,255,0.8);
+    }
+    /* 提示文字 */
+    .load-tip { font-size:11px; color:#3a6080; letter-spacing:0.5px; }
+    /* 跳过按钮 */
+    .load-skip-btn {
+        padding:8px 24px;
+        background:rgba(60,120,255,0.15); color:#7dd4ff;
+        border:1px solid rgba(80,160,255,0.35); border-radius:20px;
+        font-size:13px; cursor:pointer; letter-spacing:1px;
+        transition:all 0.25s; font-family:inherit;
+    }
+    .load-skip-btn:hover { background:rgba(60,120,255,0.28); transform:translateY(-1px); }
+    </style>
+    <script>
+    /* 生成随机漂浮粒子 */
+    (function(){
+        const el=document.getElementById('load-particles');
+        if(!el) return;
+        for(let i=0;i<22;i++){
+            const p=document.createElement('div');
+            p.className='load-particle';
+            const sz=3+Math.random()*5;
+            p.style.cssText=[
+                'width:'+sz+'px','height:'+sz+'px',
+                'left:'+(Math.random()*100)+'%',
+                'animation-duration:'+(6+Math.random()*10)+'s',
+                'animation-delay:'+(-Math.random()*12)+'s',
+                'opacity:'+(0.3+Math.random()*0.5)
+            ].join(';');
+            el.appendChild(p);
+        }
+    })();
+    </script>
 
     <div id="campus-mobile-hud">
         <button type="button" id="campus-mobile-hud-toggle" class="campus-mobile-hud-toggle" aria-expanded="false" aria-label="展开状态与说明">›</button>
