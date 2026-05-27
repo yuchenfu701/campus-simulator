@@ -1523,6 +1523,11 @@
                     console.log('⚡ 地图缓存加载完成（跳过视觉重建）');
                 } else {
                     // ── 缓存未命中：完整生成，合并后保存到IndexedDB ──
+                    // 手机端强制低画质（跳过装饰物），大幅减少几何体生成时间
+                    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+                        window._gfxTier = 'low';
+                        console.log('📱 手机端：强制低画质加速加载');
+                    }
                     _setLoadHint('生成教学楼…');
                     createBuilding();
                     _setLoadHint('生成校园…');
@@ -1531,25 +1536,34 @@
                     createOutdoorEnvironment();
                     _setLoadHint('添加实例细节…');
                     addDetailMeshes();
-                    _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
-                    // 使用 setTimeout 让提示文字先渲染再执行耗时合并
-                    setTimeout(function() {
-                        // 日月云与 fantasy 地平线绝不进合并缓存；曾有不透明太阳被烘焙进缓存 → 下次加载再建新太阳 = 天上两颗黄球
-                        [_sunVisual, _moonMesh, _cloudGroup, window._fantasyDome].forEach(function (root) {
-                            if (!root) return;
-                            root.traverse(function (o) { if (o.isMesh) o._noMerge = true; });
-                        });
-                        const mergedMeshes = mergeStaticMeshes();
-                        // 保存合并结果+碰撞盒到IndexedDB
-                        const cacheData = {
-                            meshData:   _serializeMerged(mergedMeshes),
-                            wallBBoxes: _serializeWalls(),
-                        };
-                        _dbPut(MAP_VER, cacheData, function() {
-                            _setLoadHint('');
-                            console.log('💾 地图已缓存到IndexedDB，下次加载直接读取');
-                        });
-                    }, 60);
+
+                    // ── 几何体合并：手机端跳过（同步合并会长时间阻塞主线程冻结页面）──
+                    var _isMobileSkipMerge = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+                    if (_isMobileSkipMerge) {
+                        // 手机：不合并，直接隐藏遮罩，游戏立即可进入（draw call 多但能用）
+                        _setLoadHint('');
+                        console.log('📱 手机端跳过几何体合并，直接进入');
+                    } else {
+                        _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
+                        // 使用 setTimeout 让提示文字先渲染再执行耗时合并
+                        setTimeout(function() {
+                            // 日月云与 fantasy 地平线绝不进合并缓存；曾有不透明太阳被烘焙进缓存 → 下次加载再建新太阳 = 天上两颗黄球
+                            [_sunVisual, _moonMesh, _cloudGroup, window._fantasyDome].forEach(function (root) {
+                                if (!root) return;
+                                root.traverse(function (o) { if (o.isMesh) o._noMerge = true; });
+                            });
+                            const mergedMeshes = mergeStaticMeshes();
+                            // 保存合并结果+碰撞盒到IndexedDB
+                            const cacheData = {
+                                meshData:   _serializeMerged(mergedMeshes),
+                                wallBBoxes: _serializeWalls(),
+                            };
+                            _dbPut(MAP_VER, cacheData, function() {
+                                _setLoadHint('');
+                                console.log('💾 地图已缓存到IndexedDB，下次加载直接读取');
+                            });
+                        }, 60);
+                    }
                 }
             
             // 加载士兵模型
@@ -6355,15 +6369,15 @@
                     }
                 }
 
-                // 手机端（真实UA检测）超时25秒，桌面端90秒
+                // 手机端（真实UA检测）超时15秒，桌面端90秒
                 var _realMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-                var _vrmTimeout = _realMobile ? 25000 : 90000;
+                var _vrmTimeout = _realMobile ? 15000 : 90000;
 
-                // 5秒后显示"跳过"按钮，让用户不必等满超时
+                // 手机3秒/桌面5秒后显示"跳过"按钮，让用户不必等满超时
                 var _skipShowTimer = setTimeout(function() {
                     var _sb = document.getElementById('skip-vrm-btn');
                     if (_sb) _sb.style.display = 'block';
-                }, 5000);
+                }, _realMobile ? 3000 : 5000);
                 window._skipVrmLoad = function() {
                     clearTimeout(timeoutId);
                     clearTimeout(_skipShowTimer);
@@ -6462,7 +6476,7 @@
                 var _maleSkipShowTimer = setTimeout(function() {
                     var _sb = document.getElementById('skip-vrm-btn');
                     if (_sb) _sb.style.display = 'block';
-                }, 5000);
+                }, /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? 3000 : 5000);
                 window._skipVrmLoad = function() {
                     clearTimeout(maleTimeoutId);
                     clearTimeout(_maleSkipShowTimer);
