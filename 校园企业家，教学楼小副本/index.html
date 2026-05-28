@@ -3925,6 +3925,78 @@
                 });
             })();
 
+            // ── 操场东侧看台（5排座位，X=85~95, Z=65~105）──
+            if (!window._skipVisualMesh) (function addBleachers(){
+                const X0=85,BLZ1=65,BLZ2=105,BLZC=85,BLL=BLZ2-BLZ1;
+                const NROWS=5,ROW_D=2.0,ROW_H=0.50;
+                const concM=new THREE.MeshLambertMaterial({color:0xd2cabc});
+                const seatM=new THREE.MeshLambertMaterial({color:0x1a44cc});
+                const railM=new THREE.MeshLambertMaterial({color:0x828a98});
+                for(let r=0;r<NROWS;r++){
+                    const xc=X0+r*ROW_D+ROW_D/2;
+                    const stepH=(r+1)*ROW_H;
+                    const conc=new THREE.Mesh(new THREE.BoxGeometry(ROW_D,stepH,BLL),concM);
+                    conc.position.set(xc,stepH/2,BLZC);
+                    conc.receiveShadow=true; scene.add(conc);
+                    const seat=new THREE.Mesh(new THREE.BoxGeometry(ROW_D-0.08,0.09,BLL-0.2),seatM);
+                    seat.position.set(xc,stepH+0.045,BLZC); scene.add(seat);
+                }
+                const backX=X0+NROWS*ROW_D+0.18;
+                const backH=NROWS*ROW_H+0.55;
+                const back=new THREE.Mesh(new THREE.BoxGeometry(0.35,backH,BLL+2),concM);
+                back.position.set(backX,backH/2,BLZC); back.receiveShadow=true; scene.add(back);
+                const hrl=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,BLL+2.5,6),railM);
+                hrl.rotation.x=Math.PI/2;
+                hrl.position.set(backX,backH+0.48,BLZC); scene.add(hrl);
+                for(let rz=BLZ1;rz<=BLZ2;rz+=5){
+                    const rp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.62,5),railM);
+                    rp.position.set(backX,backH+0.17,rz); scene.add(rp);
+                }
+                console.log('🏟️ 东侧看台 5排');
+            })();
+
+            // ── 足球门框（内场两端 X=±68，标准7.32m宽2.44m高）──
+            if (!window._skipVisualMesh) (function addGoalPosts(){
+                const postM=new THREE.MeshLambertMaterial({color:0xf4f4f4});
+                const PR=0.07,GW=7.32,GH=2.44;
+                [-68,68].forEach(function(gx){
+                    const p1=new THREE.Mesh(new THREE.CylinderGeometry(PR,PR,GH,6),postM);
+                    p1.position.set(gx,GH/2,85-GW/2); p1.receiveShadow=true; scene.add(p1);
+                    const p2=new THREE.Mesh(new THREE.CylinderGeometry(PR,PR,GH,6),postM);
+                    p2.position.set(gx,GH/2,85+GW/2); p2.receiveShadow=true; scene.add(p2);
+                    const cb=new THREE.Mesh(new THREE.CylinderGeometry(PR,PR,GW,6),postM);
+                    cb.rotation.x=Math.PI/2;
+                    cb.position.set(gx,GH,85); scene.add(cb);
+                });
+                console.log('⚽ 足球门×2');
+            })();
+
+            // ── 旗台广场长椅（四方向各一张，FPZ=22）──
+            if (!window._skipVisualMesh) (function addPlazaBenches(){
+                const woodM=new THREE.MeshLambertMaterial({color:0xb06830});
+                const metM=new THREE.MeshLambertMaterial({color:0x6a7280});
+                function addBench(cx,cz,facX,facZ){
+                    const ax=Math.abs(facZ)>0.5;
+                    const sw=ax?1.55:0.44, sd=ax?0.44:1.55;
+                    const seat=new THREE.Mesh(new THREE.BoxGeometry(sw,0.07,sd),woodM);
+                    seat.position.set(cx,0.43,cz); seat.receiveShadow=true; scene.add(seat);
+                    const bw=ax?1.55:0.065, bd=ax?0.065:1.55;
+                    const back=new THREE.Mesh(new THREE.BoxGeometry(bw,0.30,bd),woodM);
+                    back.position.set(cx-facX*0.21,0.69,cz-facZ*0.21); scene.add(back);
+                    const lxo=ax?[-0.65,0.65]:[-0.17,0.17];
+                    const lzo=ax?[-0.17,0.17]:[-0.65,0.65];
+                    lxo.forEach(function(dx){lzo.forEach(function(dz){
+                        const leg=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.43,0.055),metM);
+                        leg.position.set(cx+dx,0.215,cz+dz); scene.add(leg);
+                    });});
+                }
+                addBench(0,22-9, 0,1);  // south bench, faces flagpole (north)
+                addBench(0,22+9, 0,-1); // north bench, faces flagpole (south)
+                addBench(-9,22, 1,0);   // west bench, faces east
+                addBench( 9,22,-1,0);   // east bench, faces west
+                console.log('🪑 旗台长椅×4');
+            })();
+
             initBldgDoorBarriers();
             console.log('🏫 大校园建造完成！4栋教学楼+食堂+办公楼+厕所');
             if (window._skipVisualMesh) ensureCampusAthleticFieldPlanes();
@@ -5158,7 +5230,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v51'; // v51：广场主轴3对路灯（Z=25,33,41）+夜间光晕，形成橙色光廊
+        const MAP_VER = 'campus_v52'; // v52：东侧看台5排+足球门框+旗台广场长椅×4
 
         function _dbOpen(cb) {
             try {
