@@ -4139,20 +4139,44 @@
                 window._winGlowMeshes=_glows;
             }
 
-            // ── 路灯夜间光晕（叠加球体，入夜亮起）──
+            // ── 路灯夜间光晕 + 广场主轴路灯（叠加球体，入夜亮起）──
             if (!window._lampGlowInited) {
                 window._lampGlowInited = true;
-                const _lgGeo=new THREE.SphereGeometry(1.1,8,6);
+                const _lgGeo=new THREE.SphereGeometry(1.0,8,6);
                 const _lampGlows=[];
-                [-18,-9,9,18].forEach(function(lx){
+                function _mkLampGlow(x,y,z){
                     const mat=new THREE.MeshBasicMaterial({
                         color:0xff9922,transparent:true,opacity:0,
                         blending:THREE.AdditiveBlending,depthWrite:false,fog:false
                     });
                     const m=new THREE.Mesh(_lgGeo,mat);
-                    m.position.set(lx+1.5,4.88,BLDG_Z2+5.5);
+                    m.position.set(x,y,z);
                     m.renderOrder=3; m._noMerge=true;
                     scene.add(m); _lampGlows.push(m);
+                }
+                // 建筑正门前 4 盏路灯光晕（配合 skipMergedExtras 后的灯柱几何体）
+                [-18,-9,9,18].forEach(function(lx){ _mkLampGlow(lx+1.5,4.88,BLDG_Z2+5.5); });
+                // 广场主轴路灯：3 对（Z=25,33,41，X=±9），含灯柱几何体（_noMerge）
+                const _poleM=new THREE.MeshLambertMaterial({color:0x888888});
+                const _capM=new THREE.MeshLambertMaterial({color:0x333333});
+                const _glM=new THREE.MeshLambertMaterial({color:0xfff0aa});
+                [25,33,41].forEach(function(pz){
+                    [-9,9].forEach(function(px){
+                        const side=px>0?1:-1;
+                        // 灯柱
+                        const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,6.5,7),_poleM);
+                        pole.position.set(px,3.25,pz); pole._noMerge=true; scene.add(pole);
+                        // 灯臂（朝路中心延伸）
+                        const arm=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.08,0.08),_poleM);
+                        arm.position.set(px-side*0.55,6.52,pz); arm._noMerge=true; scene.add(arm);
+                        // 灯头
+                        const cap=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.18,0.28),_capM);
+                        cap.position.set(px-side*1.1,6.42,pz); cap._noMerge=true; scene.add(cap);
+                        const gl=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.08,0.2),_glM);
+                        gl.position.set(px-side*1.1,6.36,pz); gl._noMerge=true; scene.add(gl);
+                        // 光晕（灯头正下方）
+                        _mkLampGlow(px-side*1.1, 6.36, pz);
+                    });
                 });
                 window._lampGlowMeshes=_lampGlows;
             }
@@ -5134,7 +5158,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v50'; // v50：升旗台三级石台基座+外围花岗岩圆盘+十字石板路
+        const MAP_VER = 'campus_v51'; // v51：广场主轴3对路灯（Z=25,33,41）+夜间光晕，形成橙色光廊
 
         function _dbOpen(cb) {
             try {
