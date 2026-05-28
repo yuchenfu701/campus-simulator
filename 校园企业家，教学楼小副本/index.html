@@ -5230,7 +5230,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v52'; // v52：东侧看台5排+足球门框+旗台广场长椅×4
+        const MAP_VER = 'campus_v53'; // v53：删除教室门槛石 + 修复第三人称人物行走动画（手臂腿部摆动）
 
         function _dbOpen(cb) {
             try {
@@ -5832,8 +5832,7 @@
                 const lintelH = 0.16;
                 vb(dX, yB + DOOR_H + lintelH / 2 + 0.02, zCor, DOOR_W + fj * 2 + 0.12, lintelH, fd, woodL, 1);
                 vb(dX, yB + DOOR_H + lintelH / 2 + 0.02, zCls, DOOR_W + fj * 2 + 0.12, lintelH, fd, woodL, 1);
-                // 门槛石（贯通墙厚）
-                vb(dX, yB + 0.028, CORR_Z, DOOR_W + 0.28, 0.038, WT + 0.36, 0x5a4a40, 1);
+                // 门槛石已删除（用户要求无门槛，方便通行）
                 // 门洞位置踢脚线（与两侧踢脚连成一体）
                 vb(dX, yB + 0.08, CORR_Z + 0.14, DOOR_W, 0.16, 0.06, 0x6d5c50, 1);
             }
@@ -8587,26 +8586,51 @@
         // 新增：应用走动动画到士兵模型
         function applyWalkAnimationToSoldier() {
             if (!soldier) return;
-            
-            // 如果walkSpeed为0或接近0，不应用任何走动动画
+
+            // 如果walkSpeed为0，重置所有肢体动画
             if (walkSpeed <= 0.01) {
-                // 确保重置所有自定义动画效果
                 soldier.rotation.x = 0;
                 soldier.rotation.z = 0;
+                // 重置手臂（索引2=左臂，3=右臂）
+                if (soldier.children[2]) soldier.children[2].rotation.x = 0;
+                if (soldier.children[3]) soldier.children[3].rotation.x = 0;
+                // 重置腿部（索引4=左腿，5=右腿，6=左靴，7=右靴）
+                if (soldier.children[4]) { soldier.children[4].rotation.x = 0; soldier.children[4].position.y = -0.3; }
+                if (soldier.children[5]) { soldier.children[5].rotation.x = 0; soldier.children[5].position.y = -0.3; }
+                if (soldier.children[6]) { soldier.children[6].rotation.x = 0; soldier.children[6].position.y = -0.62; }
+                if (soldier.children[7]) { soldier.children[7].rotation.x = 0; soldier.children[7].position.y = -0.62; }
                 return;
             }
-            
-            // 身体轻微摇摆 - 减少幅度
-            const bodySway = Math.sin(walkCycle * 0.5) * BODY_SWAY_AMPLITUDE * walkSpeed * 0.5;
+
+            // 身体轻微摇摆（减小幅度，避免太奇怪）
+            const bodySway = Math.sin(walkCycle * 0.5) * BODY_SWAY_AMPLITUDE * walkSpeed * 0.35;
             soldier.rotation.z = bodySway;
-            
-            // 身体前后摆动 - 减少幅度
-            const bodyLean = Math.sin(walkCycle) * 0.015 * walkSpeed;
-            soldier.rotation.x = bodyLean;
-            
-            // 轻微的上下摆动 - 减少幅度
-            const bodyBob = Math.sin(walkCycle * 2) * 0.005 * walkSpeed;
-            soldier.position.y += bodyBob;
+            soldier.rotation.x = 0; // 移除bodyLean，避免整体前倾奇怪
+
+            // 手臂前后摆动（左右相位差π，自然步态）
+            const armSwing = Math.sin(walkCycle) * 0.62 * walkSpeed;
+            if (soldier.children[2]) soldier.children[2].rotation.x = armSwing;   // 左臂前摆时右臂后摆
+            if (soldier.children[3]) soldier.children[3].rotation.x = -armSwing;
+
+            // 腿部摆动（与手臂相位相反）
+            const legSwing = Math.sin(walkCycle) * 0.50 * walkSpeed;
+            if (soldier.children[4]) {
+                soldier.children[4].rotation.x = -legSwing;
+                soldier.children[4].position.y = -0.3 + Math.max(0, legSwing) * 0.07;
+            }
+            if (soldier.children[5]) {
+                soldier.children[5].rotation.x = legSwing;
+                soldier.children[5].position.y = -0.3 + Math.max(0, -legSwing) * 0.07;
+            }
+            // 靴子随腿部同步（幅度减半，避免靴子穿地）
+            if (soldier.children[6]) {
+                soldier.children[6].rotation.x = -legSwing * 0.45;
+                soldier.children[6].position.y = -0.62 + Math.max(0, legSwing) * 0.05;
+            }
+            if (soldier.children[7]) {
+                soldier.children[7].rotation.x = legSwing * 0.45;
+                soldier.children[7].position.y = -0.62 + Math.max(0, -legSwing) * 0.05;
+            }
         }
         
         // 计算相机抖动偏移量（结果写入 _camBobY / _camBobRoll，由 updateCamera 使用）

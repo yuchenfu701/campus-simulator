@@ -440,6 +440,8 @@ class PixelSprite {
 // 游戏主类
 class PokemonGame {
     constructor() {
+        // 立即注册到全局，这样 DialogSystem.closeDialog() 能安全访问 game
+        window.game = this;
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.gameState = 'start';
@@ -1680,5 +1682,17 @@ class DialogSystem {
 // 启动游戏
 let game;
 window.addEventListener('load', () => {
-    game = new PokemonGame();
+    try {
+        game = new PokemonGame();
+    } catch (e) {
+        console.error('❌ PokemonGame 初始化失败:', e);
+        // 即使初始化出错，也给开始按钮一个兜底点击处理
+        const btn = document.getElementById('startBtn');
+        if (btn) {
+            btn.onclick = () => {
+                document.getElementById('startScreen').style.display = 'none';
+                if (game) { game.startGame(); }
+            };
+        }
+    }
 }); 

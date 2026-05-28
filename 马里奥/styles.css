@@ -471,6 +471,11 @@ button span {
     }
 }
 
+/* 通用隐藏类（需要放在所有具体规则之前，让 !important 覆盖内联 display:flex）*/
+.hidden {
+    display: none !important;
+}
+
 /* 像素艺术风格 */
 .pixel-art {
     image-rendering: pixelated;

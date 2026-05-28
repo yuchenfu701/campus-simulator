@@ -53,8 +53,8 @@
             </div>
         </div>
         
-        <!-- 游戏开始界面 -->
-        <div id="startScreen" class="start-screen">
+        <!-- 游戏开始界面（整个区域可点击，保证在各种容器尺寸下都能响应） -->
+        <div id="startScreen" class="start-screen" onclick="if(window.game&&this.style.display!=='none'){window.game.startGame();}">
             <h2>精美宝可梦像素冒险</h2>
             <p>公元3025年，神明降下神罚，世间美好变成斗争的游戏...</p>
             <p>在这个充满精美像素艺术的宝可梦世界中，你需要:</p>
@@ -69,7 +69,7 @@
             <p>每个宝可梦都经过精心设计，色彩丰富、细节精美！</p>
             <p>你准备好收集这些艺术品般的宝可梦了吗？</p>
             <p style="margin-top:12px;font-size:0.95em;opacity:0.95;">手机：点下方大按钮开始；对话时点「继续」或点文字区域下一步</p>
-            <button type="button" id="startBtn">开始精美冒险</button>
+            <button type="button" id="startBtn" onclick="event.stopPropagation();if(window.game){window.game.startGame();}">开始精美冒险</button>
         </div>
     </div>
     
