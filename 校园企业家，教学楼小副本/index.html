@@ -4157,6 +4157,34 @@
                 window._lampGlowMeshes=_lampGlows;
             }
 
+            // ── 旗杆 + 飘动校旗（正门广场）──
+            if (!window._flagInited) {
+                window._flagInited = true;
+                const FPX=0, FPZ=22, POLE_H=10.0;
+                // 旗杆本体（白色混凝土圆柱）
+                const poleM=new THREE.MeshLambertMaterial({color:0xeee8de});
+                const poleGeo=new THREE.CylinderGeometry(0.05,0.075,POLE_H,8);
+                const pole=new THREE.Mesh(poleGeo,poleM);
+                pole.position.set(FPX,POLE_H/2,FPZ);
+                pole.receiveShadow=true; pole._noMerge=true;
+                scene.add(pole);
+                // 旗杆顶球（金色）
+                const ball=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,6),
+                    new THREE.MeshLambertMaterial({color:0xddcc44}));
+                ball.position.set(FPX,POLE_H+0.13,FPZ);
+                ball._noMerge=true; scene.add(ball);
+                // 飘动红旗（12×6段 PlaneGeometry，顶端绑在旗杆）
+                const FW=3.0,FH=2.0;
+                const flagGeo=new THREE.PlaneGeometry(FW,FH,12,6);
+                const flagMat=new THREE.MeshLambertMaterial({color:0xdd1122,side:THREE.DoubleSide});
+                const flagMesh=new THREE.Mesh(flagGeo,flagMat);
+                flagMesh.position.set(FPX+FW/2, POLE_H-0.15-FH/2, FPZ+0.02);
+                flagMesh._noMerge=true;
+                scene.add(flagMesh);
+                const origPos=flagGeo.attributes.position.array.slice();
+                window._flagAnim={mesh:flagMesh, orig:origPos, FW};
+            }
+
             if (skipMergedExtras) return;
 
             function makeTree(x, z, h, cr, cc) { addLowPolyTree(x, z, h, cr, cc); }
@@ -5009,7 +5037,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v44'; // v44：路灯夜间橙色光晕球
+        const MAP_VER = 'campus_v45'; // v45：正门广场旗杆+飘动红旗（双频sin波形）
 
         function _dbOpen(cb) {
             try {
@@ -8650,6 +8678,23 @@
                     ring.scale.setScalar(1 + t * 26);
                     ring.material.opacity = Math.max(0, (1 - t) * 0.42);
                 });
+            }
+
+            // ── 旗帜飘动（双频 sin 叠加，模拟风吹涟漪）──
+            if (window._flagAnim) {
+                const fa=window._flagAnim;
+                const pos=fa.mesh.geometry.attributes.position;
+                const ft=time*0.001;
+                for(let i=0;i<pos.count;i++){
+                    const ox=fa.orig[i*3];
+                    const oy=fa.orig[i*3+1];
+                    const u=(ox+fa.FW/2)/fa.FW; // 0=旗杆侧 1=自由端
+                    const wave=Math.sin(ft*2.2+ox*1.4)*u*0.22
+                              +Math.sin(ft*3.1+ox*2.1+oy*0.8)*u*0.06;
+                    pos.setZ(i,wave);
+                }
+                pos.needsUpdate=true;
+                fa.mesh.geometry.computeVertexNormals();
             }
 
             // ── 夜间窗户发光 + 路灯光晕（入夜渐亮，天明渐暗）──
