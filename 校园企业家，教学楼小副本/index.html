@@ -4107,6 +4107,38 @@
                 })();
             }
 
+            // ── 夜间窗户发光（教学楼各楼层窗户入夜发出暖黄光）──
+            if (!window._winGlowInited) {
+                window._winGlowInited = true;
+                const _WW=2.2, _WH=1.8, _WS=0.9;
+                const _wGeo=new THREE.PlaneGeometry(_WW*0.82,_WH*0.82);
+                const _glows=[];
+                function _mkGlow(x,y,z,ry){
+                    const mat=new THREE.MeshBasicMaterial({
+                        color:0xffe090,transparent:true,opacity:0,
+                        blending:THREE.AdditiveBlending,depthWrite:false,fog:false,side:THREE.DoubleSide
+                    });
+                    const m=new THREE.Mesh(_wGeo,mat);
+                    m.position.set(x,y,z);
+                    if(ry) m.rotation.y=ry;
+                    m.renderOrder=3; m._noMerge=true;
+                    scene.add(m); _glows.push(m);
+                }
+                // 北立面 (Z=BLDG_Z1=-8，面朝-Z)：3室×3窗×3层
+                const _nX=[-17,-14,-11,-5,-2,1,6.5,9,11.5];
+                for(let f=0;f<NUM_FLOORS;f++){
+                    const _wY=f*FLOOR_H+_WS+_WH*0.5;
+                    _nX.forEach(wx=>_mkGlow(wx,_wY,BLDG_Z1-0.14,Math.PI));
+                }
+                // 南立面 (Z=BLDG_Z2=9，面朝+Z)：5窗×2层(f=1,2)，一楼是大门
+                const _cSp=(BLDG_X2-BLDG_X1)/6;
+                for(let f=1;f<NUM_FLOORS;f++){
+                    const _wY=f*FLOOR_H+_WS+_WH*0.5;
+                    for(let w=0;w<5;w++) _mkGlow(BLDG_X1+_cSp*(w+1),_wY,BLDG_Z2+0.14,0);
+                }
+                window._winGlowMeshes=_glows;
+            }
+
             if (skipMergedExtras) return;
 
             function makeTree(x, z, h, cr, cc) { addLowPolyTree(x, z, h, cr, cc); }
@@ -4959,7 +4991,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v42'; // v42：B1屋顶设施（楼梯出口房、水箱、空调外机、通信天线）
+        const MAP_VER = 'campus_v43'; // v43：夜间窗户发光（暖黄光透窗而出）
 
         function _dbOpen(cb) {
             try {
@@ -8602,6 +8634,13 @@
                 });
             }
 
+            // ── 夜间窗户发光（入夜渐亮，天明渐暗）──
+            if (window._winGlowMeshes) {
+                const _df = window._dayFactor != null ? window._dayFactor : 0;
+                const _nightOp = Math.max(0, 1 - _df * 2.8) * 0.6;
+                window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
+            }
+
             // 渲染场景
             renderer.render(scene, camera);
         }
@@ -9267,6 +9306,7 @@
             const th = getSunAngle(gameTime);
             const sunH = Math.sin(th);
             const dayFactor = Math.max(0, sunH);
+            window._dayFactor = dayFactor;
             const R = SUN_ORBIT_R * 0.82;
             const sunX = Math.cos(th) * R;
             const sunZ = Math.sin(th) * R + 20;
