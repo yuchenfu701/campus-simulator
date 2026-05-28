@@ -4139,6 +4139,24 @@
                 window._winGlowMeshes=_glows;
             }
 
+            // ── 路灯夜间光晕（叠加球体，入夜亮起）──
+            if (!window._lampGlowInited) {
+                window._lampGlowInited = true;
+                const _lgGeo=new THREE.SphereGeometry(1.1,8,6);
+                const _lampGlows=[];
+                [-18,-9,9,18].forEach(function(lx){
+                    const mat=new THREE.MeshBasicMaterial({
+                        color:0xff9922,transparent:true,opacity:0,
+                        blending:THREE.AdditiveBlending,depthWrite:false,fog:false
+                    });
+                    const m=new THREE.Mesh(_lgGeo,mat);
+                    m.position.set(lx+1.5,4.88,BLDG_Z2+5.5);
+                    m.renderOrder=3; m._noMerge=true;
+                    scene.add(m); _lampGlows.push(m);
+                });
+                window._lampGlowMeshes=_lampGlows;
+            }
+
             if (skipMergedExtras) return;
 
             function makeTree(x, z, h, cr, cc) { addLowPolyTree(x, z, h, cr, cc); }
@@ -4991,7 +5009,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v43'; // v43：夜间窗户发光（暖黄光透窗而出）
+        const MAP_VER = 'campus_v44'; // v44：路灯夜间橙色光晕球
 
         function _dbOpen(cb) {
             try {
@@ -8634,11 +8652,14 @@
                 });
             }
 
-            // ── 夜间窗户发光（入夜渐亮，天明渐暗）──
-            if (window._winGlowMeshes) {
+            // ── 夜间窗户发光 + 路灯光晕（入夜渐亮，天明渐暗）──
+            if (window._winGlowMeshes || window._lampGlowMeshes) {
                 const _df = window._dayFactor != null ? window._dayFactor : 0;
                 const _nightOp = Math.max(0, 1 - _df * 2.8) * 0.6;
-                window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
+                if (window._winGlowMeshes)
+                    window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
+                if (window._lampGlowMeshes)
+                    window._lampGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp * 0.7; });
             }
 
             // 渲染场景
