@@ -4185,9 +4185,24 @@
                 window._flagAnim={mesh:flagMesh, orig:origPos, FW};
             }
 
+            // ── 雨天地面湿润反光平面（groundWetness 驱动透明度）──
+            if (!window._wetGroundInited) {
+                window._wetGroundInited = true;
+                const _wgMat = new THREE.MeshBasicMaterial({
+                    color: 0x88aabb, transparent: true, opacity: 0,
+                    depthWrite: false, fog: false, side: THREE.FrontSide
+                });
+                const _wgMesh = new THREE.Mesh(new THREE.PlaneGeometry(150, 120), _wgMat);
+                _wgMesh.rotation.x = -Math.PI / 2;
+                _wgMesh.position.set(0, 0.013, 20);
+                _wgMesh.renderOrder = 2; _wgMesh._noMerge = true;
+                scene.add(_wgMesh);
+                window._wetGroundMesh = _wgMesh;
+            }
+
             // ── 鸟群（白天在校园上空椭圆轨道飞行）──
             if (!window._birdInited) {
-                window._birdInited=true;
+                window._birdInited = true;
                 const BCNT=18;
                 const bGeo=new THREE.PlaneGeometry(0.75,0.14);
                 const bMat=new THREE.MeshBasicMaterial({color:0x1a1a1a,side:THREE.DoubleSide,fog:false,depthWrite:true});
@@ -5064,7 +5079,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v47'; // v47：教学楼正门Canvas文字标牌（北京四中第一教学楼）
+        const MAP_VER = 'campus_v48'; // v48：雨天地面湿润反光（groundWetness驱动天空色反射平面）
 
         function _dbOpen(cb) {
             try {
@@ -8784,6 +8799,27 @@
                     window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
                 if (window._lampGlowMeshes)
                     window._lampGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp * 0.7; });
+            }
+
+            // ── 雨天地面湿润反光（天空色 + 轻微涟漪闪烁）──
+            if (window._wetGroundMesh) {
+                const _gw = groundWetness || 0;
+                if (_gw > 0.02) {
+                    const _bg = scene.background;
+                    if (_bg && _bg.isColor) {
+                        window._wetGroundMesh.material.color.setRGB(
+                            Math.min(1, _bg.r * 1.5),
+                            Math.min(1, _bg.g * 1.5),
+                            Math.min(1, _bg.b * 1.6)
+                        );
+                    }
+                    const _ripple = 1 + Math.sin(time * 0.0084) * 0.055 * Math.min(1, _gw * 4);
+                    const _df2 = window._dayFactor != null ? window._dayFactor : 0;
+                    window._wetGroundMesh.material.opacity = _gw * 0.4 * _ripple * (0.5 + _df2 * 0.5);
+                    window._wetGroundMesh.visible = true;
+                } else {
+                    window._wetGroundMesh.visible = false;
+                }
             }
 
             // 渲染场景
