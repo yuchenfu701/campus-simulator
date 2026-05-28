@@ -4200,6 +4200,39 @@
                 window._wetGroundMesh = _wgMesh;
             }
 
+            // ── 樱花花瓣飘落（InstancedMesh，晴天白昼可见）──
+            if (!window._petalInited) {
+                window._petalInited = true;
+                const PCNT = 280;
+                // 樱花树位置（对应 createCampus 中的樱花树坐标）
+                const _cherryPos = [[-24,20],[24,20],[-24,36],[24,36],[-24,50],[24,50]];
+                const pGeo = new THREE.PlaneGeometry(0.09, 0.06);
+                const pMat = new THREE.MeshBasicMaterial({
+                    color: 0xffb8cc, transparent: true, opacity: 0.82,
+                    side: THREE.DoubleSide, depthWrite: false, fog: true
+                });
+                const pInst = new THREE.InstancedMesh(pGeo, pMat, PCNT);
+                pInst._noMerge = true; pInst.frustumCulled = false; pInst.renderOrder = 4;
+                const petals = [];
+                for (let i = 0; i < PCNT; i++) {
+                    const cp = _cherryPos[i % _cherryPos.length];
+                    petals.push({
+                        x: cp[0] + (Math.random() - 0.5) * 5,
+                        y: 3.5 + Math.random() * 5,
+                        z: cp[1] + (Math.random() - 0.5) * 5,
+                        vy: -(0.35 + Math.random() * 0.45),  // 下落速度
+                        vx: (Math.random() - 0.5) * 0.18,    // 水平漂移
+                        phase: Math.random() * Math.PI * 2,
+                        rotY: Math.random() * Math.PI * 2,
+                        rotSpd: (Math.random() - 0.5) * 2.4
+                    });
+                }
+                pInst.userData.petals = petals;
+                pInst.userData.cherryPos = _cherryPos;
+                scene.add(pInst);
+                window._petalInst = pInst;
+            }
+
             // ── 鸟群（白天在校园上空椭圆轨道飞行）──
             if (!window._birdInited) {
                 window._birdInited = true;
@@ -5079,7 +5112,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v48'; // v48：雨天地面湿润反光（groundWetness驱动天空色反射平面）
+        const MAP_VER = 'campus_v49'; // v49：樱花花瓣飘落（280片InstancedMesh，随风漂移旋转）
 
         function _dbOpen(cb) {
             try {
@@ -8747,6 +8780,35 @@
                     ring.scale.setScalar(1 + t * 26);
                     ring.material.opacity = Math.max(0, (1 - t) * 0.42);
                 });
+            }
+
+            // ── 樱花花瓣飘落动画 ──
+            if (window._petalInst) {
+                const pi=window._petalInst;
+                const _pdf=window._dayFactor!=null?window._dayFactor:0;
+                const _pgw=groundWetness||0;
+                pi.visible=_pdf>0.18&&_pgw<0.5; // 晴天白昼显示，雨中暂隐
+                if(pi.visible){
+                    const pt=time*0.001;
+                    const PM=new THREE.Matrix4(),PR=new THREE.Euler();
+                    const cp=pi.userData.cherryPos;
+                    pi.userData.petals.forEach(function(p,i){
+                        p.y+=p.vy*0.016;
+                        p.x+=p.vx*0.016+Math.sin(pt*0.9+p.phase)*0.006;
+                        p.rotY+=p.rotSpd*0.016;
+                        if(p.y<0.08){
+                            const src=cp[Math.floor(Math.random()*cp.length)];
+                            p.x=src[0]+(Math.random()-0.5)*5;
+                            p.y=3.5+Math.random()*5;
+                            p.z=src[1]+(Math.random()-0.5)*5;
+                        }
+                        PR.set(Math.sin(pt*1.2+p.phase)*0.4, p.rotY, Math.sin(pt*0.7+p.phase)*0.3);
+                        PM.makeRotationFromEuler(PR);
+                        PM.setPosition(p.x,p.y,p.z);
+                        pi.setMatrixAt(i,PM);
+                    });
+                    pi.instanceMatrix.needsUpdate=true;
+                }
             }
 
             // ── 鸟群飞行动画 ──
