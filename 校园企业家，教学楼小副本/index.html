@@ -3997,6 +3997,130 @@
                 console.log('🪑 旗台长椅×4');
             })();
 
+            // ── v54：跑道分道线 + 篮球三分线 + 校门铭牌 + 操场泛光灯 ──
+            if (!window._skipVisualMesh) (function addV54Features(){
+
+                // ① 跑道8条分道线（东西直道各7条白线，1.5m一道）
+                (function addLaneLines(){
+                    var lnMat=new THREE.MeshLambertMaterial({color:0xe8e8e8});
+                    var LY=0.043, SLEN=52; // 直道全长52m，Z=59~111，center Z=85
+                    // 东侧直道 X=68~80，7条分道线
+                    for(var i=1;i<8;i++){
+                        var lx=68+i*1.5;
+                        var seg=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.005,SLEN),lnMat);
+                        seg.position.set(lx,LY,85); scene.add(seg);
+                    }
+                    // 西侧直道 X=-80~-68
+                    for(var i=1;i<8;i++){
+                        var lx=-(68+i*1.5);
+                        var seg=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.005,SLEN),lnMat);
+                        seg.position.set(lx,LY,85); scene.add(seg);
+                    }
+                    // 终点线（东西直道 Z=70 和 Z=100，各12m宽）
+                    var finMat=new THREE.MeshLambertMaterial({color:0xffffff});
+                    [70,100].forEach(function(fz){
+                        var fe=new THREE.Mesh(new THREE.BoxGeometry(12,0.006,0.32),finMat);
+                        fe.position.set(74,0.044,fz); scene.add(fe);
+                        var fw=new THREE.Mesh(new THREE.BoxGeometry(12,0.006,0.32),finMat);
+                        fw.position.set(-74,0.044,fz); scene.add(fw);
+                    });
+                    console.log('🏃 跑道分道线×14');
+                })();
+
+                // ② 篮球三分线（半圆弧+两段直线）
+                (function addThreePointArcs(){
+                    var R3=6.75,TUBE=0.07;
+                    var wMat=new THREE.MeshLambertMaterial({color:0xffffff});
+                    [[-60,75],[60,75],[-60,95],[60,95]].forEach(function(pos){
+                        var bx=pos[0],bz=pos[1];
+                        var rimZ=bz+9.67; // 篮圈中心Z
+                        // 半圆弧：torusGeometry rotateX(-π/2) → 平铺，开口朝+Z（底线侧），弧顶朝向球场中央
+                        var arcGeo=new THREE.TorusGeometry(R3,TUBE,5,24,Math.PI);
+                        arcGeo.rotateX(-Math.PI/2);
+                        var arcMesh=new THREE.Mesh(arcGeo,wMat);
+                        arcMesh.position.set(bx,0.047,rimZ);
+                        arcMesh._noMerge=true; scene.add(arcMesh);
+                        // 两段直线段：从弧端点(bx±R3, rimZ)到底线(bz+12.5)
+                        var gapLen=(bz+12.5)-rimZ;
+                        [-R3,R3].forEach(function(dx){
+                            var wing=new THREE.Mesh(new THREE.BoxGeometry(TUBE,0.01,gapLen),wMat);
+                            wing.position.set(bx+dx,0.047,rimZ+gapLen/2); scene.add(wing);
+                        });
+                    });
+                    console.log('🏀 篮球三分线×4');
+                })();
+
+                // ③ 校门铭牌（Canvas纹理：深红底+金框+白字）
+                (function addGateSign(){
+                    var cv=document.createElement('canvas');
+                    cv.width=512; cv.height=96;
+                    var c=cv.getContext('2d');
+                    var gr=c.createLinearGradient(0,0,512,0);
+                    gr.addColorStop(0,'#6e0a0a'); gr.addColorStop(0.5,'#c41010'); gr.addColorStop(1,'#6e0a0a');
+                    c.fillStyle=gr; c.fillRect(0,0,512,96);
+                    // 双层金色边框
+                    c.strokeStyle='#e8c840'; c.lineWidth=4;
+                    c.strokeRect(5,5,502,86); c.strokeRect(10,10,492,76);
+                    // 白色校名文字
+                    c.fillStyle='#ffffff';
+                    c.font='bold 38px Arial,"Microsoft YaHei",sans-serif';
+                    c.textAlign='center'; c.textBaseline='middle';
+                    c.shadowColor='rgba(0,0,0,0.5)'; c.shadowBlur=4;
+                    c.fillText('爱哲安民未来学校',256,48);
+                    var tex=new THREE.CanvasTexture(cv);
+                    var GZSIGN=BLDG_Z2+13; // =22
+                    var sGeo=new THREE.PlaneGeometry(11.6,0.48);
+                    // 南面（正对来访者方向）
+                    var sf=new THREE.Mesh(sGeo,new THREE.MeshBasicMaterial({map:tex,transparent:false}));
+                    sf.position.set(0,5.14,GZSIGN-0.32); sf._noMerge=true; scene.add(sf);
+                    // 北面
+                    var sb=new THREE.Mesh(sGeo,new THREE.MeshBasicMaterial({map:tex,side:THREE.BackSide}));
+                    sb.position.set(0,5.14,GZSIGN+0.32); sb._noMerge=true; scene.add(sb);
+                    console.log('🏫 校门铭牌已挂');
+                })();
+
+                // ④ 操场泛光灯×4（西侧2根+东侧2根，夜间亮灯）
+                (function addFieldFloodlights(){
+                    var poleM=new THREE.MeshLambertMaterial({color:0x7a8090});
+                    var headM=new THREE.MeshLambertMaterial({color:0x2c3040});
+                    var lensM=new THREE.MeshBasicMaterial({color:0xfff8e0});
+                    var PH=15; // 杆高15m
+                    var fls=[];
+                    // [x, z, armDirX]: armDirX = +1朝东（操场方向）/-1朝西
+                    var poleList=[[-96,70,1],[-96,100,1],[96,70,-1],[96,100,-1]];
+                    poleList.forEach(function(cfg){
+                        var fx=cfg[0],fz=cfg[1],dirX=cfg[2];
+                        // 主杆
+                        var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.22,PH,6),poleM);
+                        pole.position.set(fx,PH/2,fz); scene.add(pole);
+                        // 横臂（朝操场方向）
+                        var AW=2.6;
+                        var arm=new THREE.Mesh(new THREE.BoxGeometry(AW,0.14,0.14),poleM);
+                        arm.position.set(fx+dirX*AW/2,PH-0.5,fz); arm._noMerge=true; scene.add(arm);
+                        // 3个灯头
+                        var hbX=fx+dirX*AW;
+                        for(var hi=-1;hi<=1;hi++){
+                            var hx=hbX+hi*0.72;
+                            var head=new THREE.Mesh(new THREE.BoxGeometry(0.56,0.28,0.36),headM);
+                            head.position.set(hx,PH-0.18,fz); head._noMerge=true; scene.add(head);
+                            // 灯面（白色发光面，朝向操场）
+                            var lens=new THREE.Mesh(new THREE.BoxGeometry(0.48,0.22,0.08),lensM);
+                            lens.position.set(hx,PH-0.18,fz+dirX*(-1)*0.20);
+                            lens._noMerge=true; scene.add(lens);
+                        }
+                        // PointLight（初始intensity=0，夜间由渲染循环驱动）
+                        var fl=new THREE.PointLight(0xfff2d0,0,75,1.7);
+                        fl.position.set(hbX,PH+0.8,fz);
+                        fl._noMerge=true; scene.add(fl);
+                        fls.push(fl);
+                    });
+                    window._fieldFloodlights=fls;
+                    console.log('💡 操场泛光灯×4');
+                })();
+
+                console.log('✨ v54: 跑道分道线+三分线+校门铭牌+泛光灯');
+            })();
+
             initBldgDoorBarriers();
             console.log('🏫 大校园建造完成！4栋教学楼+食堂+办公楼+厕所');
             if (window._skipVisualMesh) ensureCampusAthleticFieldPlanes();
@@ -5230,7 +5354,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v53'; // v53：删除教室门槛石 + 修复第三人称人物行走动画（手臂腿部摆动）
+        const MAP_VER = 'campus_v54'; // v54：跑道分道线×14 + 篮球三分线×4 + 校门铭牌 + 操场泛光灯×4
 
         function _dbOpen(cb) {
             try {
@@ -9003,6 +9127,12 @@
                     window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
                 if (window._lampGlowMeshes)
                     window._lampGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp * 0.7; });
+            }
+            // 操场泛光灯（夜间自动亮起）
+            if (window._fieldFloodlights) {
+                var _ffd=window._dayFactor!=null?window._dayFactor:0;
+                var _fInt=Math.max(0,1-_ffd*3.5)*1.8;
+                window._fieldFloodlights.forEach(function(fl){ fl.intensity=_fInt; });
             }
 
             // ── 雨天地面湿润反光（天空色 + 轻微涟漪闪烁）──
