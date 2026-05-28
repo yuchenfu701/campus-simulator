@@ -398,21 +398,34 @@ function selectPlatform(p){
     if(saved) selectPlatform(saved);
 })();
 
+// ── DIRECT DOWNLOAD HELPER ──────────────────────────────
+// 触发浏览器直接下载（不跳转到 GitHub 页面）
+function triggerDirectDownload(url, filename){
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || '';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    // 短暂延迟后移除，确保 click 已被处理
+    setTimeout(() => document.body.removeChild(a), 200);
+}
+
 // ── DOWNLOAD WINDOWS ────────────────────────────────────
 async function downloadWin(){
     selectPlatform('windows');
-    let url;
-    try{
-        const r = window._latestRelease || await fetch(RELEASES_API).then(r=>r.json());
-        const asset = (r.assets||[]).find(a=>a.name.endsWith('.exe'));
-        url = asset ? asset.browser_download_url
-                    : `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
-    }catch(e){
-        url = `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
-    }
 
-    // If inside Electron → use IPC for native download with progress
+    // Electron 内置下载器（带进度条）
     if(window.updater){
+        let url;
+        try{
+            const r = window._latestRelease || await fetch(RELEASES_API).then(r=>r.json());
+            const asset = (r.assets||[]).find(a=>a.name.endsWith('.exe'));
+            url = asset ? asset.browser_download_url
+                        : `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
+        }catch(e){
+            url = `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
+        }
         showProgress('正在下载 Windows 安装包…');
         const result = await window.updater.downloadUpdate(url);
         if(result.success){
@@ -425,16 +438,27 @@ async function downloadWin(){
         }
         return;
     }
-    // Browser → direct link
-    window.open(url, '_blank');
+
+    // 浏览器：直接触发下载，不跳转页面
+    let url;
+    try{
+        const r = window._latestRelease || await fetch(RELEASES_API).then(r=>r.json());
+        const asset = (r.assets||[]).find(a=>a.name.endsWith('.exe'));
+        url = asset ? asset.browser_download_url
+                    : `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
+    }catch(e){
+        url = `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator-setup.exe`;
+    }
+    triggerDirectDownload(url, 'campus-simulator-setup.exe');
+    showSuccess('开始下载！','安装包正在下载到你的电脑，请查看浏览器下载栏。');
 }
 
 // ── DOWNLOAD ANDROID ─────────────────────────────────────
 function downloadAndroid(){
     selectPlatform('android');
-    // TODO: replace with real APK URL when built
     const url = `https://github.com/${GITHUB_REPO}/releases/latest/download/campus-simulator.apk`;
-    window.open(url, '_blank');
+    triggerDirectDownload(url, 'campus-simulator.apk');
+    showSuccess('开始下载！','APK 正在下载中，请查看浏览器下载栏。安装时需允许"未知来源"。');
 }
 
 // ── iOS GUIDE ────────────────────────────────────────────

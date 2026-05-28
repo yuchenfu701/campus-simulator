@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 创作工坊 · ComfyUI Studio</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;}
+:root{
+  --bg:#070b17;--panel:rgba(13,19,40,.92);--border:rgba(139,92,246,.25);
+  --purple:#8b5cf6;--cyan:#22d3ee;--gold:#f5a623;--green:#22c55e;
+  --red:#ef4444;--text:#e2e8f0;--muted:#64748b;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);overflow-x:hidden;}
+
+/* ── 粒子背景 ── */
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.p-dot{position:absolute;border-radius:50%;animation:rise linear infinite;}
+@keyframes rise{0%{transform:translateY(0);opacity:0;}10%{opacity:.6;}90%{opacity:.4;}100%{transform:translateY(-100vh);opacity:0;}}
+
+/* ── 布局 ── */
+.page{position:relative;z-index:10;display:grid;grid-template-columns:360px 1fr;grid-template-rows:64px 1fr;min-height:100vh;}
+
+/* ── 顶栏 ── */
+header{
+  grid-column:1/-1;
+  display:flex;align-items:center;gap:14px;
+  padding:0 24px;
+  background:rgba(7,11,23,.96);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:50;
+}
+.hlogo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--purple),#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 18px rgba(139,92,246,.5);}
+.htitle{font-size:17px;font-weight:800;letter-spacing:.5px;}
+.hsub{font-size:12px;color:var(--muted);margin-left:2px;}
+.hgap{flex:1;}
+.hstatus{
+  display:flex;align-items:center;gap:7px;
+  font-size:12px;padding:6px 14px;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.04);
+  cursor:pointer;transition:border-color .2s;
+}
+.hstatus:hover{border-color:var(--purple);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);transition:background .3s,box-shadow .3s;}
+.dot.online{background:var(--green);box-shadow:0 0 6px var(--green);}
+.back-link{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:10px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  color:var(--text);font-size:13px;font-weight:600;cursor:pointer;
+  text-decoration:none;transition:background .2s;
+}
+.back-link:hover{background:rgba(255,255,255,.1);}
+
+/* ── 左侧控制面板 ── */
+.sidebar{
+  grid-row:2;
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  overflow-y:auto;
+  padding:20px;
+  display:flex;flex-direction:column;gap:16px;
+}
+.sidebar::-webkit-scrollbar{width:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(139,92,246,.3);border-radius:2px;}
+
+.card{
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  padding:16px;
+}
+.card-title{
+  font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:12px;display:flex;align-items:center;gap:6px;
+}
+.card-title span{font-size:14px;}
+
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+textarea,input,select{
+  width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:8px;color:var(--text);font-size:13px;
+  padding:9px 12px;outline:none;transition:border-color .2s;
+  font-family:inherit;
+}
+textarea:focus,input:focus,select:focus{border-color:var(--purple);}
+textarea{resize:vertical;min-height:80px;line-height:1.5;}
+select option{background:#111827;}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+/* 数字输入滑块 */
+.num-group{display:flex;flex-direction:column;gap:4px;}
+.num-group label{margin-bottom:0;}
+.slider-wrap{display:flex;align-items:center;gap:8px;}
+.slider-wrap input[type=range]{flex:1;accent-color:var(--purple);height:4px;}
+.num-val{font-size:13px;min-width:36px;text-align:right;color:var(--text);}
+
+/* 快速提示词 */
+.quick-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.qtag{
+  font-size:11px;padding:4px 10px;border-radius:20px;
+  background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.25);
+  color:var(--purple);cursor:pointer;transition:background .15s;
+  user-select:none;
+}
+.qtag:hover{background:rgba(139,92,246,.25);}
+
+/* 生成按钮 */
+.gen-btn{
+  width:100%;padding:14px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,var(--purple),#6366f1);
+  color:#fff;font-size:15px;font-weight:800;cursor:pointer;
+  transition:opacity .2s,transform .1s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.gen-btn:hover:not(:disabled){opacity:.9;}
+.gen-btn:active:not(:disabled){transform:scale(.98);}
+.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* 进度 */
+.progress-wrap{display:none;flex-direction:column;gap:6px;}
+.progress-wrap.show{display:flex;}
+.prog-label{font-size:12px;color:var(--muted);}
+.prog-bar{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));width:0%;border-radius:3px;transition:width .3s;}
+
+/* ── 右侧画廊 ── */
+.gallery{
+  grid-row:2;
+  overflow-y:auto;
+  padding:24px;
+  display:flex;flex-direction:column;gap:20px;
+}
+.gallery::-webkit-scrollbar{width:5px;}
+.gallery::-webkit-scrollbar-thumb{background:rgba(139,92,246,.3);border-radius:2px;}
+
+/* 空状态 */
+.empty-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--muted);text-align:center;gap:12px;padding:40px;
+}
+.empty-icon{font-size:56px;opacity:.4;}
+.empty-title{font-size:16px;font-weight:700;color:rgba(255,255,255,.4);}
+.empty-sub{font-size:13px;line-height:1.6;max-width:280px;}
+
+/* 图片卡片 */
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.img-card{
+  background:var(--panel);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+}
+.img-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.5);}
+.img-card img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover;background:#111;}
+.img-meta{padding:12px;display:flex;flex-direction:column;gap:4px;}
+.img-prompt{font-size:11px;color:var(--muted);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.img-actions{display:flex;gap:8px;margin-top:6px;}
+.img-btn{
+  flex:1;padding:7px;border:none;border-radius:8px;font-size:12px;font-weight:600;
+  cursor:pointer;transition:background .15s;
+}
+.img-btn-dl{background:rgba(34,197,94,.15);color:var(--green);}
+.img-btn-dl:hover{background:rgba(34,197,94,.25);}
+.img-btn-cp{background:rgba(139,92,246,.15);color:var(--purple);}
+.img-btn-cp:hover{background:rgba(139,92,246,.25);}
+
+/* 生成中占位 */
+.generating-card{
+  background:var(--panel);border:1px solid rgba(139,92,246,.3);
+  border-radius:14px;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  aspect-ratio:1/1;gap:14px;color:var(--muted);font-size:13px;padding:20px;
+}
+.spin{animation:spin 1.2s linear infinite;font-size:32px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.gen-prog-text{font-size:13px;color:rgba(255,255,255,.7);font-weight:600;}
+
+/* 连接弹窗 */
+.modal-bg{
+  position:fixed;inset:0;z-index:200;background:rgba(7,11,23,.85);backdrop-filter:blur(10px);
+  display:none;align-items:center;justify-content:center;
+}
+.modal-bg.show{display:flex;}
+.modal{
+  background:#0f1628;border:1px solid var(--border);border-radius:20px;
+  padding:32px;width:min(420px,90vw);display:flex;flex-direction:column;gap:16px;
+}
+.modal h3{font-size:18px;font-weight:800;}
+.modal p{font-size:13px;color:var(--muted);line-height:1.6;}
+.modal-btns{display:flex;gap:10px;margin-top:4px;}
+.mbtn{flex:1;padding:11px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;}
+.mbtn-primary{background:linear-gradient(135deg,var(--purple),#6366f1);color:#fff;}
+.mbtn-secondary{background:rgba(255,255,255,.07);color:var(--text);border:1px solid rgba(255,255,255,.12);}
+
+/* toast */
+.toast{
+  position:fixed;bottom:28px;right:28px;z-index:300;
+  background:#1e293b;border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;padding:12px 20px;font-size:13px;
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+  transform:translateY(20px);opacity:0;
+  transition:transform .3s,opacity .3s;pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+
+@media(max-width:760px){
+  .page{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;}
+  .sidebar{grid-row:2;}
+  .gallery{grid-row:3;}
+}
+</style>
+</head>
+<body>
+<div id="particles"></div>
+
+<div class="page">
+  <!-- 顶栏 -->
+  <header>
+    <div class="hlogo">🎨</div>
+    <div>
+      <div class="htitle">AI 创作工坊</div>
+      <div class="hsub">ComfyUI Studio · 本地 AI 绘图</div>
+    </div>
+    <div class="hgap"></div>
+    <div class="hstatus" id="status-btn" onclick="checkConnection()">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">未连接</span>
+    </div>
+    <a class="back-link" onclick="goBack()">← 返回校园</a>
+  </header>
+
+  <!-- 左侧控制面板 -->
+  <aside class="sidebar">
+
+    <!-- 模型设置 -->
+    <div class="card">
+      <div class="card-title"><span>🤖</span> 模型设置</div>
+      <label>模型文件名</label>
+      <input id="ckpt" type="text" placeholder="majicmixRealistic_v7.safetensors"
+             value="majicmixRealistic_v7.safetensors">
+      <div style="margin-top:10px;">
+        <label>ComfyUI 地址</label>
+        <input id="server-url" type="text" value="http://127.0.0.1:8188" placeholder="http://127.0.0.1:8188">
+      </div>
+    </div>
+
+    <!-- 提示词 -->
+    <div class="card">
+      <div class="card-title"><span>✍️</span> 提示词</div>
+      <label>正向提示词（描述你想要的画面）</label>
+      <textarea id="pos-prompt" rows="4" placeholder="portrait of a curious young student, intelligent eyes, Asian features, wearing school uniform, natural lighting, 8k, masterpiece..."></textarea>
+      <div style="margin-top:6px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;">快速标签（点击追加）</div>
+        <div class="quick-tags" id="quick-tags">
+          <span class="qtag" onclick="appendTag('masterpiece, best quality')">高质量</span>
+          <span class="qtag" onclick="appendTag('school uniform')">校服</span>
+          <span class="qtag" onclick="appendTag('campus background')">校园背景</span>
+          <span class="qtag" onclick="appendTag('natural lighting')">自然光</span>
+          <span class="qtag" onclick="appendTag('cinematic lighting')">电影光</span>
+          <span class="qtag" onclick="appendTag('8k, ultra detailed')">超清细节</span>
+          <span class="qtag" onclick="appendTag('anime style')">动漫风格</span>
+          <span class="qtag" onclick="appendTag('realistic')">写实风格</span>
+          <span class="qtag" onclick="appendTag('soft focus, bokeh')">虚化背景</span>
+          <span class="qtag" onclick="appendTag('full body')">全身</span>
+          <span class="qtag" onclick="appendTag('portrait')">头像特写</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label>反向提示词（排除不想要的内容）</label>
+        <textarea id="neg-prompt" rows="2" placeholder="blurry, low quality, distorted, ugly, bad anatomy...">blurry, low quality, distorted, ugly, bad anatomy, watermark, text, signature</textarea>
+      </div>
+    </div>
+
+    <!-- 生成参数 -->
+    <div class="card">
+      <div class="card-title"><span>⚙️</span> 生成参数</div>
+      <div class="row2" style="margin-bottom:12px;">
+        <div>
+          <label>宽度</label>
+          <select id="width">
+            <option value="512" selected>512</option>
+            <option value="768">768</option>
+            <option value="1024">1024</option>
+          </select>
+        </div>
+        <div>
+          <label>高度</label>
+          <select id="height">
+            <option value="512" selected>512</option>
+            <option value="768">768</option>
+            <option value="1024">1024</option>
+          </select>
+        </div>
+      </div>
+      <div class="num-group" style="margin-bottom:10px;">
+        <label>步数（Steps）</label>
+        <div class="slider-wrap">
+          <input type="range" id="steps-slider" min="10" max="50" value="20"
+                 oninput="document.getElementById('steps-val').textContent=this.value;document.getElementById('steps').value=this.value">
+          <span class="num-val" id="steps-val">20</span>
+          <input type="hidden" id="steps" value="20">
+        </div>
+      </div>
+      <div class="num-group" style="margin-bottom:10px;">
+        <label>提示词强度（CFG）</label>
+        <div class="slider-wrap">
+          <input type="range" id="cfg-slider" min="1" max="20" value="8" step="0.5"
+                 oninput="document.getElementById('cfg-val').textContent=this.value;document.getElementById('cfg').value=this.value">
+          <span class="num-val" id="cfg-val">8</span>
+          <input type="hidden" id="cfg" value="8">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label>采样器</label>
+          <select id="sampler">
+            <option value="euler" selected>euler</option>
+            <option value="euler_ancestral">euler_a</option>
+            <option value="dpm_2">dpm_2</option>
+            <option value="dpmpp_2m">dpmpp_2m</option>
+            <option value="ddim">ddim</option>
+          </select>
+        </div>
+        <div>
+          <label>调度器</label>
+          <select id="scheduler">
+            <option value="normal" selected>normal</option>
+            <option value="karras">karras</option>
+            <option value="simple">simple</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <label>随机种子（-1 = 随机）</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="seed" value="-1" style="flex:1;">
+          <button onclick="document.getElementById('seed').value=Math.floor(Math.random()*1e9)"
+            style="padding:9px 14px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(255,255,255,.06);color:var(--text);font-size:13px;cursor:pointer;">🎲</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 生成按钮 + 进度 -->
+    <button class="gen-btn" id="gen-btn" onclick="generate()">
+      ✨ 开始生成
+    </button>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="prog-label" id="prog-label">正在生成… 步骤 0/20</div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+    </div>
+
+  </aside>
+
+  <!-- 右侧画廊 -->
+  <main class="gallery" id="gallery">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">🖼️</div>
+      <div class="empty-title">还没有生成图片</div>
+      <div class="empty-sub">在左侧填写提示词，点击「开始生成」<br>AI 将通过本地 ComfyUI 创作图片</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px 16px;max-width:300px;">
+        💡 确保 ComfyUI 正在运行，<br>默认地址：<strong style="color:var(--cyan);">127.0.0.1:8188</strong><br>
+        点击顶栏「未连接」可检测状态
+      </div>
+    </div>
+    <div class="img-grid" id="img-grid" style="display:none;"></div>
+  </main>
+</div>
+
+<!-- 连接失败弹窗 -->
+<div class="modal-bg" id="conn-modal">
+  <div class="modal">
+    <div style="font-size:32px;">⚠️</div>
+    <h3>无法连接 ComfyUI</h3>
+    <p>请确认 ComfyUI 已经启动并运行在 <strong style="color:var(--cyan);" id="modal-url">http://127.0.0.1:8188</strong></p>
+    <p>启动方法：打开 ComfyUI 文件夹，运行 <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;">run_nvidia_gpu.bat</code> 或 <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;">python main.py</code>，然后刷新本页。</p>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-secondary" onclick="document.getElementById('conn-modal').classList.remove('show')">关闭</button>
+      <button class="mbtn mbtn-primary" onclick="document.getElementById('conn-modal').classList.remove('show');checkConnection()">重试连接</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── 粒子背景 ─────────────────────────────────────────────
+(function(){
+  const w=document.getElementById('particles');
+  const cols=['#8b5cf633','#6366f133','#22d3ee22','#f5a62322'];
+  for(let i=0;i<20;i++){
+    const p=document.createElement('div'); p.className='p-dot';
+    const s=4+Math.random()*10;
+    p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;bottom:-10px;background:${cols[i%4]};animation-duration:${10+Math.random()*15}s;animation-delay:${Math.random()*12}s;`;
+    w.appendChild(p);
+  }
+})();
+
+// ── 辅助工具 ─────────────────────────────────────────────
+function showToast(msg, dur=2800){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+function goBack(){
+  if(window.parent && window.parent.document.getElementById('close-web-btn')){
+    window.parent.document.getElementById('close-web-btn').click();
+  } else {
+    history.back();
+  }
+}
+function appendTag(tag){
+  const el=document.getElementById('pos-prompt');
+  const cur=el.value.trim();
+  el.value = cur ? cur+', '+tag : tag;
+  el.focus();
+}
+
+// ── 服务器地址 ─────────────────────────────────────────────
+function getServer(){ return (document.getElementById('server-url').value||'http://127.0.0.1:8188').replace(/\/$/, ''); }
+
+// ── 连接检测 ─────────────────────────────────────────────
+let _connected=false;
+async function checkConnection(){
+  const dot=document.getElementById('status-dot');
+  const txt=document.getElementById('status-text');
+  txt.textContent='检测中…';
+  try{
+    const url=getServer();
+    const r=await fetch(url+'/api/queue', {signal: AbortSignal.timeout(3000)});
+    if(r.ok){
+      _connected=true;
+      dot.classList.add('online');
+      txt.textContent='已连接';
+      showToast('✅ ComfyUI 连接成功！');
+      return true;
+    }
+  }catch(e){}
+  _connected=false;
+  dot.classList.remove('online');
+  txt.textContent='未连接';
+  document.getElementById('modal-url').textContent=getServer();
+  document.getElementById('conn-modal').classList.add('show');
+  return false;
+}
+
+// ── 生成图片 ─────────────────────────────────────────────
+let _generating=false;
+async function generate(){
+  if(_generating){ showToast('⏳ 正在生成中，请稍候…'); return; }
+
+  // 检查连接
+  if(!_connected){
+    const ok=await checkConnection();
+    if(!ok) return;
+  }
+
+  const pos=document.getElementById('pos-prompt').value.trim();
+  if(!pos){ showToast('请先输入提示词！'); return; }
+
+  _generating=true;
+  const btn=document.getElementById('gen-btn');
+  btn.disabled=true; btn.innerHTML='⏳ 生成中…';
+
+  // 显示进度区域
+  const pw=document.getElementById('progress-wrap');
+  const pf=document.getElementById('prog-fill');
+  const pl=document.getElementById('prog-label');
+  pw.classList.add('show'); pf.style.width='5%'; pl.textContent='正在排队…';
+
+  // 在画廊中先插入占位卡片
+  const imgGrid=document.getElementById('img-grid');
+  const emptyState=document.getElementById('empty-state');
+  emptyState.style.display='none';
+  imgGrid.style.display='grid';
+
+  const placeholder=document.createElement('div');
+  placeholder.className='generating-card';
+  placeholder.id='gen-placeholder';
+  placeholder.innerHTML=`
+    <div class="spin">⚙️</div>
+    <div class="gen-prog-text" id="gen-prog-text">正在排队…</div>
+    <div style="font-size:11px;color:var(--muted);max-width:200px;text-align:center;">${pos.slice(0,60)}${pos.length>60?'…':''}</div>`;
+  imgGrid.insertBefore(placeholder, imgGrid.firstChild);
+
+  try{
+    const server=getServer();
+    const clientId='campus-'+Math.random().toString(36).slice(2,10);
+
+    // 构建工作流 JSON
+    const seed=parseInt(document.getElementById('seed').value)||0;
+    const realSeed=seed<0 ? Math.floor(Math.random()*1e9) : seed;
+    const workflow={
+      "1":{ "class_type":"CheckpointLoaderSimple",
+            "inputs":{"ckpt_name":document.getElementById('ckpt').value.trim()||"v1-5-pruned-emaonly.ckpt"}},
+      "2":{ "class_type":"CLIPTextEncode",
+            "inputs":{"text":pos,"clip":["1",1]}},
+      "3":{ "class_type":"CLIPTextEncode",
+            "inputs":{"text":document.getElementById('neg-prompt').value||"","clip":["1",1]}},
+      "4":{ "class_type":"EmptyLatentImage",
+            "inputs":{"width":parseInt(document.getElementById('width').value)||512,
+                      "height":parseInt(document.getElementById('height').value)||512,
+                      "batch_size":1}},
+      "5":{ "class_type":"KSampler",
+            "inputs":{"model":["1",0],"positive":["2",0],"negative":["3",0],
+                      "latent_image":["4",0],"seed":realSeed,
+                      "steps":parseInt(document.getElementById('steps').value)||20,
+                      "cfg":parseFloat(document.getElementById('cfg').value)||7.5,
+                      "sampler_name":document.getElementById('sampler').value||"euler",
+                      "scheduler":document.getElementById('scheduler').value||"normal",
+                      "denoise":1.0}},
+      "6":{ "class_type":"VAEDecode","inputs":{"samples":["5",0],"vae":["1",2]}},
+      "7":{ "class_type":"SaveImage","inputs":{"images":["6",0],"filename_prefix":"campus-ai"}}
+    };
+
+    // 提交到 ComfyUI 队列
+    const resp=await fetch(server+'/api/prompt', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:workflow, client_id:clientId})
+    });
+    if(!resp.ok) throw new Error('提交失败：HTTP '+resp.status);
+    const {prompt_id}=await resp.json();
+    if(!prompt_id) throw new Error('服务器未返回 prompt_id');
+
+    // 轮询直到完成
+    const totalSteps=parseInt(document.getElementById('steps').value)||20;
+    let done=false;
+    let pollCount=0;
+    while(!done && pollCount<300){
+      await new Promise(r=>setTimeout(r,1000));
+      pollCount++;
+
+      // 查进度
+      try{
+        const qr=await fetch(server+'/api/queue');
+        const qj=await qr.json();
+        const running=qj.queue_running||[];
+        const isRunning=running.some(item=>Array.isArray(item)&&item[1]===prompt_id);
+        if(isRunning){
+          // 尝试获取步数进度
+          const step=Math.min(pollCount*2, totalSteps-1);
+          const pct=Math.round((step/totalSteps)*85)+5;
+          pf.style.width=pct+'%';
+          pl.textContent=`生成中… 约 ${step}/${totalSteps} 步`;
+          const el=document.getElementById('gen-prog-text');
+          if(el) el.textContent=`生成中… ${step}/${totalSteps}`;
+        }
+      }catch(e){}
+
+      // 查历史（完成后会出现）
+      try{
+        const hr=await fetch(server+'/api/history/'+prompt_id);
+        const hj=await hr.json();
+        if(hj[prompt_id] && hj[prompt_id].outputs){
+          const outputs=hj[prompt_id].outputs;
+          let imgInfo=null;
+          for(const nodeId in outputs){
+            const nodeOut=outputs[nodeId];
+            if(nodeOut.images && nodeOut.images.length>0){
+              imgInfo=nodeOut.images[0]; break;
+            }
+          }
+          if(imgInfo){
+            done=true;
+            pf.style.width='100%'; pl.textContent='生成完成！';
+            const el=document.getElementById('gen-prog-text');
+            if(el) el.textContent='✅ 完成！';
+
+            // 拼接图片 URL
+            const imgUrl=`${server}/view?filename=${encodeURIComponent(imgInfo.filename)}&type=${imgInfo.type||'output'}&subfolder=${encodeURIComponent(imgInfo.subfolder||'')}`;
+
+            // 替换占位卡片为真实图片
+            const card=document.createElement('div');
+            card.className='img-card';
+            card.innerHTML=`
+              <img src="${imgUrl}" alt="AI生成图片" loading="lazy"
+                   onerror="this.style.background='#1e293b';this.alt='图片加载失败'">
+              <div class="img-meta">
+                <div class="img-prompt" title="${pos}">${pos}</div>
+                <div style="font-size:10px;color:var(--muted);">种子: ${realSeed} · ${document.getElementById('width').value}×${document.getElementById('height').value}</div>
+                <div class="img-actions">
+                  <button class="img-btn img-btn-dl" onclick="downloadImg('${imgUrl}', 'campus-ai-${realSeed}.png')">⬇ 下载</button>
+                  <button class="img-btn img-btn-cp" onclick="copyImgUrl('${imgUrl}')">🔗 复制链接</button>
+                </div>
+              </div>`;
+            imgGrid.replaceChild(card, placeholder);
+          }
+        }
+      }catch(e){}
+    }
+    if(!done){
+      throw new Error('等待超时，请检查 ComfyUI 是否正常运行');
+    }
+
+  }catch(err){
+    console.error(err);
+    // 移除占位
+    if(placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+    if(imgGrid.children.length===0){ emptyState.style.display=''; imgGrid.style.display='none'; }
+    showToast('❌ '+err.message, 4000);
+    if(!_connected){ document.getElementById('conn-modal').classList.add('show'); }
+  }finally{
+    _generating=false;
+    btn.disabled=false; btn.innerHTML='✨ 开始生成';
+    setTimeout(()=>{ pw.classList.remove('show'); pf.style.width='0%'; },2000);
+  }
+}
+
+function downloadImg(url, name){
+  const a=document.createElement('a');
+  a.href=url; a.download=name||'campus-ai.png';
+  a.style.display='none'; document.body.appendChild(a);
+  a.click(); setTimeout(()=>document.body.removeChild(a),200);
+  showToast('⬇ 开始下载图片…');
+}
+function copyImgUrl(url){
+  navigator.clipboard.writeText(url).then(()=>showToast('✅ 图片链接已复制！')).catch(()=>showToast('复制失败，请手动复制'));
+}
+
+// ── 入口：自动尝试连接 ─────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  // 静默尝试连接
+  fetch(getServer()+'/api/queue',{signal:AbortSignal.timeout(2500)})
+    .then(r=>{ if(r.ok){ _connected=true; document.getElementById('status-dot').classList.add('online'); document.getElementById('status-text').textContent='已连接'; }})
+    .catch(()=>{});
+});
+</script>
+</body>
+</html>
