@@ -4183,6 +4183,28 @@
                 scene.add(flagMesh);
                 const origPos=flagGeo.attributes.position.array.slice();
                 window._flagAnim={mesh:flagMesh, orig:origPos, FW};
+
+                // 升旗台基座（三级圆台+外围地砖圆盘）
+                const _baseM=new THREE.MeshLambertMaterial({color:0xd8d0c4});
+                const _baseM2=new THREE.MeshLambertMaterial({color:0xc4bcb0});
+                [[2.8,3.2,0.12],[2.0,2.5,0.22],[1.2,1.5,0.32]].forEach(function(r,i){
+                    const _c=new THREE.Mesh(new THREE.CylinderGeometry(r[0],r[1],r[2],16),i<2?_baseM:_baseM2);
+                    _c.position.set(FPX, r[2]/2+0.12*i, FPZ);
+                    _c._noMerge=true; scene.add(_c);
+                });
+                // 外围广场地砖圆盘（深色花岗岩环）
+                const _ring=new THREE.Mesh(new THREE.RingGeometry(3.0,5.5,24),
+                    new THREE.MeshLambertMaterial({color:0xb8b0a8,side:THREE.DoubleSide}));
+                _ring.rotation.x=-Math.PI/2; _ring.position.set(FPX,0.009,FPZ);
+                _ring._noMerge=true; scene.add(_ring);
+                // 十字形导向路径（4条石板路向外延伸）
+                const _pathM=new THREE.MeshLambertMaterial({color:0xc8c0b4});
+                [[1,0],[0,1],[-1,0],[0,-1]].forEach(function(d){
+                    const _p=new THREE.Mesh(new THREE.BoxGeometry(
+                        d[0]?1.2:7, 0.012, d[1]?1.2:7), _pathM);
+                    _p.position.set(FPX+d[0]*6, 0.009, FPZ+d[1]*6);
+                    _p._noMerge=true; scene.add(_p);
+                });
             }
 
             // ── 雨天地面湿润反光平面（groundWetness 驱动透明度）──
@@ -5112,7 +5134,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v49'; // v49：樱花花瓣飘落（280片InstancedMesh，随风漂移旋转）
+        const MAP_VER = 'campus_v50'; // v50：升旗台三级石台基座+外围花岗岩圆盘+十字石板路
 
         function _dbOpen(cb) {
             try {
