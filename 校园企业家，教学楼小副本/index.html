@@ -4185,6 +4185,33 @@
                 window._flagAnim={mesh:flagMesh, orig:origPos, FW};
             }
 
+            // ── 鸟群（白天在校园上空椭圆轨道飞行）──
+            if (!window._birdInited) {
+                window._birdInited=true;
+                const BCNT=18;
+                const bGeo=new THREE.PlaneGeometry(0.75,0.14);
+                const bMat=new THREE.MeshBasicMaterial({color:0x1a1a1a,side:THREE.DoubleSide,fog:false,depthWrite:true});
+                const bInst=new THREE.InstancedMesh(bGeo,bMat,BCNT);
+                bInst._noMerge=true; bInst.frustumCulled=false; bInst.renderOrder=1;
+                const birds=[];
+                for(let i=0;i<BCNT;i++){
+                    birds.push({
+                        cx:(Math.random()-0.5)*80,
+                        cy:32+Math.random()*28,
+                        cz:(Math.random()-0.5)*80+20,
+                        rx:18+Math.random()*28,
+                        rz:14+Math.random()*22,
+                        spd:(0.25+Math.random()*0.35)*(Math.random()<0.5?1:-1),
+                        angle:Math.random()*Math.PI*2,
+                        flapF:2.6+Math.random()*2.8,
+                        phase:Math.random()*Math.PI*2
+                    });
+                }
+                bInst.userData.birds=birds;
+                scene.add(bInst);
+                window._birdInst=bInst;
+            }
+
             if (skipMergedExtras) return;
 
             function makeTree(x, z, h, cr, cc) { addLowPolyTree(x, z, h, cr, cc); }
@@ -5037,7 +5064,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v45'; // v45：正门广场旗杆+飘动红旗（双频sin波形）
+        const MAP_VER = 'campus_v46'; // v46：鸟群飞行动画（18只，椭圆轨道，白天可见）
 
         function _dbOpen(cb) {
             try {
@@ -8678,6 +8705,31 @@
                     ring.scale.setScalar(1 + t * 26);
                     ring.material.opacity = Math.max(0, (1 - t) * 0.42);
                 });
+            }
+
+            // ── 鸟群飞行动画 ──
+            if (window._birdInst) {
+                const bi=window._birdInst;
+                const bt=time*0.001;
+                const _bdf=window._dayFactor!=null?window._dayFactor:0;
+                bi.visible=_bdf>0.25;
+                if(bi.visible){
+                    const M=new THREE.Matrix4(), R=new THREE.Matrix4(), S=new THREE.Matrix4();
+                    bi.userData.birds.forEach(function(b,i){
+                        b.angle+=b.spd*0.016;
+                        const bx=b.cx+Math.cos(b.angle)*b.rx;
+                        const bz=b.cz+Math.sin(b.angle)*b.rz;
+                        const by=b.cy+Math.sin(bt*b.flapF+b.phase)*2.5;
+                        const yaw=b.angle+Math.PI*0.5;
+                        const pitch=Math.sin(bt*b.flapF+b.phase)*0.18;
+                        M.makeTranslation(bx,by,bz);
+                        R.makeRotationY(yaw); M.multiply(R);
+                        R.makeRotationZ(pitch); M.multiply(R);
+                        S.makeScale(1,1,1); M.multiply(S);
+                        bi.setMatrixAt(i,M);
+                    });
+                    bi.instanceMatrix.needsUpdate=true;
+                }
             }
 
             // ── 旗帜飘动（双频 sin 叠加，模拟风吹涟漪）──
