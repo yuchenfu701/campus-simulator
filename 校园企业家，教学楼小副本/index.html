@@ -5064,7 +5064,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v46'; // v46：鸟群飞行动画（18只，椭圆轨道，白天可见）
+        const MAP_VER = 'campus_v47'; // v47：教学楼正门Canvas文字标牌（北京四中第一教学楼）
 
         function _dbOpen(cb) {
             try {
@@ -5469,6 +5469,33 @@
             // 楼名标牌（门上横梁处）
             vb(0, ENTR_H_GLOB+0.3, BZ2+0.09, 9.0, 0.55, 0.14, 0x1a4c8a, 1);
             vb(0, ENTR_H_GLOB+0.3, BZ2+0.15, 8.2, 0.38, 0.12, 0xffffff, 1);
+            // Canvas 文字贴图（每次页面加载重建，不进缓存）
+            if (!window._bldgSignInited) {
+                window._bldgSignInited = true;
+                const _sc = document.createElement('canvas');
+                _sc.width = 1024; _sc.height = 96;
+                const _sx = _sc.getContext('2d');
+                _sx.clearRect(0, 0, 1024, 96);
+                // 金色竖线装饰
+                _sx.fillStyle = '#c8a830';
+                _sx.fillRect(22, 14, 4, 68);
+                _sx.fillRect(998, 14, 4, 68);
+                // 主文字
+                _sx.fillStyle = '#1a3a7a';
+                _sx.font = 'bold 62px "Microsoft YaHei","PingFang SC",sans-serif';
+                _sx.textAlign = 'center';
+                _sx.textBaseline = 'middle';
+                _sx.fillText('北京四中  第一教学楼', 512, 50);
+                // 细横线
+                _sx.fillStyle = '#c8a830';
+                _sx.fillRect(40, 82, 944, 2);
+                const _stex = new THREE.CanvasTexture(_sc);
+                const _smat = new THREE.MeshBasicMaterial({map:_stex, transparent:true, depthWrite:false});
+                const _smesh = new THREE.Mesh(new THREE.PlaneGeometry(8.0, 0.34), _smat);
+                _smesh.position.set(0, ENTR_H_GLOB+0.3, BZ2+0.18);
+                _smesh._noMerge = true;
+                scene.add(_smesh);
+            }
 
             // ── 互动式大门（左右两扇，E键开关，绕铰链轴旋转）──
             const doorMatGlass=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false});
