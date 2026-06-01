@@ -194,132 +194,339 @@
     <!-- 楼层指示器 -->
     <div id="floor-indicator">1F</div>
 
-    <!-- 地图加载进度提示（背景视频就绪后将video元素的src填入即可） -->
+    <!-- ══════════════════════════════════════════════════════════
+         三角洲级加载动画 - 循环叙事版
+         背景GIF自动循环，每次切换时淡入淡出并推进剧情文字
+         GIF就绪后将 assets/loading-bg.gif 放入即自动启用
+    ════════════════════════════════════════════════════════════ -->
     <div id="map-loading">
-        <!-- 背景视频插槽（AI生成后将src填入，目前显示CSS渐变） -->
-        <video id="load-bg-video" autoplay muted loop playsinline
-            style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.45;display:none;">
-            <!-- <source src="../assets/loading-bg.mp4" type="video/mp4"> -->
-        </video>
-        <!-- 粒子装饰层 -->
-        <div class="load-particles" id="load-particles"></div>
-        <!-- 内容层 -->
-        <div class="load-content">
-            <!-- 校徽圆圈动画 -->
-            <div class="load-emblem">
-                <div class="load-emblem-ring"></div>
-                <div class="load-emblem-ring load-emblem-ring2"></div>
-                <span class="load-emblem-icon">🏫</span>
+
+        <!-- ① 背景：AI生成的GIF（放入assets/loading-bg.gif即生效） -->
+        <img id="load-bg-gif"
+             src="../assets/loading-bg.gif"
+             onerror="this.style.display='none'"
+             style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
+
+        <!-- ② 深色蒙版（确保文字可读，并作为无GIF时的备用背景） -->
+        <div id="load-color-bg"></div>
+
+        <!-- ③ 四角晕影 -->
+        <div id="load-vignette"></div>
+
+        <!-- ④ 扫描线（微弱CRT质感） -->
+        <div id="load-scanlines"></div>
+
+        <!-- ⑤ 循环过渡遮罩（全屏黑，JS控制淡入淡出盖住循环接缝） -->
+        <div id="load-loop-mask"></div>
+
+        <!-- ⑥ 上下电影遮幅条 -->
+        <div id="load-bar-top"></div>
+        <div id="load-bar-bot"></div>
+
+        <!-- ⑦ 左上角：校徽 + 学校名 -->
+        <div id="load-school-badge">
+            <div class="lsb-rings">
+                <div class="lsb-ring r1"></div>
+                <div class="lsb-ring r2"></div>
+                <span class="lsb-icon">🏫</span>
             </div>
-            <div class="load-title">校园漫游</div>
-            <div class="load-subtitle" id="load-hint">初始化…</div>
+            <div class="lsb-text">
+                <div class="lsb-name">爱哲安民未来学校</div>
+                <div class="lsb-eng">AIZHE ANMIN FUTURE ACADEMY</div>
+            </div>
+        </div>
+
+        <!-- ⑧ 右上角：年份标记 -->
+        <div id="load-year-tag">A · D · 3025</div>
+
+        <!-- ⑨ 左下角：剧情文字面板 -->
+        <div id="load-story">
+            <div id="load-story-line"></div><!-- 横线装饰 -->
+            <div id="load-story-chapter"></div><!-- 章节标题 -->
+            <div id="load-story-body"></div><!-- 正文 -->
+        </div>
+
+        <!-- ⑩ 底部：进度条区域 -->
+        <div id="load-bottom">
+            <div id="load-hint" class="load-hint-txt">正在初始化…</div>
             <div class="load-bar-wrap">
+                <div class="load-bar-glow"></div>
                 <div id="load-bar" class="load-bar-fill"></div>
             </div>
-            <div class="load-tip">首次加载约3-5秒 · 之后从缓存快速读取</div>
-            <button id="skip-vrm-btn" onclick="window._skipVrmLoad&&window._skipVrmLoad()" class="load-skip-btn" style="display:none;">
-                ⏩ 跳过角色加载，直接进入
-            </button>
+            <div id="load-pct">0%</div>
         </div>
-    </div>
+
+        <!-- ⑪ 跳过按钮 -->
+        <button id="skip-vrm-btn"
+                onclick="window._skipVrmLoad&&window._skipVrmLoad()"
+                class="load-skip-btn" style="display:none;">
+            ⏩ 跳过角色加载
+        </button>
+
+    </div><!-- #map-loading -->
+
     <style>
+    /* ────────── 容器 ────────── */
     #map-loading {
         position:fixed; inset:0; z-index:9999;
-        display:flex; align-items:center; justify-content:center;
-        background:linear-gradient(135deg, #050e24 0%, #0a1840 40%, #0d2860 70%, #061428 100%);
-        font-family:'Microsoft YaHei',sans-serif;
-        overflow:hidden;
+        font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+        overflow:hidden; cursor:default;
+        /* 无GIF时的备用渐变背景 */
+        background:linear-gradient(160deg,#03060f 0%,#050e24 35%,#071840 65%,#03060f 100%);
     }
-    /* 动态粒子 */
-    .load-particles { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
-    @keyframes floatUp {
-        0%   { transform:translateY(0) scale(1); opacity:0.7; }
-        100% { transform:translateY(-100vh) scale(0.4); opacity:0; }
+
+    /* ────────── 深色蒙版（保留GIF色调，同时保证文字可读） ────────── */
+    #load-color-bg {
+        position:absolute; inset:0; z-index:1;
+        background:linear-gradient(
+            to bottom,
+            rgba(2,6,18,.45)  0%,
+            rgba(2,6,18,.20) 40%,
+            rgba(2,6,18,.55) 75%,
+            rgba(2,6,18,.85) 100%
+        );
     }
-    .load-particle {
-        position:absolute; bottom:-10px; border-radius:50%;
-        background:rgba(100,180,255,0.55);
-        animation:floatUp linear infinite;
+
+    /* ────────── 晕影 ────────── */
+    #load-vignette {
+        position:absolute; inset:0; z-index:2; pointer-events:none;
+        background:radial-gradient(ellipse at 50% 45%,
+            transparent 45%, rgba(0,0,0,.72) 100%);
     }
-    /* 内容层 */
-    .load-content {
-        position:relative; z-index:2;
-        display:flex; flex-direction:column; align-items:center; gap:16px;
+
+    /* ────────── 扫描线 ────────── */
+    #load-scanlines {
+        position:absolute; inset:0; z-index:3; pointer-events:none;
+        background:repeating-linear-gradient(
+            0deg, transparent, transparent 2px,
+            rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 4px);
     }
-    /* 校徽动画 */
-    .load-emblem { position:relative; width:88px; height:88px; margin-bottom:4px; }
-    @keyframes spinRing { to { transform:rotate(360deg); } }
-    @keyframes spinRing2 { to { transform:rotate(-360deg); } }
-    .load-emblem-ring {
+
+    /* ────────── 循环遮罩（默认透明，JS控制淡黑） ────────── */
+    #load-loop-mask {
+        position:absolute; inset:0; z-index:20;
+        background:#000; opacity:0;
+        transition:opacity .55s ease;
+        pointer-events:none;
+    }
+
+    /* ────────── 电影遮幅 ────────── */
+    #load-bar-top, #load-bar-bot {
+        position:absolute; left:0; right:0; z-index:10;
+        background:#000;
+        transition:height .8s cubic-bezier(.4,0,.2,1);
+    }
+    #load-bar-top { top:0; height:0; }
+    #load-bar-bot { bottom:0; height:0; }
+    #map-loading.cinematic #load-bar-top { height:7vh; }
+    #map-loading.cinematic #load-bar-bot { height:10vh; }
+
+    /* ────────── 校徽 + 学校名（左上） ────────── */
+    #load-school-badge {
+        position:absolute; top:max(9vh,48px); left:40px; z-index:15;
+        display:flex; align-items:center; gap:14px;
+        opacity:0; animation:lsFadeSlide .9s .4s forwards;
+    }
+    .lsb-rings {
+        position:relative; width:54px; height:54px; flex-shrink:0;
+    }
+    @keyframes lsSpinA { to{transform:rotate(360deg);} }
+    @keyframes lsSpinB { to{transform:rotate(-360deg);} }
+    .lsb-ring {
         position:absolute; inset:0; border-radius:50%;
-        border:2.5px solid transparent;
-        border-top-color:#5abbff; border-right-color:#3a7bd5;
-        animation:spinRing 1.8s linear infinite;
+        border:2px solid transparent;
     }
-    .load-emblem-ring2 {
-        inset:8px;
-        border-top-color:transparent; border-right-color:transparent;
-        border-bottom-color:#7dd4ff; border-left-color:#2a5bc0;
-        animation:spinRing2 2.4s linear infinite;
+    .r1 { border-top-color:#5abbff; border-right-color:#2a7bd5;
+          animation:lsSpinA 2.2s linear infinite; }
+    .r2 { inset:7px; border-bottom-color:#7dd4ff; border-left-color:#1a5bc0;
+          animation:lsSpinB 3s linear infinite; }
+    .lsb-icon {
+        position:absolute; inset:0; display:flex;
+        align-items:center; justify-content:center; font-size:24px;
     }
-    .load-emblem-icon {
-        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-        font-size:38px;
+    .lsb-name {
+        font-size:18px; font-weight:700; letter-spacing:3px;
+        color:#e8f4ff;
+        text-shadow:0 0 18px rgba(80,180,255,.8),0 1px 4px rgba(0,0,0,.9);
     }
-    /* 标题 */
-    .load-title {
-        font-size:28px; font-weight:bold; letter-spacing:6px;
-        color:#e0f4ff;
-        text-shadow:0 0 24px rgba(80,180,255,0.7), 0 2px 6px rgba(0,0,0,0.6);
+    .lsb-eng {
+        font-size:9px; letter-spacing:2px; color:#4a8ab0; margin-top:3px;
     }
-    /* 副标题 */
-    .load-subtitle {
-        font-size:13px; color:#7dd4ff; min-height:20px;
-        letter-spacing:1px; opacity:0.88;
+
+    /* ────────── 年份标记（右上） ────────── */
+    #load-year-tag {
+        position:absolute; top:max(9vh,48px); right:40px; z-index:15;
+        font-size:12px; letter-spacing:5px; color:#2a6090;
+        font-weight:300;
+        opacity:0; animation:lsFadeSlide .9s .7s forwards;
     }
-    /* 进度条 */
+
+    /* ────────── 剧情文字（左下） ────────── */
+    #load-story {
+        position:absolute; left:40px; bottom:max(12vh,80px); z-index:15;
+        max-width:520px;
+    }
+    #load-story-line {
+        width:0; height:1px;
+        background:linear-gradient(90deg,#3a8ad5,transparent);
+        margin-bottom:10px;
+        transition:width .6s ease;
+    }
+    #load-story-line.active { width:200px; }
+    #load-story-chapter {
+        font-size:11px; letter-spacing:4px; color:#3a8ad5;
+        text-transform:uppercase; margin-bottom:7px;
+        min-height:16px;
+        transition:opacity .4s ease;
+    }
+    #load-story-body {
+        font-size:16px; line-height:1.8; color:rgba(220,235,255,.9);
+        font-weight:300; letter-spacing:1px;
+        text-shadow:0 1px 6px rgba(0,0,0,.9);
+        min-height:28px;
+        transition:opacity .4s ease;
+    }
+
+    /* ────────── 底部进度条区域 ────────── */
+    #load-bottom {
+        position:absolute; bottom:24px; left:50%; z-index:15;
+        transform:translateX(-50%);
+        display:flex; flex-direction:column; align-items:center; gap:7px;
+        width:min(420px,80vw);
+        opacity:0; animation:lsFadeUp .7s 1s forwards;
+    }
+    .load-hint-txt {
+        font-size:11px; color:#3a6080; letter-spacing:1.5px;
+        min-height:16px; text-align:center;
+    }
     .load-bar-wrap {
-        width:300px; height:5px;
-        background:rgba(255,255,255,0.08);
-        border-radius:3px; overflow:hidden;
-        box-shadow:0 0 10px rgba(60,130,255,0.3);
+        position:relative; width:100%; height:3px;
+        background:rgba(255,255,255,.07);
+        border-radius:2px; overflow:visible;
+    }
+    .load-bar-glow {
+        position:absolute; inset:-3px; border-radius:4px;
+        background:transparent;
+        box-shadow:0 0 14px rgba(60,150,255,.25);
+        pointer-events:none;
     }
     .load-bar-fill {
-        width:0%; height:100%; border-radius:3px;
-        background:linear-gradient(90deg,#2a6ad5,#7dd4ff,#b0e8ff);
-        transition:width 0.5s ease;
-        box-shadow:0 0 8px rgba(120,200,255,0.8);
+        width:0%; height:100%; border-radius:2px;
+        background:linear-gradient(90deg,#1a4ad5,#5abbff,#b0e8ff);
+        transition:width .5s ease;
+        box-shadow:0 0 10px rgba(120,200,255,.9);
     }
-    /* 提示文字 */
-    .load-tip { font-size:11px; color:#3a6080; letter-spacing:0.5px; }
-    /* 跳过按钮 */
+    #load-pct {
+        font-size:10px; color:#2a5070; letter-spacing:2px;
+        align-self:flex-end;
+    }
+
+    /* ────────── 跳过按钮 ────────── */
     .load-skip-btn {
-        padding:8px 24px;
-        background:rgba(60,120,255,0.15); color:#7dd4ff;
-        border:1px solid rgba(80,160,255,0.35); border-radius:20px;
-        font-size:13px; cursor:pointer; letter-spacing:1px;
-        transition:all 0.25s; font-family:inherit;
+        position:absolute; bottom:24px; right:32px; z-index:16;
+        padding:7px 20px;
+        background:rgba(40,100,200,.15); color:#5abbff;
+        border:1px solid rgba(60,140,255,.3); border-radius:20px;
+        font-size:12px; cursor:pointer; letter-spacing:1px;
+        font-family:inherit;
+        transition:all .2s;
     }
-    .load-skip-btn:hover { background:rgba(60,120,255,0.28); transform:translateY(-1px); }
+    .load-skip-btn:hover { background:rgba(40,100,200,.3); }
+
+    /* ────────── 通用动画 ────────── */
+    @keyframes lsFadeSlide {
+        from { opacity:0; transform:translateY(-12px); }
+        to   { opacity:1; transform:translateY(0); }
+    }
+    @keyframes lsFadeUp {
+        from { opacity:0; transform:translateX(-50%) translateY(10px); }
+        to   { opacity:1; transform:translateX(-50%) translateY(0); }
+    }
     </style>
+
     <script>
-    /* 生成随机漂浮粒子 */
+    /* ════════════════════════════════════════════════
+       三角洲级加载动画控制器
+       - GIF_DURATION：与AI生成的GIF时长匹配（48帧@8fps=6000ms）
+       - 每循环结束前500ms淡出 → 推进剧情文字 → 淡入
+       - 外部通过 window._setLoadProgress(pct, hint) 更新进度
+    ════════════════════════════════════════════════ */
     (function(){
-        const el=document.getElementById('load-particles');
-        if(!el) return;
-        for(let i=0;i<22;i++){
-            const p=document.createElement('div');
-            p.className='load-particle';
-            const sz=3+Math.random()*5;
-            p.style.cssText=[
-                'width:'+sz+'px','height:'+sz+'px',
-                'left:'+(Math.random()*100)+'%',
-                'animation-duration:'+(6+Math.random()*10)+'s',
-                'animation-delay:'+(-Math.random()*12)+'s',
-                'opacity:'+(0.3+Math.random()*0.5)
-            ].join(';');
-            el.appendChild(p);
+        var GIF_DURATION = 6000; // ← 如果重新生成了不同时长的GIF，改这里
+
+        var STORY = [
+            { chapter:'',            body:'' },
+            { chapter:'公元 3025 年', body:'文明与战争交织，世界已面目全非' },
+            { chapter:'神明降下神罚', body:'世间美好，变成了斗争的游戏' },
+            { chapter:'在混乱之中',   body:'一所学校，屹立不倒' },
+            { chapter:'爱哲 · 安民',  body:'薪火相传，是这里永恒的信仰' },
+            { chapter:'你的故事',     body:'从今天，正式开始' },
+        ];
+
+        var storyIdx = 0;
+        var mask    = document.getElementById('load-loop-mask');
+        var chapter = document.getElementById('load-story-chapter');
+        var body    = document.getElementById('load-story-body');
+        var line    = document.getElementById('load-story-line');
+        var wrap    = document.getElementById('map-loading');
+
+        /* 启动电影遮幅动画 */
+        setTimeout(function(){ wrap.classList.add('cinematic'); }, 200);
+
+        /* 设置第一段文字（无过渡，直接显示） */
+        function setStory(idx){
+            var s = STORY[idx] || STORY[0];
+            chapter.textContent = s.chapter;
+            body.textContent    = s.body;
+            if(s.chapter){ line.classList.add('active'); }
+            else          { line.classList.remove('active'); }
         }
+
+        /* 循环切换：淡出 → 推进文字 → 淡入 */
+        function doTransition(){
+            // 1. 淡出（全屏黑幕压上来）
+            mask.style.opacity = '1';
+
+            setTimeout(function(){
+                // 2. 黑幕期间推进文字
+                storyIdx = (storyIdx + 1) % STORY.length;
+                chapter.style.opacity = '0';
+                body.style.opacity    = '0';
+                setTimeout(function(){
+                    setStory(storyIdx);
+                    chapter.style.opacity = '1';
+                    body.style.opacity    = '1';
+                }, 120);
+
+                // 3. 淡入（揭幕）
+                setTimeout(function(){
+                    mask.style.opacity = '0';
+                }, 200);
+            }, 550);
+        }
+
+        /* 第一次：在GIF快结束时触发过渡 */
+        setTimeout(function(){
+            doTransition();
+            /* 之后每隔一个GIF周期触发一次 */
+            setInterval(doTransition, GIF_DURATION);
+        }, GIF_DURATION - 500);
+
+        /* 入场后1秒显示第一段文字 */
+        setTimeout(function(){ setStory(0); }, 800);
+
+        /* ── 对外接口：进度更新（已有的加载代码调用这里不变） ── */
+        var lastPct = 0;
+        window._setLoadProgress = function(pct, hint){
+            pct = Math.max(lastPct, Math.min(100, pct));
+            lastPct = pct;
+            var bar = document.getElementById('load-bar');
+            if(bar) bar.style.width = pct + '%';
+            var pctEl = document.getElementById('load-pct');
+            if(pctEl) pctEl.textContent = pct + '%';
+            var hintEl = document.getElementById('load-hint');
+            if(hintEl && hint) hintEl.textContent = hint;
+        };
     })();
     </script>
 
