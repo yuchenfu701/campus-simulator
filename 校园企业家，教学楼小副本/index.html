@@ -1685,15 +1685,16 @@
             document.body.appendChild(renderer.domElement);
             
             // 半球光：柔和天青 + 暖土色地面反射（整体更温润、少荧光感）
-            const hemisphereLight = new THREE.HemisphereLight(0x9eb8e0, 0xb8a080, 0.4);
+            const hemisphereLight = new THREE.HemisphereLight(0x9eb8e0, 0xb8a080, 0.48);
             _hemiLight = hemisphereLight;
             scene.add(hemisphereLight);
 
-            const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.07);
+            // 环境光（略提高，减少过暗阴影）
+            const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.12);
             _ambientLight = ambientLight;
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xfff2e0, 1.05);
+            const directionalLight = new THREE.DirectionalLight(0xfff4e8, 1.12);
             directionalLight.position.set(-72, 78, 108);
             directionalLight.castShadow = true;
             directionalLight.shadow.mapSize.width = 2048;
@@ -1714,11 +1715,17 @@
             applyAdaptiveGpuQuality(renderer, directionalLight);
             initTimeWeatherSystems();
             
-            const fillLight = new THREE.DirectionalLight(0xb8c8e8, 0.05);
-            fillLight.position.set(40, 42, -35);
+            // 补光A：东南方向（照亮西北立面，减少死黑阴面）
+            const fillLight = new THREE.DirectionalLight(0xd0e0f0, 0.18);
+            fillLight.position.set(55, 30, -75);
             fillLight.castShadow = false;
             scene.add(fillLight);
             _fillLight = fillLight;
+            // 补光B：正南方向（照亮建筑正北立面，模拟天空漫反射）
+            const fillLightS = new THREE.DirectionalLight(0xc8d8e8, 0.10);
+            fillLightS.position.set(0, 20, -120);
+            fillLightS.castShadow = false;
+            scene.add(fillLightS);
             
             // 添加鼠标移动事件监听器
             document.addEventListener('mousemove', onMouseMove);
@@ -1841,6 +1848,7 @@
                     addDetailMeshes();
                     _setLoadHint('');
                     console.log('⚡ 地图缓存加载完成（跳过视觉重建）');
+                    _upgradeSceneMaterials(); // 缓存还原后升级材质
                 } else {
                     // ── 缓存未命中：完整生成，合并后保存到IndexedDB ──
                     // 手机端强制低画质（跳过装饰物），大幅减少几何体生成时间
@@ -1863,6 +1871,7 @@
                         // 手机：不合并，直接隐藏遮罩，游戏立即可进入（draw call 多但能用）
                         _setLoadHint('');
                         console.log('📱 手机端跳过几何体合并，直接进入');
+                        _upgradeSceneMaterials(); // 手机无合并路径，直接升级
                     } else {
                         _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
                         // 使用 setTimeout 让提示文字先渲染再执行耗时合并
@@ -1873,6 +1882,7 @@
                                 root.traverse(function (o) { if (o.isMesh) o._noMerge = true; });
                             });
                             const mergedMeshes = mergeStaticMeshes();
+                            _upgradeSceneMaterials(); // 合并完成后升级（合并后每个Mesh材质唯一，安全替换）
                             // 保存合并结果+碰撞盒到IndexedDB
                             const cacheData = {
                                 meshData:   _serializeMerged(mergedMeshes),
@@ -2057,7 +2067,8 @@
                 if (e.key.toLowerCase() === 'p' && !keyboard.pPressed) {
                     keyboard.pPressed = true;
                     isFlying = !isFlying;
-                    
+                    isRunning = false; // 切换飞行时重置奔跑，避免空中"奔跑加速"
+
                     if (!isFlying) {
                         // 退出飞行模式时，使用当前位置的垂直高度并给予一个小的下落速度
                         verticalVelocity = -5; // 小的下落速度
@@ -5800,6 +5811,79 @@
             });
         }
 
+        // ── 画质升级：Lambert → Phong（高光/镜面反射，软件渲染也有效）──
+        // 调用时机：首次全量生成+合并后 / 缓存还原后 / 手机无合并路径
+        function _upgradeSceneMaterials() {
+            if (window._matUpgradeDone) return;
+            window._matUpgradeDone = true;
+            const tier   = window._gfxTier || 'high';
+            const isSW   = (tier === 'low');   // 软件渲染：最小化镜面计算
+            const matMap = new Map();           // Lambert uuid → Phong 实例（去重）
+            let n = 0;
+
+            scene.traverse(function(obj){
+                if (!obj.isMesh || !obj.material) return;
+                const m = obj.material;
+                // 只升级 Lambert；跳过透明（雨/水/玻璃）、wireframe
+                if (!m.isMeshLambertMaterial) return;
+                if (m.transparent && m.opacity < 0.92) return;
+                if (m.wireframe) return;
+
+                if (!matMap.has(m.uuid)) {
+                    const c  = m.color || new THREE.Color(0x888888);
+                    const br = (c.r + c.g + c.b) / 3;       // 亮度 0-1
+                    const isGreen  = c.g > c.r*1.18 && c.g > c.b*1.12 && c.g > 0.18;
+                    const isDkMet  = br < 0.22 && Math.abs(c.r-c.g)<0.08 && Math.abs(c.g-c.b)<0.08;
+                    const isLight  = br > 0.70;
+
+                    let sh, sp;
+                    if (isSW)      { sh=2;  sp=new THREE.Color(0.015,0.015,0.015); }  // 软渲染极保守
+                    else if(isGreen){ sh=2;  sp=new THREE.Color(0.010,0.018,0.010); } // 草地/树叶
+                    else if(isDkMet){ sh=32; sp=new THREE.Color(0.065,0.065,0.075); } // 深色金属/沥青
+                    else if(isLight){ sh=9;  sp=new THREE.Color(0.042,0.042,0.042); } // 白/浅色混凝土
+                    else            { sh=5;  sp=new THREE.Color(0.030,0.030,0.038); } // 其余（砖/木/路面）
+
+                    matMap.set(m.uuid, new THREE.MeshPhongMaterial({
+                        color:       c.clone(),
+                        map:         m.map || null,
+                        transparent: m.transparent,
+                        opacity:     m.opacity,
+                        side:        m.side,
+                        shininess:   sh,
+                        specular:    sp,
+                        fog:         m.fog !== false,
+                        depthWrite:  m.depthWrite !== false,
+                    }));
+                    n++;
+                }
+                obj.material = matMap.get(m.uuid);
+            });
+
+            // 玻璃窗升级为 Phong（保持透明，增加高光）
+            scene.traverse(function(obj){
+                if (!obj.isMesh || !obj.material) return;
+                const m = obj.material;
+                if (!m.isMeshLambertMaterial) return;
+                if (!m.transparent || m.opacity >= 0.92) return;
+                const c = m.color || new THREE.Color(0x88bbdd);
+                // 只升级蓝色系玻璃（排除云/雨雪等其他透明体）
+                if (c.b < c.r + 0.1) return;
+                if (matMap.has(m.uuid)) { obj.material = matMap.get(m.uuid); return; }
+                const glassPhong = new THREE.MeshPhongMaterial({
+                    color: c.clone(), transparent: true, opacity: m.opacity,
+                    shininess: isSW ? 20 : 80,
+                    specular: new THREE.Color(0.18, 0.22, 0.28),
+                    side: m.side || THREE.DoubleSide,
+                    depthWrite: false, fog: false,
+                });
+                matMap.set(m.uuid, glassPhong);
+                obj.material = glassPhong;
+                n++;
+            });
+
+            console.log('✨ 材质升级 Lambert→Phong × ' + n + ' 种 [tier:' + tier + ']');
+        }
+
         // 从缓存数据还原已合并的Mesh + 碰撞盒
         function _restoreFromCache(cacheData) {
             const T = buildDetailTextures();
@@ -9036,7 +9120,8 @@
         
         // 新增：应用走动动画到士兵模型
         function applyWalkAnimationToSoldier() {
-            if (!soldier) return;
+            // VRM 模型由骨骼系统驱动，simple 模型才用 children[] 索引动画
+            if (!soldier || !window.useSimpleModel) return;
 
             const lArm = soldier.children[2];
             const rArm = soldier.children[3];
@@ -9995,14 +10080,19 @@
             };
             if (type === 'clear') {
                 if (df < 0.05) {
-                    out.fogNear = 400;
-                    out.fogFar = 1200;
-                    out.fogR = sky.r;
-                    out.fogG = sky.g;
+                    // 深夜：稍近的蓝黑色霾（增加夜间深度感）
+                    out.fogNear = 320;
+                    out.fogFar  = 1000;
+                    out.fogR = sky.r * 0.9;
+                    out.fogG = sky.g * 0.9;
                     out.fogB = sky.b;
                 } else {
-                    out.fogNear = 0;
-                    out.fogFar = 0;
+                    // 白天晴天：大气透视霾（从250m开始，远景自然融入天空）
+                    out.fogNear = 260;
+                    out.fogFar  = 920;
+                    out.fogR = sky.r * 0.95 + 0.04;
+                    out.fogG = sky.g * 0.96 + 0.03;
+                    out.fogB = sky.b * 0.97 + 0.02;
                 }
                 out.useExpFog = false;
             }
