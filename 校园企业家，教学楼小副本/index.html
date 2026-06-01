@@ -568,6 +568,14 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"></script>
+    <!-- 后处理：FXAA 抗锯齿 + 微量 Bloom -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/FXAAShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
 
     <!-- 备用CDN（jsDelivr失败时） -->
     <script>
@@ -631,6 +639,8 @@
 
         // 游戏变量
         let scene, camera, renderer;
+        let _ppComposer = null;   // EffectComposer 后处理链
+        let _fxaaPass   = null;   // FXAA pass 引用（窗口resize时需要更新分辨率）
         let soldier, mixer, runAction, idleAction, currentAction, jumpAction, slideAction, crouchAction;
         // VRM骨骼动画
         let _vrmBones = {}; // 找到的VRM骨骼节点
@@ -1707,12 +1717,60 @@
             directionalLight.shadow.camera.top = _s;
             directionalLight.shadow.camera.bottom = -_s;
             directionalLight.shadow.bias = -0.0004;
+            directionalLight.shadow.normalBias = 0.05; // 法线偏移：消除阴影痘痘（shadow acne）
             _sunLight = directionalLight;
             directionalLight.target.position.set(0, 18, 20);
             scene.add(directionalLight);
             scene.add(directionalLight.target);
             directionalLight.shadow.camera.updateProjectionMatrix();
             applyAdaptiveGpuQuality(renderer, directionalLight);
+
+            // ── 后处理合成器（FXAA抗锯齿 + 可选微量Bloom）──
+            // 软件渲染层级跳过；高/中配启用FXAA；高配额外加Bloom
+            (function initPostProcessing() {
+                const tier = window._gfxTier || 'high';
+                if (tier === 'low') return; // 软件渲染不用后处理
+                if (typeof THREE.EffectComposer === 'undefined' ||
+                    typeof THREE.RenderPass     === 'undefined' ||
+                    typeof THREE.ShaderPass     === 'undefined' ||
+                    typeof THREE.FXAAShader     === 'undefined') {
+                    console.warn('⚠️ 后处理脚本未加载，跳过FXAA');
+                    return;
+                }
+                try {
+                    _ppComposer = new THREE.EffectComposer(renderer);
+
+                    // ① 普通渲染 pass
+                    const renderPass = new THREE.RenderPass(scene, camera);
+                    _ppComposer.addPass(renderPass);
+
+                    // ② 微量 Bloom（仅高配，阈值极高只照亮最亮像素）
+                    if (tier === 'high' && typeof THREE.UnrealBloomPass !== 'undefined') {
+                        const bloomPass = new THREE.UnrealBloomPass(
+                            new THREE.Vector2(window.innerWidth, window.innerHeight),
+                            0.22,  // strength（轻柔，不过曝）
+                            0.50,  // radius
+                            0.92   // threshold（只有非常亮的区域才发光）
+                        );
+                        _ppComposer.addPass(bloomPass);
+                    }
+
+                    // ③ FXAA（最后一道，对抗齿轮锯状边缘）
+                    _fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
+                    const pr = renderer.getPixelRatio();
+                    _fxaaPass.material.uniforms['resolution'].value.set(
+                        1 / (window.innerWidth  * pr),
+                        1 / (window.innerHeight * pr)
+                    );
+                    _ppComposer.addPass(_fxaaPass);
+
+                    console.log('✨ 后处理: FXAA' + (tier === 'high' ? ' + Bloom' : '') + ' [' + tier + ']');
+                } catch (e) {
+                    _ppComposer = null;
+                    console.warn('⚠️ 后处理合成器初始化失败:', e.message);
+                }
+            })();
+
             initTimeWeatherSystems();
             
             // 补光A：东南方向（照亮西北立面，减少死黑阴面）
@@ -1815,7 +1873,15 @@
             // 外围大地面（草地色）
             // 超大地面（校园内外，含远景区域）
             const groundGeometry = new THREE.PlaneGeometry(700, 700);
-            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x6a9e58 }); // 草地（略提亮、偏自然绿）
+            // 草地：Phong + 草地Canvas纹理（buildDetailTextures会懒加载）
+            const _gT = buildDetailTextures();
+            const _grassTex = _gT.grassField ? _gT.grassField.clone() : null;
+            if (_grassTex) { _grassTex.repeat.set(140, 140); _grassTex.wrapS = _grassTex.wrapT = THREE.RepeatWrapping; }
+            const groundMaterial = new THREE.MeshPhongMaterial({
+                color: 0x6a9e58, shininess: 2,
+                specular: new THREE.Color(0.01, 0.02, 0.01),
+                map: _grassTex || null
+            });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.position.set(0, -0.01, 20); // 向南偏移，更好覆盖新大校园
@@ -5109,7 +5175,7 @@
         // Canvas 纹理工厂（一次生成，全局缓存，供所有建筑复用）
         // ══════════════════════════════════════════════════════════════════════
         function buildDetailTextures() {
-            if (window._dtex && window._dtex._buildId === 'tex18') return window._dtex;
+            if (window._dtex && window._dtex._buildId === 'tex19') return window._dtex;
             const T = {};
 
             // ── 1. 外墙砖墙纹理 ──
@@ -5348,7 +5414,71 @@
               t.wrapS=t.wrapT=THREE.RepeatWrapping;
               T.treeBark=t; }
 
-            T._buildId = 'tex18';
+            // ── 10. 草地纹理（大地面 / 操场内场）──
+            { const cv=document.createElement('canvas'); cv.width=256; cv.height=256;
+              const c=cv.getContext('2d');
+              // 多层绿色底色
+              const g=c.createLinearGradient(0,0,256,256);
+              g.addColorStop(0,'#5d9848'); g.addColorStop(0.5,'#4e8a3a'); g.addColorStop(1,'#3e7830');
+              c.fillStyle=g; c.fillRect(0,0,256,256);
+              // 草丛色块（低频大变化）
+              for(let i=0;i<80;i++){
+                const gx=Math.random()*256, gy=Math.random()*256;
+                const gr=c.createRadialGradient(gx,gy,0,gx,gy,12+Math.random()*20);
+                const v=(Math.random()>0.5)?8:-8;
+                gr.addColorStop(0,`rgba(${20+v},${v>0?140:100},${10},0.18)`);
+                gr.addColorStop(1,'rgba(0,0,0,0)');
+                c.fillStyle=gr; c.fillRect(gx-25,gy-25,50,50);
+              }
+              // 草叶纹（高频短笔画）
+              for(let i=0;i<2200;i++){
+                const x=Math.random()*256, y=Math.random()*256;
+                const h=2+Math.random()*7;
+                const gv=110+Math.floor(Math.random()*55);
+                c.strokeStyle=`rgba(${30+Math.floor(Math.random()*25)},${gv},${10+Math.floor(Math.random()*15)},0.35)`;
+                c.lineWidth=0.5+Math.random()*0.8;
+                c.beginPath(); c.moveTo(x,y); c.lineTo(x+(Math.random()*3-1.5),y-h); c.stroke();
+              }
+              const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; T.grassField=t; }
+
+            // ── 11. 预制混凝土面板外墙（中国校园典型外立面）──
+            { const cv=document.createElement('canvas'); cv.width=512; cv.height=512;
+              const c=cv.getContext('2d');
+              // 基底：温暖灰白渐变（混凝土色）
+              const bg=c.createLinearGradient(0,0,512,512);
+              bg.addColorStop(0,'#d0cbc1'); bg.addColorStop(0.5,'#cac5bb'); bg.addColorStop(1,'#c4bfb5');
+              c.fillStyle=bg; c.fillRect(0,0,512,512);
+              // 骨料感（细微颗粒噪声）
+              for(let i=0;i<9000;i++){
+                const x=Math.random()*512, y=Math.random()*512, v=Math.random()*14-7;
+                c.fillStyle=`rgba(${200+v|0},${196+v|0},${188+v|0},0.10)`;
+                c.fillRect(x,y,1,1);
+              }
+              // 水平分缝（每128px ≈ 实际4m，预制板高）
+              c.lineWidth=2.5;
+              for(let y=128;y<512;y+=128){
+                c.strokeStyle='rgba(50,46,40,0.28)'; c.beginPath(); c.moveTo(0,y); c.lineTo(512,y); c.stroke();
+                c.strokeStyle='rgba(0,0,0,0.12)';  c.lineWidth=1; c.beginPath(); c.moveTo(0,y+2); c.lineTo(512,y+2); c.stroke();
+                c.strokeStyle='rgba(255,255,255,0.10)'; c.beginPath(); c.moveTo(0,y-1); c.lineTo(512,y-1); c.stroke();
+                c.lineWidth=2.5;
+              }
+              // 垂直分缝（每256px ≈ 实际8m）
+              for(let x=256;x<512;x+=256){
+                c.strokeStyle='rgba(50,46,40,0.22)'; c.beginPath(); c.moveTo(x,0); c.lineTo(x,512); c.stroke();
+                c.strokeStyle='rgba(0,0,0,0.10)';   c.lineWidth=1; c.beginPath(); c.moveTo(x+2,0); c.lineTo(x+2,512); c.stroke();
+                c.strokeStyle='rgba(255,255,255,0.08)'; c.beginPath(); c.moveTo(x-1,0); c.lineTo(x-1,512); c.stroke();
+                c.lineWidth=2.5;
+              }
+              // 随机污渍/老化痕迹
+              for(let i=0;i<55;i++){
+                const sx=Math.random()*512, sy=Math.random()*512;
+                const sw=1+Math.random()*5, sh=8+Math.random()*40;
+                c.fillStyle=`rgba(40,36,30,${0.015+Math.random()*0.03})`;
+                c.fillRect(sx,sy,sw,sh);
+              }
+              const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; T.concretePanel=t; }
+
+            T._buildId = 'tex19';
             window._dtex = T;
             return T;
         }
@@ -5880,6 +6010,40 @@
                 obj.material = glassPhong;
                 n++;
             });
+
+            // ── 附加纹理：大地面（草地）和混凝土地板 ──
+            const T = window._dtex;
+            if (T) {
+                scene.traverse(function(obj){
+                    if (!obj.isMesh) return;
+                    const isPlane = obj.geometry && (
+                        obj.geometry.type === 'PlaneGeometry' ||
+                        (obj.geometry.parameters && obj.geometry.parameters.widthSegments === undefined && !obj.geometry.groups.length)
+                    );
+                    if (!isPlane) return;
+                    const m = obj.material;
+                    if (!m || m.map) return; // 已有贴图的跳过
+                    const c = m.color;
+                    if (!c) return;
+                    const isGreen = c.g > c.r * 1.12 && c.g > c.b * 1.10 && c.g > 0.30;
+                    const isConcrete = c.r > 0.7 && Math.abs(c.r-c.g)<0.08 && c.b < c.r; // 灰白水泥色
+                    if (isGreen && T.grassField) {
+                        const tex = T.grassField.clone();
+                        // 超大地面（700m）用大tiling；小地面用小tiling
+                        const sz = obj.geometry.parameters ? obj.geometry.parameters.width || 256 : 256;
+                        tex.repeat.set(Math.round(sz / 5), Math.round(sz / 5));
+                        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                        m.map = tex;
+                        m.needsUpdate = true;
+                    } else if (isConcrete && T.outdoorPlaza) {
+                        const tex = T.outdoorPlaza.clone();
+                        tex.repeat.set(8, 8);
+                        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                        m.map = tex;
+                        m.needsUpdate = true;
+                    }
+                });
+            }
 
             console.log('✨ 材质升级 Lambert→Phong × ' + n + ' 种 [tier:' + tier + ']');
         }
@@ -8077,6 +8241,16 @@
                 ? Math.min(1.5, window.devicePixelRatio || 1) : Math.min(2, window.devicePixelRatio || 1));
             renderer.setPixelRatio(pr);
             renderer.setSize(window.innerWidth, window.innerHeight);
+            // 后处理合成器也要同步更新尺寸和 FXAA 分辨率
+            if (_ppComposer) {
+                _ppComposer.setSize(window.innerWidth, window.innerHeight);
+                if (_fxaaPass) {
+                    _fxaaPass.material.uniforms['resolution'].value.set(
+                        1 / (window.innerWidth  * pr),
+                        1 / (window.innerHeight * pr)
+                    );
+                }
+            }
         }
         
         // 检测碰撞
@@ -9582,8 +9756,18 @@
                 }
             }
 
-            // 渲染场景
-            renderer.render(scene, camera);
+            // ── 动态曝光：白天稍亮/夜间稍暗，增加电影感 ──
+            if (window._dayFactor != null) {
+                const _expTarget = 0.82 + window._dayFactor * 0.28; // 夜0.82→白天1.10
+                renderer.toneMappingExposure += (_expTarget - renderer.toneMappingExposure) * 0.018;
+            }
+
+            // 渲染场景（后处理合成器优先，否则直接渲染）
+            if (_ppComposer) {
+                _ppComposer.render();
+            } else {
+                renderer.render(scene, camera);
+            }
         }
 
         // ── VRM骨骼姿势驱动 ────────────────────────────────────────
@@ -11757,8 +11941,8 @@
             updatePhysics(deltaTime);
             
             // 渲染场景
-            renderer.render(scene, camera);
-            
+            if (_ppComposer) { _ppComposer.render(); } else { renderer.render(scene, camera); }
+
             requestAnimationFrame(gameLoop);
         }
 
