@@ -579,8 +579,7 @@
             }, 550);
         }
 
-        // 第一次：加载进来2秒后开始第一段台词；之后每隔 STORY_INTERVAL 切换
-        // 5段台词 × 4秒 = 20秒，与GIF一个循环完美对齐
+        // 第一次：加载进来2秒后开始第一段台词；之后每隔 STORY_INTERVAL 循环
         _storyTimer = setTimeout(function(){
             doTransition();
             setInterval(doTransition, STORY_INTERVAL);
@@ -588,43 +587,44 @@
 
         setTimeout(function(){ setStory(0); }, 800);
 
-        /* ─── 2. 游戏就绪 → 显示「按任意键」，不自动关闭 ─── */
+        /* ─── 2. 进入逻辑：动画完整播完一遍 且 游戏加载完 → 自动进入 ───
+           - 游戏先加载完：等动画播完这一遍再进
+           - 动画先播完：继续循环播放，等游戏加载完立即进
+        */
+        var _animPlayedOnce = false;  // 动画至少完整播放一遍
+        var _gameLoaded     = false;  // 游戏地图/角色加载完成
+        var _entered        = false;
+
+        function _enterGame(){
+            if(_entered) return;
+            if(!(_animPlayedOnce && _gameLoaded)) return;
+            _entered = true;
+            wrap.style.transition='opacity .8s ease';
+            wrap.style.opacity='0';
+            setTimeout(function(){ if(wrap) wrap.style.display='none'; }, 850);
+        }
+
+        // 动画完整一遍 = 2s起播 + 5段×4s = 22s（最后一段"你的故事"展示后）
+        setTimeout(function(){
+            _animPlayedOnce = true;
+            _enterGame();
+        }, 22000);
+
+        // 安全兜底：若 60s 仍未收到加载完成信号（异常/错误），强制进入避免卡死
+        setTimeout(function(){
+            if(!_entered){ _animPlayedOnce = true; _gameLoaded = true; _enterGame(); }
+        }, 60000);
+
+        // 游戏加载完成回调
         window._onGameLoadComplete = function(){
-            // 进度条打满
+            _gameLoaded = true;
             var bar = document.getElementById('load-bar');
             var pctEl = document.getElementById('load-pct');
             if(bar) bar.style.width='100%';
             if(pctEl) pctEl.textContent='100%';
-
-            // 把"正在初始化"换成"就绪"
             var hintEl = document.getElementById('load-hint');
-            if(hintEl) hintEl.textContent = '·  游戏就绪  ·';
-
-            // 显示「按任意键」按钮
-            var pkEl = document.getElementById('load-press-key');
-            if(pkEl) pkEl.classList.add('show');
-
-            // 解除后接受任意键/点击进入
-            function dismiss(){
-                if(!wrap || wrap.style.display==='none') return;
-                wrap.style.transition='opacity .75s ease';
-                wrap.style.opacity='0';
-                setTimeout(function(){ wrap.style.display='none'; }, 800);
-                window.removeEventListener('keydown', onKey);
-                if(pkEl) pkEl.removeEventListener('click', dismiss);
-            }
-            function onKey(e){
-                // 过滤掉Tab/F-键等功能键
-                if(e.key==='Tab'||e.key.startsWith('F')||e.key==='Meta'||e.key==='Alt') return;
-                dismiss();
-            }
-            // 延迟300ms再绑定，避免加载末尾的键盘操作误触发
-            setTimeout(function(){
-                window.addEventListener('keydown', onKey);
-                if(pkEl) pkEl.addEventListener('click', dismiss);
-                // 手机：点击整个加载屏也可进入
-                wrap.addEventListener('click', function(){ dismiss(); }, {once:true});
-            }, 300);
+            if(hintEl) hintEl.textContent = _animPlayedOnce ? '·  即将进入  ·' : '·  游戏就绪，动画播完即进入  ·';
+            _enterGame();
         };
 
         /* ─── 3. 进度更新接口 ─── */
@@ -864,6 +864,7 @@
         // 相机抖动（存储值，在 updateCamera 里应用）
         let _camBobY    = 0;
         let _camBobRoll = 0;
+        let _camBobPhase = 0; // 独立的相机晃动相位（限速，避免奔跑时晃动过快）
         // 滑铲姿势过渡值（0 = 站立/跑步，1 = 完全滑铲）
         let _slidePoseT = 0;
         let playerMoveSpeedMul = 1;
@@ -4623,10 +4624,11 @@
                         // 公告板主体（0.08m厚 X向，1.2m高 Y，1.8m宽 Z）
                         var board=new THREE.Mesh(new THREE.BoxGeometry(0.08,1.2,1.8),boardMat);
                         board.position.set(5,1.5,bz); board._noMerge=true; scene.add(board);
-                        // 正面贴图（朝西 = -X方向）
+                        // 正面贴图（朝西 = -X方向）；板面在x=4.96，贴图推到4.93避免共面Z-fighting闪烁
                         var face=new THREE.Mesh(new THREE.PlaneGeometry(1.76,1.16),faceMat);
                         face.rotation.y=-Math.PI/2; // 法向量 → -X（朝西）
-                        face.position.set(4.96,1.5,bz); face._noMerge=true; scene.add(face);
+                        face.position.set(4.93,1.5,bz); face._noMerge=true;
+                        face.renderOrder=2; faceMat.depthWrite=true; scene.add(face);
                     });
                     console.log('📌 公告栏×3');
                 })();
@@ -4786,28 +4788,33 @@
             if (!window._fountainInited) {
                 window._fountainInited = true;
                 (function initFountainWater(){
-                    const FX=0, FZ=46;
-                    const waterM=new THREE.MeshLambertMaterial({color:0x4aa8d8,transparent:true,opacity:0.65,depthWrite:false});
-                    // 主水池水面
-                    const pool=new THREE.Mesh(new THREE.CircleGeometry(2.4,14),waterM);
-                    pool.rotation.x=-Math.PI/2; pool.position.set(FX,0.065,FZ); scene.add(pool);
-                    // 中央水盘水面
-                    const bWater=new THREE.Mesh(new THREE.CircleGeometry(0.60,10),
-                        new THREE.MeshLambertMaterial({color:0x5abbea,transparent:true,opacity:0.7,depthWrite:false}));
-                    bWater.rotation.x=-Math.PI/2; bWater.position.set(FX,1.075,FZ); scene.add(bWater);
+                    const FX=-28, FZ=25; // 移到升旗台(28,25)对侧（进大门向左）
+                    window._fountainPos={x:FX,z:FZ};
+                    const waterM=new THREE.MeshLambertMaterial({color:0x4aa8d8,transparent:true,opacity:0.62,depthWrite:false});
+                    // 主水池水面（圆形）
+                    const pool=new THREE.Mesh(new THREE.CircleGeometry(2.3,28),waterM);
+                    pool.rotation.x=-Math.PI/2; pool.position.set(FX,0.10,FZ); scene.add(pool);
+                    // 中层水盘水面
+                    const mWater=new THREE.Mesh(new THREE.CircleGeometry(1.05,20),
+                        new THREE.MeshLambertMaterial({color:0x54b4e6,transparent:true,opacity:0.68,depthWrite:false}));
+                    mWater.rotation.x=-Math.PI/2; mWater.position.set(FX,0.92,FZ); scene.add(mWater);
+                    // 顶层水盘水面
+                    const tWater=new THREE.Mesh(new THREE.CircleGeometry(0.52,16),
+                        new THREE.MeshLambertMaterial({color:0x66c4ee,transparent:true,opacity:0.72,depthWrite:false}));
+                    tWater.rotation.x=-Math.PI/2; tWater.position.set(FX,1.62,FZ); scene.add(tWater);
                     // 喷水顶（跳动动画球体）
-                    const spray=new THREE.Mesh(new THREE.SphereGeometry(0.12,7,5),
-                        new THREE.MeshLambertMaterial({color:0x88d4f0,transparent:true,opacity:0.75}));
-                    spray.position.set(FX,1.72,FZ); scene.add(spray);
+                    const spray=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,6),
+                        new THREE.MeshLambertMaterial({color:0x9ee0f8,transparent:true,opacity:0.78}));
+                    spray.position.set(FX,2.05,FZ); scene.add(spray);
                     // 涟漪扩散环（3个，相位差 1/3 周期）
                     const rings=[];
                     for(let ri=0;ri<3;ri++){
-                        const rGeo=new THREE.RingGeometry(0.06,0.11,14);
-                        const rMat=new THREE.MeshBasicMaterial({color:0x88d4f0,transparent:true,opacity:0.45,
+                        const rGeo=new THREE.RingGeometry(0.06,0.11,20);
+                        const rMat=new THREE.MeshBasicMaterial({color:0x9ee0f8,transparent:true,opacity:0.45,
                             side:THREE.DoubleSide,depthWrite:false});
                         const ring=new THREE.Mesh(rGeo,rMat);
                         ring.rotation.x=-Math.PI/2;
-                        ring.position.set(FX,0.068,FZ);
+                        ring.position.set(FX,0.105,FZ);
                         ring.userData.phase=ri/3;
                         scene.add(ring);
                         rings.push(ring);
@@ -4848,21 +4855,32 @@
                 window._winGlowMeshes=_glows;
             }
 
-            // ── 路灯夜间光晕 + 广场主轴路灯（叠加球体，入夜亮起）──
+            // ── 路灯夜间光晕 + 广场主轴路灯（小光晕 + 真实PointLight，入夜亮起）──
             if (!window._lampGlowInited) {
                 window._lampGlowInited = true;
-                const _lgGeo=new THREE.SphereGeometry(1.0,8,6);
+                const _lgGeo=new THREE.SphereGeometry(0.32,8,6); // 缩小：原1.0太大像漂浮blob
                 const _lampGlows=[];
+                const _lampLights=[];
+                const _highTier=(window._gfxTier==='high'); // 只在高配加真实点光源，中低配用光晕+地面光池
                 function _mkLampGlow(x,y,z){
+                    // 小光晕（灯泡本体的辉光，不再是大橙球）
                     const mat=new THREE.MeshBasicMaterial({
-                        color:0xff9922,transparent:true,opacity:0,
+                        color:0xffd27a,transparent:true,opacity:0,
                         blending:THREE.AdditiveBlending,depthWrite:false,fog:false
                     });
                     const m=new THREE.Mesh(_lgGeo,mat);
                     m.position.set(x,y,z);
                     m.renderOrder=3; m._noMerge=true;
                     scene.add(m); _lampGlows.push(m);
+                    // 真实点光源（暖白，初始intensity=0，夜间由渲染循环驱动）；仅高配
+                    if(_highTier){
+                        const pl=new THREE.PointLight(0xffdca0, 0, 14, 1.6);
+                        pl.position.set(x, y-0.15, z);
+                        pl._noMerge=true; scene.add(pl);
+                        _lampLights.push(pl);
+                    }
                 }
+                window._lampPointLights=_lampLights;
                 // 建筑正门前 4 盏路灯光晕（配合 skipMergedExtras 后的灯柱几何体）
                 [-18,-9,9,18].forEach(function(lx){ _mkLampGlow(lx+1.5,4.88,BLDG_Z2+5.5); });
                 // 广场主轴路灯：3 对（Z=25,33,41，X=±9），含灯柱几何体（_noMerge）
@@ -4887,6 +4905,31 @@
                         _mkLampGlow(px-side*1.1, 6.36, pz);
                     });
                 });
+
+                // ── 主干道路灯：地面光池 + 头部小辉光（无PointLight，性能友好）──
+                // 给夜间街道路灯一个"光真的照到地面"的视觉，避免漂浮假光块
+                const _poolGeo=new THREE.CircleGeometry(2.6, 18);
+                const _lampPools=[];
+                function _mkGroundPool(x,z){
+                    const pm=new THREE.MeshBasicMaterial({
+                        color:0xffe0a0, transparent:true, opacity:0,
+                        blending:THREE.AdditiveBlending, depthWrite:false, fog:false
+                    });
+                    const pool=new THREE.Mesh(_poolGeo, pm);
+                    pool.rotation.x=-Math.PI/2;
+                    pool.position.set(x, 0.02, z);
+                    pool.renderOrder=2; pool._noMerge=true;
+                    scene.add(pool); _lampPools.push(pool);
+                }
+                // 南侧主干道路灯位置（与 createCampus 路灯一致：z=16..,x=±6）
+                for(let z=16;z<110;z+=15){
+                    if (z>=54 && z<=116) continue;
+                    [-6,6].forEach(function(x){
+                        _mkGroundPool(x, z);
+                        _mkLampGlow(x, 5.6, z); // 头部小辉光（含PointLight，非低配）
+                    });
+                }
+                window._lampPools=_lampPools;
                 window._lampGlowMeshes=_lampGlows;
             }
 
@@ -5255,30 +5298,40 @@
                 trim.position.set(0,4.73,GATE_Z); scene.add(trim);
             })();
 
-            // ── 广场装饰喷泉（石质结构，可合并入缓存；水体动画元素在 initFountainWater 中）──
+            // ── 广场装饰喷泉（三层叠盘石质结构，移到升旗台对侧）──
             (function addFountain(){
-                const FX=0, FZ=46;
-                const stone=new THREE.MeshLambertMaterial({color:0xc8c0b4});
-                // 外围花岗岩池边（8边形近似）
-                for(let i=0;i<8;i++){
-                    const a=i*Math.PI/4, a2=(i+1)*Math.PI/4;
-                    const r=2.6;
-                    const mx=(Math.cos(a)+Math.cos(a2))/2*r, mz=(Math.sin(a)+Math.sin(a2))/2*r;
-                    const segW=Math.sqrt(Math.pow((Math.cos(a2)-Math.cos(a))*r,2)+Math.pow((Math.sin(a2)-Math.sin(a))*r,2));
-                    const seg=new THREE.Mesh(new THREE.BoxGeometry(segW,0.25,0.22),stone);
-                    seg.position.set(FX+mx,0.12,FZ+mz); seg.rotation.y=-a-Math.PI/8; scene.add(seg);
-                }
-                // 中央台座（双层）
-                const base1=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.52,0.55,10),stone);
-                base1.position.set(FX,0.28,FZ); scene.add(base1);
-                const base2=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.38,0.35,10),stone);
-                base2.position.set(FX,0.73,FZ); scene.add(base2);
-                // 中央水盘（石盆）
-                const basin=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.5,0.12,12),stone);
-                basin.position.set(FX,1.00,FZ); scene.add(basin);
-                // 喷泉管（细圆柱）
-                const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.55,6),stone);
-                pipe.position.set(FX,1.40,FZ); scene.add(pipe);
+                const FX=-28, FZ=25; // 与 initFountainWater 一致
+                const stone =new THREE.MeshLambertMaterial({color:0xd2cabe});
+                const stoneD=new THREE.MeshLambertMaterial({color:0xb8b0a4}); // 深一档，增加层次
+                // 外围环形池壁（用圆环柱体一次成型，不再是会变成"辐条"的8段方块）
+                const rim=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,0.34,32,1,true),stoneD);
+                rim.position.set(FX,0.17,FZ); scene.add(rim);
+                // 池壁顶盖（环形坐沿，可坐）
+                const cap=new THREE.Mesh(new THREE.TorusGeometry(2.42,0.16,8,32),stone);
+                cap.rotation.x=-Math.PI/2; cap.position.set(FX,0.34,FZ); scene.add(cap);
+                // 池底
+                const floor=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,0.10,32),stoneD);
+                floor.position.set(FX,0.05,FZ); scene.add(floor);
+                // ── 中央三层叠盘 ──
+                // 第一层柱
+                const col1=new THREE.Mesh(new THREE.CylinderGeometry(0.40,0.55,0.80,16),stone);
+                col1.position.set(FX,0.50,FZ); scene.add(col1);
+                // 第一层水盘（大）
+                const bowl1=new THREE.Mesh(new THREE.CylinderGeometry(1.15,0.95,0.16,24),stone);
+                bowl1.position.set(FX,0.90,FZ); scene.add(bowl1);
+                const lip1=new THREE.Mesh(new THREE.TorusGeometry(1.13,0.07,8,24),stoneD);
+                lip1.rotation.x=-Math.PI/2; lip1.position.set(FX,0.98,FZ); scene.add(lip1);
+                // 第二层柱
+                const col2=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.34,0.62,14),stone);
+                col2.position.set(FX,1.28,FZ); scene.add(col2);
+                // 第二层水盘（中）
+                const bowl2=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.50,0.13,20),stone);
+                bowl2.position.set(FX,1.60,FZ); scene.add(bowl2);
+                const lip2=new THREE.Mesh(new THREE.TorusGeometry(0.60,0.05,8,20),stoneD);
+                lip2.rotation.x=-Math.PI/2; lip2.position.set(FX,1.66,FZ); scene.add(lip2);
+                // 顶部喷头柱
+                const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.07,0.42,8),stone);
+                pipe.position.set(FX,1.86,FZ); scene.add(pipe);
             })();
         }
 
@@ -5931,7 +5984,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v57'; // v57：移旗台到大门右侧 + 删门口椅子 + Ctrl奔跑 + 修跑步手臂动画
+        const MAP_VER = 'campus_v58'; // v58：路灯真光源+地面光池 + 喷泉移位美化 + 公告栏防闪 + 强制重建清门槛缓存
 
         function _dbOpen(cb) {
             try {
@@ -9270,7 +9323,7 @@
             }
             
             // 新增：应用头部摆动到相机
-            applyHeadBobToCamera();
+            applyHeadBobToCamera(deltaTime);
         }
         
         // 新增：应用走动动画到第一人称手臂
@@ -9474,7 +9527,8 @@
         }
         
         // 计算相机抖动偏移量（结果写入 _camBobY / _camBobRoll，由 updateCamera 使用）
-        function applyHeadBobToCamera() {
+        function applyHeadBobToCamera(deltaTime) {
+            var _dt = (deltaTime!=null && deltaTime>0 && deltaTime<0.1) ? deltaTime : 0.016;
             if (!isFirstPerson) {
                 // 第三人称：平滑归零
                 _camBobY    += (0 - _camBobY)    * 0.15;
@@ -9483,11 +9537,17 @@
             }
             const t = _gameIdleT;
             if (walkSpeed > 0.04) {
-                // ── 行走颠簸（幅度减小约40%）──
-                const targetY    = Math.sin(walkCycle * 2) * 0.030 * walkSpeed;
-                const targetRoll = Math.sin(walkCycle)     * 0.013 * walkSpeed;
-                _camBobY    += (targetY    - _camBobY)    * 0.25;
-                _camBobRoll += (targetRoll - _camBobRoll) * 0.25;
+                // ── 行走/奔跑颠簸 ──
+                // 相机晃动频率单独限速：奔跑时 walkSpeed 高达1.85，会让晃动过快眩晕
+                // 用 min(walkSpeed,1.0) 作为频率因子，奔跑只比走路略快、不眩晕
+                const _bobRate = Math.min(walkSpeed, 1.0);
+                _camBobPhase += _dt * WALK_CYCLE_SPEED * _bobRate;
+                // 幅度仍随速度增大（奔跑晃幅略大），但封顶避免过头
+                const _amp = Math.min(walkSpeed, 1.25);
+                const targetY    = Math.sin(_camBobPhase * 2) * 0.026 * _amp;
+                const targetRoll = Math.sin(_camBobPhase)     * 0.011 * _amp;
+                _camBobY    += (targetY    - _camBobY)    * 0.22;
+                _camBobRoll += (targetRoll - _camBobRoll) * 0.22;
             } else {
                 // ── 静止呼吸摇晃（极轻）──
                 const breathY    = Math.sin(t * 1.1) * 0.003 + Math.sin(t * 0.53 + 0.7) * 0.0015;
@@ -9752,8 +9812,8 @@
                 const fa = window._fountainAnims;
                 const ft = time * 0.001; // 秒
                 if (fa.spray) {
-                    // 喷水球上下弹跳（绝对值正弦，模拟水珠弹跳）
-                    fa.spray.position.y = 1.72 + Math.abs(Math.sin(ft * 2.6)) * 0.28;
+                    // 喷水球上下弹跳（绝对值正弦，模拟水珠弹跳）；基准高度=2.05（新喷头位置）
+                    fa.spray.position.y = 2.05 + Math.abs(Math.sin(ft * 2.6)) * 0.30;
                     fa.spray.material.opacity = 0.45 + Math.abs(Math.sin(ft * 2.6)) * 0.4;
                 }
                 fa.rings.forEach(function(ring) {
@@ -9843,6 +9903,16 @@
                     window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
                 if (window._lampGlowMeshes)
                     window._lampGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp * 0.7; });
+                // 路灯真实点光源（夜间亮起，与光晕同步）
+                if (window._lampPointLights) {
+                    var _lampInt = Math.max(0, 1 - _df * 2.8) * 1.5;
+                    window._lampPointLights.forEach(function(pl){ pl.intensity = _lampInt; });
+                }
+                // 路灯地面光池（夜间亮起，模拟灯光照到地面）
+                if (window._lampPools) {
+                    var _poolOp = Math.max(0, 1 - _df * 2.8) * 0.42;
+                    window._lampPools.forEach(function(p){ p.material.opacity = _poolOp; });
+                }
             }
             // 操场泛光灯（夜间自动亮起）
             if (window._fieldFloodlights) {
@@ -10108,11 +10178,13 @@
                     // ── 上臂：rx=前后摆, rz=肘部抬落（右侧全相位偏移）──
                     const _s2 = _vrmArmRzSign;
                     const _s3 = _vrmArmRxSign;
-                    _animBones('j_bip_l_upperarm', _s3 * _kfI(t,  _KArmRx) * _pumpD, _kfI(t,  _KArmRy), _s2 * (-0.95 + _kfI(t,  _KArmElevD)), al);
-                    _animBones('j_bip_r_upperarm', _s3 * _kfI(tr, _KArmRx) * _pumpD, _kfI(tr, _KArmRy), _s2 * (+0.95 + _kfI(tr, _KArmElevD)), al);
+                    // 摆幅按速度缩放：慢走→小幅自然摆，奔跑→满幅（消除"慢走却像甩断手臂"）
+                    const _faB = 0.35 + 0.65 * spd01; // 肘关节屈曲随速度增加
+                    _animBones('j_bip_l_upperarm', _s3 * _kfI(t,  _KArmRx) * _pumpD * spd01, _kfI(t,  _KArmRy) * spd01, _s2 * (-0.95 + _kfI(t,  _KArmElevD) * spd01), al);
+                    _animBones('j_bip_r_upperarm', _s3 * _kfI(tr, _KArmRx) * _pumpD * spd01, _kfI(tr, _KArmRy) * spd01, _s2 * (+0.95 + _kfI(tr, _KArmElevD) * spd01), al);
                     // ── 前臂：rx=近零(扭转轴保持自然)，rz=肘关节屈曲 ──
-                    _animBones('j_bip_l_lowerarm', _kfI(t,  _KFaRx), 0, _s2 * _kfI(t,  _KFaRz), al);
-                    _animBones('j_bip_r_lowerarm', _kfI(tr, _KFaRx), 0, _s2 * _kfI(tr, _KFaRz), al);
+                    _animBones('j_bip_l_lowerarm', _kfI(t,  _KFaRx) * spd01, 0, _s2 * _kfI(t,  _KFaRz) * _faB, al);
+                    _animBones('j_bip_r_lowerarm', _kfI(tr, _KFaRx) * spd01, 0, _s2 * _kfI(tr, _KFaRz) * _faB, al);
 
                     // ── 大腿（右腿用t，左腿用tr：右腿公式经测试正常，左腿镜像之）──
                     const _sL = _vrmLegRxSign;
@@ -10249,11 +10321,13 @@
                 // ── 上臂（右侧全相位偏移）──
                 const _s4  = _vrmArmRxSign;
                 const _sRz = _vrmArmRzSign;   // 修复：原来缺少此符号，VRM0.x手臂会水平抬起
-                bl(lArm,  _s4 * _kfI(t,   _KArmRx) * _pumpV, _kfI(t,   _KArmRy), _sRz * (-0.95 + _kfI(t,   _KArmElevD)));
-                bl(rArm,  _s4 * _kfI(tr2, _KArmRx) * _pumpV, _kfI(tr2, _KArmRy), _sRz * (+0.95 + _kfI(tr2, _KArmElevD)));
+                // 摆幅按速度缩放：慢走→小幅自然摆，奔跑→满幅（消除"慢走却像甩断手臂"）
+                const _faV = 0.35 + 0.65 * spd01;
+                bl(lArm,  _s4 * _kfI(t,   _KArmRx) * _pumpV * spd01, _kfI(t,   _KArmRy) * spd01, _sRz * (-0.95 + _kfI(t,   _KArmElevD) * spd01));
+                bl(rArm,  _s4 * _kfI(tr2, _KArmRx) * _pumpV * spd01, _kfI(tr2, _KArmRy) * spd01, _sRz * (+0.95 + _kfI(tr2, _KArmElevD) * spd01));
                 // ── 前臂：rx≈0(扭转轴)，rz=肘关节屈曲 ──
-                bl(lFa, _kfI(t,   _KFaRx), 0, _sRz * _kfI(t,   _KFaRz));
-                bl(rFa, _kfI(tr2, _KFaRx), 0, _sRz * _kfI(tr2, _KFaRz));
+                bl(lFa, _kfI(t,   _KFaRx) * spd01, 0, _sRz * _kfI(t,   _KFaRz) * _faV);
+                bl(rFa, _kfI(tr2, _KFaRx) * spd01, 0, _sRz * _kfI(tr2, _KFaRz) * _faV);
                 // ── 大腿（右腿用t，左腿用tr2：与_animBones路径保持一致）──
                 const _sL2 = _vrmLegRxSign;
                 bl(lLeg, _sL2 * _kfI(tr2, _KLegRx), _kfI(tr2, _KLegRy), _kfI(tr2, _KLegRz));
