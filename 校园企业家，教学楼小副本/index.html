@@ -263,6 +263,13 @@
             ⏩ 跳过角色加载
         </button>
 
+        <!-- ⑫ 就绪提示（游戏加载完成后显示） -->
+        <div id="load-press-key" style="display:none;">
+            <div class="lpk-dot"></div>
+            <span class="lpk-txt">按任意键 · 开始游戏</span>
+            <div class="lpk-dot"></div>
+        </div>
+
     </div><!-- #map-loading -->
 
     <style>
@@ -433,6 +440,33 @@
     }
     .load-skip-btn:hover { background:rgba(40,100,200,.3); }
 
+    /* ────────── 「按任意键」就绪提示 ────────── */
+    #load-press-key {
+        position:absolute; bottom:max(14vh,100px); left:50%;
+        transform:translateX(-50%);
+        z-index:18; display:none; align-items:center; gap:14px;
+        font-size:13px; letter-spacing:5px;
+        color:rgba(160,210,255,.9);
+        font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+        text-transform:uppercase;
+        animation:lpkBreathe 2.2s ease-in-out infinite;
+        cursor:pointer;
+    }
+    #load-press-key.show { display:flex !important; }
+    .lpk-dot {
+        width:5px; height:5px; border-radius:50%;
+        background:#5abbff;
+        box-shadow:0 0 8px rgba(90,187,255,.8);
+    }
+    @keyframes lpkBreathe {
+        0%,100%{ opacity:.45; } 50%{ opacity:1; }
+    }
+
+    /* ────────── 程序化极光备用背景 ────────── */
+    #load-aurora-cv {
+        position:absolute; inset:0; width:100%; height:100%; z-index:0;
+    }
+
     /* ────────── 通用动画 ────────── */
     @keyframes lsFadeSlide {
         from { opacity:0; transform:translateY(-12px); }
@@ -446,86 +480,161 @@
 
     <script>
     /* ════════════════════════════════════════════════
-       三角洲级加载动画控制器
-       - GIF_DURATION：与AI生成的GIF时长匹配（48帧@8fps=6000ms）
-       - 每循环结束前500ms淡出 → 推进剧情文字 → 淡入
-       - 外部通过 window._setLoadProgress(pct, hint) 更新进度
+       三角洲级加载动画控制器 v2
+       修复：游戏加载完后不自动关闭，改为"按任意键进入"
+       台词循环持续播放直到玩家按键，不被加载速度打断
     ════════════════════════════════════════════════ */
     (function(){
-        var GIF_DURATION = 6000; // ← 如果重新生成了不同时长的GIF，改这里
+        /* ─── 0. 程序化极光备用背景（GIF不存在时自动启用）─── */
+        (function initAurora(){
+            var cv = document.createElement('canvas');
+            cv.id = 'load-aurora-cv';
+            var wrap = document.getElementById('map-loading');
+            wrap.insertBefore(cv, wrap.firstChild);
+            var W, H, ctx, t=0, stars=[], raf;
+            function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+            resize(); window.addEventListener('resize',resize);
+            ctx = cv.getContext('2d');
+            for(var i=0;i<180;i++) stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.4,p:Math.random()*Math.PI*2});
+            function frame(){
+                raf=requestAnimationFrame(frame); t+=0.003;
+                var bg=ctx.createLinearGradient(0,0,W,H);
+                bg.addColorStop(0,'#020810'); bg.addColorStop(.45,'#05102c'); bg.addColorStop(.7,'#071a3e'); bg.addColorStop(1,'#020810');
+                ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+                stars.forEach(function(s){
+                    var a=.2+.25*Math.sin(t*1.4+s.p);
+                    ctx.beginPath(); ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);
+                    ctx.fillStyle='rgba(190,220,255,'+a.toFixed(2)+')'; ctx.fill();
+                });
+                for(var j=0;j<3;j++){
+                    var py=H*(.28+j*.17)+Math.sin(t*.35+j*1.6)*H*.07;
+                    var ph=55+35*Math.sin(t*.28+j);
+                    var hue=185+j*38+Math.sin(t*.5+j)*18;
+                    var op=.04+.025*Math.sin(t*.65+j*2);
+                    var ag=ctx.createLinearGradient(0,py-ph,0,py+ph);
+                    ag.addColorStop(0,'transparent');
+                    ag.addColorStop(.5,'hsla('+hue+',65%,55%,'+op+')');
+                    ag.addColorStop(1,'transparent');
+                    ctx.fillStyle=ag; ctx.fillRect(0,py-ph,W,ph*2);
+                }
+                // 浮动粒子
+                for(var k=0;k<6;k++){
+                    var px=((t*28*(1+k*.25)+k*W/6)%W+W)%W;
+                    var py2=H*.5+Math.sin(t*.9+k*1.1)*H*.26;
+                    ctx.beginPath(); ctx.arc(px,py2,1.2,0,Math.PI*2);
+                    ctx.fillStyle='rgba(80,160,255,.35)'; ctx.fill();
+                }
+            }
+            // 若GIF加载成功则隐藏canvas
+            var gif=document.getElementById('load-bg-gif');
+            if(gif){
+                gif.addEventListener('load',function(){
+                    cv.style.display='none';
+                    if(raf) cancelAnimationFrame(raf);
+                });
+            }
+            frame();
+        })();
+
+        /* ─── 1. 台词 ─── */
+        var GIF_DURATION = 6000; // 每段台词停留时长(ms)
 
         var STORY = [
-            { chapter:'',            body:'' },
-            { chapter:'公元 3025 年', body:'文明与战争交织，世界已面目全非' },
-            { chapter:'神明降下神罚', body:'世间美好，变成了斗争的游戏' },
-            { chapter:'在混乱之中',   body:'一所学校，屹立不倒' },
-            { chapter:'爱哲 · 安民',  body:'薪火相传，是这里永恒的信仰' },
-            { chapter:'你的故事',     body:'从今天，正式开始' },
+            { chapter:'',             body:'' },
+            { chapter:'公元 3025 年',  body:'文明与战争交织，世界已面目全非' },
+            { chapter:'神明降下神罚',  body:'世间美好，变成了斗争的游戏' },
+            { chapter:'在混乱之中',    body:'一所学校，屹立不倒' },
+            { chapter:'爱哲 · 安民',   body:'薪火相传，是这里永恒的信仰' },
+            { chapter:'你的故事',      body:'从今天，正式开始' },
         ];
 
-        var storyIdx = 0;
+        var storyIdx = 0, _storyTimer=null;
         var mask    = document.getElementById('load-loop-mask');
         var chapter = document.getElementById('load-story-chapter');
         var body    = document.getElementById('load-story-body');
         var line    = document.getElementById('load-story-line');
         var wrap    = document.getElementById('map-loading');
 
-        /* 启动电影遮幅动画 */
         setTimeout(function(){ wrap.classList.add('cinematic'); }, 200);
 
-        /* 设置第一段文字（无过渡，直接显示） */
         function setStory(idx){
             var s = STORY[idx] || STORY[0];
             chapter.textContent = s.chapter;
             body.textContent    = s.body;
-            if(s.chapter){ line.classList.add('active'); }
-            else          { line.classList.remove('active'); }
+            if(s.chapter) line.classList.add('active');
+            else          line.classList.remove('active');
         }
 
-        /* 循环切换：淡出 → 推进文字 → 淡入 */
         function doTransition(){
-            // 1. 淡出（全屏黑幕压上来）
             mask.style.opacity = '1';
-
             setTimeout(function(){
-                // 2. 黑幕期间推进文字
                 storyIdx = (storyIdx + 1) % STORY.length;
-                chapter.style.opacity = '0';
-                body.style.opacity    = '0';
+                chapter.style.opacity='0'; body.style.opacity='0';
                 setTimeout(function(){
                     setStory(storyIdx);
-                    chapter.style.opacity = '1';
-                    body.style.opacity    = '1';
+                    chapter.style.opacity='1'; body.style.opacity='1';
                 }, 120);
-
-                // 3. 淡入（揭幕）
-                setTimeout(function(){
-                    mask.style.opacity = '0';
-                }, 200);
+                setTimeout(function(){ mask.style.opacity='0'; }, 200);
             }, 550);
         }
 
-        /* 第一次：在GIF快结束时触发过渡 */
-        setTimeout(function(){
+        // 第一次：GIF快结束前500ms切换；之后每隔一个周期
+        _storyTimer = setTimeout(function(){
             doTransition();
-            /* 之后每隔一个GIF周期触发一次 */
             setInterval(doTransition, GIF_DURATION);
         }, GIF_DURATION - 500);
 
-        /* 入场后1秒显示第一段文字 */
         setTimeout(function(){ setStory(0); }, 800);
 
-        /* ── 对外接口：进度更新（已有的加载代码调用这里不变） ── */
-        var lastPct = 0;
-        window._setLoadProgress = function(pct, hint){
-            pct = Math.max(lastPct, Math.min(100, pct));
-            lastPct = pct;
+        /* ─── 2. 游戏就绪 → 显示「按任意键」，不自动关闭 ─── */
+        window._onGameLoadComplete = function(){
+            // 进度条打满
             var bar = document.getElementById('load-bar');
-            if(bar) bar.style.width = pct + '%';
             var pctEl = document.getElementById('load-pct');
-            if(pctEl) pctEl.textContent = pct + '%';
+            if(bar) bar.style.width='100%';
+            if(pctEl) pctEl.textContent='100%';
+
+            // 把"正在初始化"换成"就绪"
             var hintEl = document.getElementById('load-hint');
-            if(hintEl && hint) hintEl.textContent = hint;
+            if(hintEl) hintEl.textContent = '·  游戏就绪  ·';
+
+            // 显示「按任意键」按钮
+            var pkEl = document.getElementById('load-press-key');
+            if(pkEl) pkEl.classList.add('show');
+
+            // 解除后接受任意键/点击进入
+            function dismiss(){
+                if(!wrap || wrap.style.display==='none') return;
+                wrap.style.transition='opacity .75s ease';
+                wrap.style.opacity='0';
+                setTimeout(function(){ wrap.style.display='none'; }, 800);
+                window.removeEventListener('keydown', onKey);
+                if(pkEl) pkEl.removeEventListener('click', dismiss);
+            }
+            function onKey(e){
+                // 过滤掉Tab/F-键等功能键
+                if(e.key==='Tab'||e.key.startsWith('F')||e.key==='Meta'||e.key==='Alt') return;
+                dismiss();
+            }
+            // 延迟300ms再绑定，避免加载末尾的键盘操作误触发
+            setTimeout(function(){
+                window.addEventListener('keydown', onKey);
+                if(pkEl) pkEl.addEventListener('click', dismiss);
+                // 手机：点击整个加载屏也可进入
+                wrap.addEventListener('click', function(){ dismiss(); }, {once:true});
+            }, 300);
+        };
+
+        /* ─── 3. 进度更新接口 ─── */
+        var lastPct=0;
+        window._setLoadProgress=function(pct,hint){
+            pct=Math.max(lastPct,Math.min(100,pct)); lastPct=pct;
+            var bar=document.getElementById('load-bar');
+            if(bar) bar.style.width=pct+'%';
+            var pctEl=document.getElementById('load-pct');
+            if(pctEl) pctEl.textContent=pct+'%';
+            var hintEl=document.getElementById('load-hint');
+            if(hintEl&&hint) hintEl.textContent=hint;
         };
     })();
     </script>
@@ -6089,10 +6198,15 @@
             if (bar)  { _loadStep = Math.min(_loadStep + 14, 96); bar.style.width = _loadStep + '%'; }
             if (!text && overlay) {
                 if (_vrmLoadingActive) return; // VRM仍在加载，暂不隐藏遮罩
-                // 加载完成，动画隐藏
                 if (bar) bar.style.width = '100%';
-                setTimeout(() => { if (overlay) overlay.style.opacity='0'; overlay.style.transition='opacity 0.6s'; }, 200);
-                setTimeout(() => { if (overlay) overlay.style.display='none'; }, 900);
+                // 通知加载屏控制器：游戏就绪，由玩家按键进入（不自动关闭，保证台词播完）
+                if (window._onGameLoadComplete) {
+                    window._onGameLoadComplete();
+                } else {
+                    // 降级兼容：直接隐藏
+                    setTimeout(() => { if (overlay) overlay.style.opacity='0'; overlay.style.transition='opacity 0.6s'; }, 200);
+                    setTimeout(() => { if (overlay) overlay.style.display='none'; }, 900);
+                }
             }
         }
 
