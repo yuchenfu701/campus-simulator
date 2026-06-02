@@ -537,7 +537,8 @@
         })();
 
         /* ─── 1. 台词 ─── */
-        var GIF_DURATION = 6000; // 每段台词停留时长(ms)
+        var GIF_DURATION  = 20000; // GIF循环时长(ms)=20秒，仅用于第一次过渡时机
+        var STORY_INTERVAL = 4000; // 台词切换间隔(ms)：5段×4秒=20秒，与GIF一个循环对齐
 
         var STORY = [
             { chapter:'',             body:'' },
@@ -578,11 +579,12 @@
             }, 550);
         }
 
-        // 第一次：GIF快结束前500ms切换；之后每隔一个周期
+        // 第一次：加载进来2秒后开始第一段台词；之后每隔 STORY_INTERVAL 切换
+        // 5段台词 × 4秒 = 20秒，与GIF一个循环完美对齐
         _storyTimer = setTimeout(function(){
             doTransition();
-            setInterval(doTransition, GIF_DURATION);
-        }, GIF_DURATION - 500);
+            setInterval(doTransition, STORY_INTERVAL);
+        }, 2000);
 
         setTimeout(function(){ setStory(0); }, 800);
 
