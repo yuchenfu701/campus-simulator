@@ -8123,13 +8123,8 @@
                     window._skipVrmLoad = null;
                     var _sb = document.getElementById('skip-vrm-btn');
                     if (_sb) _sb.style.display = 'none';
-                    var _lo = document.getElementById('map-loading');
-                    var _lb = document.getElementById('load-bar');
-                    if (_lb) _lb.style.width = '100%';
-                    if (_lo) {
-                        setTimeout(function(){ _lo.style.opacity='0'; _lo.style.transition='opacity 0.6s'; }, 200);
-                        setTimeout(function(){ _lo.style.display='none'; }, 900);
-                    }
+                    // 不直接隐藏遮罩！交给加载控制器：等动画播完一遍且游戏加载完才进入
+                    if (window._onGameLoadComplete) window._onGameLoadComplete();
                 }
 
                 // 手机端（真实UA检测）超时15秒，桌面端90秒
@@ -8227,13 +8222,8 @@
                     window._skipVrmLoad = null;
                     var _sb = document.getElementById('skip-vrm-btn');
                     if (_sb) _sb.style.display = 'none';
-                    var _lo = document.getElementById('map-loading');
-                    var _lb = document.getElementById('load-bar');
-                    if (_lb) _lb.style.width = '100%';
-                    if (_lo) {
-                        setTimeout(function(){ _lo.style.opacity='0'; _lo.style.transition='opacity 0.6s'; }, 200);
-                        setTimeout(function(){ _lo.style.display='none'; }, 900);
-                    }
+                    // 不直接隐藏遮罩！交给加载控制器：等动画播完一遍且游戏加载完才进入
+                    if (window._onGameLoadComplete) window._onGameLoadComplete();
                 }
 
                 var _maleSkipShowTimer = setTimeout(function() {
