@@ -1225,7 +1225,20 @@ function reloadCharacter(){
     _catEarFound=false; _catEarRestZ={l1:null,l2:null,r1:null,r2:null};
     window._vrmMode = false;
     const skinRowEl = document.getElementById('skinRow');
-    const vrmFile = localStorage.getItem('equipped_vrm_file');
+    let vrmFile = localStorage.getItem('equipped_vrm_file');
+    // 新用户首次打开：未装备过任何VRM → 按默认皮肤自动选VRM并持久化，
+    // 避免主页显示"几何体堆叠"的程序生成人物（需手动进装扮再点一次才正确的bug）
+    if(!vrmFile){
+        const _eq = JSON.parse(localStorage.getItem('campus_equipped')||'{}');
+        const _skin = _eq.skin || 'skin_vrm_girl'; // getEquippedSkin 的默认值
+        const _DEF_VRM = { skin_vrm_girl:'角色建模/女生.vrm', skin_vrm_boy:'角色建模/男的.vrm' };
+        if(_DEF_VRM[_skin]){
+            vrmFile = _DEF_VRM[_skin];
+            localStorage.setItem('equipped_vrm_file', vrmFile);
+            if(!_eq.skin){ _eq.skin=_skin; localStorage.setItem('campus_equipped', JSON.stringify(_eq)); }
+            if(localStorage.getItem('equipped_skin_index')==null) localStorage.setItem('equipped_skin_index', _skin==='skin_vrm_boy'?'1':'0');
+        }
+    }
     if(vrmFile){
         window._vrmMode = true;
         if(skinRowEl) skinRowEl.style.display='none';

@@ -3709,39 +3709,49 @@
                 // 地砖
                 const ft=new THREE.Mesh(new THREE.PlaneGeometry(cW-0.5,cD-0.5),new THREE.MeshLambertMaterial({color:0xe0d8c0}));
                 ft.rotation.x=-Math.PI/2; ft.position.set(cX,0.005,cZ); scene.add(ft);
-                // 服务台：后墙通高 + 矮墙裙 + 打饭台面（约 1.05～1.15m，与真实取餐口一致）
-                wall(cX, cH / 2, cN + 1.48, cW * 0.65, cH, 1.1, 0xd0d4d8);
-                box(cX, 0.52, cN + 0.55, cW * 0.66, 1.02, 0.06, 0xb8d0d4);
-                box(cX, 1.10, cN + 1.04, cW * 0.66 + 0.2, 0.10, 1.45, 0xeef2f6);
-                box(cX, 1.36, cN + 1.10, cW * 0.66 + 0.25, 0.06, 1.5, 0xfff8e8);
+                // ══ 取餐区（重建：后厨隔墙在北，矮取餐台朝就餐区，食物摆台面，学生可走到台前取餐）══
+                // 后厨隔墙（薄墙贴北墙，隔开后厨；不再用通高大墙挡住取餐口）
+                wall(cX, cH/2, cN + 0.55, cW * 0.66, cH, 0.30, 0xe6dcc6);
+                // 后厨墙面装饰（不锈钢护墙板观感）
+                box(cX, 1.6, cN + 0.72, cW*0.64, 3.0, 0.04, 0xc4ccd2);
+                // 取餐矮台（约1.15m高，面向南侧就餐区；台前留出站立取餐空间）
+                const svZ = cN + 2.2;
+                wall(cX, 0.58, svZ, cW * 0.66, 1.15, 0.85, 0xd0d4d8);      // 台体（含碰撞，1.15m高可越视线）
+                box(cX, 1.18, svZ, cW * 0.66 + 0.18, 0.10, 0.95, 0xeef2f6); // 不锈钢台面
+                box(cX, 1.24, svZ - 0.02, cW * 0.66 + 0.22, 0.05, 1.0, 0xfff8e8); // 台面亮边
+                // 取餐台上方挡菜玻璃（飞沫防护罩，悬空）
+                box(cX, 1.95, svZ - 0.30, cW*0.64, 0.55, 0.04, 0xbfe4ff, 0.30);
+                box(cX, 2.24, svZ - 0.30, cW*0.64, 0.04, 0.30, 0xc0c8d0); // 罩顶
                 const dish = new THREE.MeshLambertMaterial({ color: 0xc0c4c8 });
-                const foodBaseY = 1.15;
+                const foodBaseY = 1.27; // 台面之上
                 const addFood = (ox, ty) => {
-                    const base = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.06, 0.85), dish);
-                    base.position.set(cX + ox, foodBaseY, cN + 0.82); scene.add(base);
+                    const base = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.06, 0.70), dish);
+                    base.position.set(cX + ox, foodBaseY, svZ); scene.add(base);
                     if (ty === 'rice') {
-                        const m = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), new THREE.MeshLambertMaterial({ color: 0xf5f0e0 }));
-                        m.position.set(cX + ox, foodBaseY + 0.2, cN + 0.82); scene.add(m);
+                        const m = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), new THREE.MeshLambertMaterial({ color: 0xf5f0e0 }));
+                        m.position.set(cX + ox, foodBaseY + 0.18, svZ); scene.add(m);
                     } else if (ty === 'veg') {
-                        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), new THREE.MeshLambertMaterial({ color: 0x3a9a30, flatShading: true }));
-                        m.position.set(cX + ox, foodBaseY + 0.16, cN + 0.82); scene.add(m);
+                        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.20, 0), new THREE.MeshLambertMaterial({ color: 0x3a9a30, flatShading: true }));
+                        m.position.set(cX + ox, foodBaseY + 0.15, svZ); scene.add(m);
                     } else if (ty === 'meat') {
-                        box(cX + ox, foodBaseY + 0.14, cN + 0.82, 0.55, 0.12, 0.45, 0x8b4513);
+                        box(cX + ox, foodBaseY + 0.13, svZ, 0.55, 0.12, 0.42, 0x8b4513);
                     } else if (ty === 'soup') {
-                        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.14, 10), new THREE.MeshLambertMaterial({ color: 0xd4a574 }));
-                        m.position.set(cX + ox, foodBaseY + 0.11, cN + 0.82); scene.add(m);
-                        const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.26, 0.06, 10), new THREE.MeshLambertMaterial({ color: 0xc87830, transparent: true, opacity: 0.85 }));
-                        liq.position.set(cX + ox, foodBaseY + 0.2, cN + 0.82); scene.add(liq);
+                        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.26, 0.13, 10), new THREE.MeshLambertMaterial({ color: 0xd4a574 }));
+                        m.position.set(cX + ox, foodBaseY + 0.10, svZ); scene.add(m);
+                        const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.24, 0.05, 10), new THREE.MeshLambertMaterial({ color: 0xc87830, transparent: true, opacity: 0.85 }));
+                        liq.position.set(cX + ox, foodBaseY + 0.18, svZ); scene.add(liq);
                     } else if (ty === 'bun') {
-                        [0, 0.08].forEach((dy) => box(cX + ox, foodBaseY + 0.1 + dy, cN + 0.82, 0.38, 0.08, 0.38, 0xe8c080));
+                        [0, 0.08].forEach((dy) => box(cX + ox, foodBaseY + 0.09 + dy, svZ, 0.36, 0.08, 0.36, 0xe8c080));
                     } else if (ty === 'fruit') {
-                        const m = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 5), new THREE.MeshLambertMaterial({ color: 0xff5530, flatShading: true }));
-                        m.position.set(cX + ox - 0.15, foodBaseY + 0.14, cN + 0.75); scene.add(m);
-                        const m2 = m.clone(); m2.material = new THREE.MeshLambertMaterial({ color: 0xffcc22, flatShading: true }); m2.position.set(cX + ox + 0.18, foodBaseY + 0.12, cN + 0.88); scene.add(m2);
+                        const m = new THREE.Mesh(new THREE.SphereGeometry(0.14, 6, 5), new THREE.MeshLambertMaterial({ color: 0xff5530, flatShading: true }));
+                        m.position.set(cX + ox - 0.15, foodBaseY + 0.13, svZ - 0.06); scene.add(m);
+                        const m2 = m.clone(); m2.material = new THREE.MeshLambertMaterial({ color: 0xffcc22, flatShading: true }); m2.position.set(cX + ox + 0.18, foodBaseY + 0.11, svZ + 0.06); scene.add(m2);
                     }
                 };
                 [[-16, 'rice'], [-11, 'veg'], [-6, 'meat'], [-1, 'soup'], [4, 'bun'], [9, 'fruit'], [14, 'rice']].forEach(([ox, t]) => addFood(ox, t));
-                box(cX, 1.22, cN + 1.72, cW * 0.62, 0.04, 0.1, 0x909498);
+                // 取餐区"今日菜单"招牌（挂后厨墙上）
+                box(cX-9, 3.6, cN+0.74, 5.5, 0.9, 0.05, 0x244a78);
+                box(cX+9, 3.6, cN+0.74, 5.5, 0.9, 0.05, 0x244a78);
                 // 已删除中部两道隔断墙（原在 x=±10，挡路且像室内立柱）
                 // 餐桌（6行×9组，共54张，覆盖整个就餐区）
                 const tbMat=new THREE.MeshLambertMaterial({color:0xc8b880});
@@ -3815,6 +3825,7 @@
                 const g = gap / 2;
 
                 function buildStall(cx, cz, side) {
+                    if (window._skipVisualMesh) return; // 缓存加载：隔间墙/门已在合并缓存中，碰撞盒也已还原，跳过避免重叠
                     const S = 1.22;
                     const sm = new THREE.MeshLambertMaterial({ color: 0xd4e8f2 });
                     const wt = 0.09 * S, W = 1.26 * S, D = 1.14 * S, H = 2.38 * S;
@@ -3847,7 +3858,8 @@
                     scene.add(mir);
                 }
                 function addSouthSwingDoor(hingeX, doorW, zPivot, openAngle, interactX, interactZ) {
-                    if (window._skipVisualMesh) return;
+                    // 注意：不能在缓存加载时跳过！互动门是 _noMerge 对象，不在合并缓存里，
+                    // 每次加载都必须重建，否则缓存命中时厕所就"没有门/门打不开"
                     const pivot = new THREE.Group();
                     pivot.position.set(hingeX, doorH * 0.5, zPivot);
                     const mat = new THREE.MeshLambertMaterial({ color: 0x4a3328, flatShading: true });
@@ -5990,7 +6002,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v58'; // v58：路灯真光源+地面光池 + 喷泉移位美化 + 公告栏防闪 + 强制重建清门槛缓存
+        const MAP_VER = 'campus_v59'; // v59：食堂取餐台重建(不再被墙挡) + 厕所门缓存加载修复 + 隔间防重叠
 
         function _dbOpen(cb) {
             try {
