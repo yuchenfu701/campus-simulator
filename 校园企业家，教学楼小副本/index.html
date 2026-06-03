@@ -5357,7 +5357,7 @@
         // Canvas 纹理工厂（一次生成，全局缓存，供所有建筑复用）
         // ══════════════════════════════════════════════════════════════════════
         function buildDetailTextures() {
-            if (window._dtex && window._dtex._buildId === 'tex19') return window._dtex;
+            if (window._dtex && window._dtex._buildId === 'tex20') return window._dtex;
             const T = {};
 
             // ── 1. 外墙砖墙纹理 ──
@@ -5660,7 +5660,21 @@
               }
               const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; T.concretePanel=t; }
 
-            T._buildId = 'tex19';
+            // ── 各向异性过滤：让地面/路面/楼板等斜视角下的纹理更锐利（廉价高收益）──
+            try {
+                var _maxAniso = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy)
+                    ? renderer.capabilities.getMaxAnisotropy() : 1;
+                var _aniso = Math.min(8, _maxAniso); // 封顶8，兼顾性能
+                Object.keys(T).forEach(function(k){
+                    var tex = T[k];
+                    if (tex && tex.isTexture) {
+                        tex.anisotropy = _aniso;
+                        tex.needsUpdate = true;
+                    }
+                });
+            } catch(e) {}
+
+            T._buildId = 'tex20'; // tex20：各向异性过滤
             window._dtex = T;
             return T;
         }
