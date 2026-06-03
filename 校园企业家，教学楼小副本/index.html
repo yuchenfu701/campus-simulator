@@ -201,11 +201,12 @@
     ════════════════════════════════════════════════════════════ -->
     <div id="map-loading">
 
-        <!-- ① 背景：AI生成的GIF（放入assets/loading-bg.gif即生效） -->
-        <img id="load-bg-gif"
-             src="../assets/loading-bg.gif"
-             onerror="this.style.display='none'"
-             style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
+        <!-- ① 背景：AI生成的MP4（硬件解码，不卡；放入assets/loading-bg.mp4即生效） -->
+        <video id="load-bg-gif"
+               src="../assets/loading-bg.mp4"
+               autoplay muted loop playsinline
+               onerror="this.style.display='none'"
+               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;"></video>
 
         <!-- ② 深色蒙版（确保文字可读，并作为无GIF时的备用背景） -->
         <div id="load-color-bg"></div>
@@ -525,13 +526,18 @@
                     ctx.fillStyle='rgba(80,160,255,.35)'; ctx.fill();
                 }
             }
-            // 若GIF加载成功则隐藏canvas
-            var gif=document.getElementById('load-bg-gif');
-            if(gif){
-                gif.addEventListener('load',function(){
+            // 若背景视频成功播放则隐藏极光canvas（video用loadeddata/canplay）
+            var bgv=document.getElementById('load-bg-gif');
+            if(bgv){
+                var _hideAurora=function(){
                     cv.style.display='none';
                     if(raf) cancelAnimationFrame(raf);
-                });
+                };
+                bgv.addEventListener('loadeddata',_hideAurora);
+                bgv.addEventListener('canplay',_hideAurora);
+                // 自动播放保险：部分浏览器需手动触发play()
+                var _p=bgv.play&&bgv.play();
+                if(_p&&_p.catch) _p.catch(function(){});
             }
             frame();
         })();
