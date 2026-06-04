@@ -573,16 +573,16 @@
         }
 
         function doTransition(){
-            mask.style.opacity = '1';
+            // 只淡出/淡入台词文字，背景视频保持连续播放——不再用全屏黑幕
+            // （原来 mask.opacity=1 会让整屏黑一下，每句台词之间都闪黑，很难看）
+            chapter.style.opacity = '0';
+            body.style.opacity    = '0';
             setTimeout(function(){
                 storyIdx = (storyIdx + 1) % STORY.length;
-                chapter.style.opacity='0'; body.style.opacity='0';
-                setTimeout(function(){
-                    setStory(storyIdx);
-                    chapter.style.opacity='1'; body.style.opacity='1';
-                }, 120);
-                setTimeout(function(){ mask.style.opacity='0'; }, 200);
-            }, 550);
+                setStory(storyIdx);
+                chapter.style.opacity = '1';
+                body.style.opacity    = '1';
+            }, 450); // 等文字淡出(CSS .4s)后再换内容并淡入，纯文字交叉淡化
         }
 
         // 第一次：加载进来2秒后开始第一段台词；之后每隔 STORY_INTERVAL 循环
