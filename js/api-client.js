@@ -5,22 +5,39 @@
 const SUPABASE_URL = 'https://qfoaoaggyfhkkvoxyxrb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_L7NXVjxZwzJgIV4FGu5MUA_PPLbkNUY';
 
-// ── 动态加载 Supabase SDK ────────────────────────────────────
+// ── 动态加载 Supabase SDK（本地优先 → CDN兜底）────────────────
+// 软件版(Electron)把SDK打包在本地，断CDN也能连云服务器；网页版本地没有时自动回退CDN
 let _db = null;
+// 推断本地 SDK 路径：从 api-client.js 自身的 <script src> 推出同目录的 supabase.min.js
+function _localSdkPath() {
+  try {
+    const scripts = document.getElementsByTagName('script');
+    for (let i = 0; i < scripts.length; i++) {
+      const src = scripts[i].src || '';
+      if (src.indexOf('api-client.js') >= 0) return src.replace('api-client.js', 'supabase.min.js');
+    }
+  } catch (e) {}
+  return 'js/supabase.min.js';
+}
 const _dbReady = new Promise((resolve) => {
   function init() {
     _db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     resolve(_db);
   }
-  if (window.supabase) {
-    init();
-  } else {
+  if (window.supabase) { init(); return; }
+  function loadFrom(src, onFail) {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-    s.onload = init;
-    s.onerror = () => console.error('❌ Supabase SDK 加载失败');
+    s.src = src; s.onload = init; s.onerror = onFail;
     document.head.appendChild(s);
   }
+  // ① 先试本地（软件版/弱网更稳）
+  loadFrom(_localSdkPath(), function () {
+    console.warn('⚠️ 本地 Supabase SDK 加载失败，改用 CDN');
+    // ② 本地没有 → 回退 jsDelivr CDN
+    loadFrom('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js', function () {
+      console.error('❌ Supabase SDK 加载失败（本地+CDN都失败），联网功能不可用');
+    });
+  });
 });
 
 class APIClient {
