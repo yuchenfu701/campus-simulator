@@ -3339,7 +3339,9 @@
                 const corrZ=BZ2-4; // =-57，走廊南边界（走廊：corrZ~BZ2）
                 const STAIRX2=14, sCX2=17, sW2=6; // 楼梯间（东侧 X=14~20）
                 { buildDetailTextures(); } // 确保纹理已初始化
-                const wMat=new THREE.MeshLambertMaterial({color:0xf0ece4}); // 光滑米白外墙
+                const _wpT=window._dtex.concretePanel.clone(); _wpT.wrapS=_wpT.wrapT=THREE.RepeatWrapping; _wpT.repeat.set(4,2);
+                const wMat=new THREE.MeshLambertMaterial({color:0xeae6de, map:_wpT}); // 预制混凝土面板外墙(原纯白盒子)
+                wMat._cacheTexKey='concretePanel'; wMat._cacheTexRX=4; wMat._cacheTexRY=2;
                 const bMat=new THREE.MeshLambertMaterial({color:0x4a7eb5});
                 const _cwT2=window._dtex.corrWall.clone(); _cwT2.repeat.set(8,2);
                 const cWall=new THREE.MeshLambertMaterial({color:0xf0ede6,map:_cwT2});
@@ -3473,7 +3475,9 @@
                 const BW=BX2-BX1,BD=BZ2-BZ1,TH=12,ST=0.25;
                 const corrZ=CORR_Z; // 5，与B1相同
                 const STAIRX3=89,sCX3=92,sW3=6; // 楼梯间（东侧 X=89~95）
-                const wMat=new THREE.MeshLambertMaterial({color:0xf0ece4}); // 光滑米白外墙
+                const _wpT=window._dtex.concretePanel.clone(); _wpT.wrapS=_wpT.wrapT=THREE.RepeatWrapping; _wpT.repeat.set(4,2);
+                const wMat=new THREE.MeshLambertMaterial({color:0xeae6de, map:_wpT}); // 预制混凝土面板外墙(原纯白盒子)
+                wMat._cacheTexKey='concretePanel'; wMat._cacheTexRX=4; wMat._cacheTexRY=2;
                 const _cwT3=window._dtex.corrWall.clone(); _cwT3.repeat.set(8,2);
                 const cWall=new THREE.MeshLambertMaterial({color:0xf0ede6,map:_cwT3});
                 const stMat=new THREE.MeshLambertMaterial({color:0xd4c4b0});
@@ -3581,7 +3585,9 @@
                 const BW=BX2-BX1,BD=BZ2-BZ1,TH=12,ST=0.25;
                 const corrZ=CORR_Z; // 5
                 const STAIRX4=-89,sCX4=-92,sW4=6; // 楼梯间西侧 X=-95~-89
-                const wMat=new THREE.MeshLambertMaterial({color:0xf0ece4}); // 光滑米白外墙
+                const _wpT=window._dtex.concretePanel.clone(); _wpT.wrapS=_wpT.wrapT=THREE.RepeatWrapping; _wpT.repeat.set(4,2);
+                const wMat=new THREE.MeshLambertMaterial({color:0xeae6de, map:_wpT}); // 预制混凝土面板外墙(原纯白盒子)
+                wMat._cacheTexKey='concretePanel'; wMat._cacheTexRX=4; wMat._cacheTexRY=2;
                 const _cwT4=window._dtex.corrWall.clone(); _cwT4.repeat.set(8,2);
                 const cWall=new THREE.MeshLambertMaterial({color:0xf0ede6,map:_cwT4});
                 const stMat=new THREE.MeshLambertMaterial({color:0xd4c4b0});
@@ -6031,7 +6037,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v59'; // v59：食堂取餐台重建(不再被墙挡) + 厕所门缓存加载修复 + 隔间防重叠
+        const MAP_VER = 'campus_v60'; // v60：副楼外墙改预制混凝土面板纹理(原纯白盒子) + 点光源优化
 
         function _dbOpen(cb) {
             try {
