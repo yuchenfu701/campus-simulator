@@ -6066,7 +6066,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v61'; // v61：树叶改自然绿(原霓虹绿太卡通) + 副楼混凝土面板 + 点光源优化
+        const MAP_VER = 'campus_v62'; // v62：终于找到"门槛"真凶——走廊护墙板挡门洞，改为分段留缺口
 
         function _dbOpen(cb) {
             try {
@@ -7452,11 +7452,25 @@
                     const capN=new THREE.Mesh(new THREE.BoxGeometry(corrLen,0.05,wD+0.01),capMat);
                     capN.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, BLDG_Z2-skirtD-wD/2); scene.add(capN);
                 }
-                // 走廊隔墙北侧（无入口，全段）
-                const wpS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, wH, wD), wainMat);
-                wpS.position.set(BLDG_X1+corrLen/2, yB+wH/2, CORR_Z+skirtD+wD/2); scene.add(wpS);
-                const capS=new THREE.Mesh(new THREE.BoxGeometry(corrLen, 0.05, wD+0.01), capMat);
-                capS.position.set(BLDG_X1+corrLen/2, yB+wH+0.025, CORR_Z+skirtD+wD/2); scene.add(capS);
+                // 走廊隔墙北侧（含3个教室门洞！必须留缺口，否则1.05m护墙板会挡住每个教室门口
+                //   ——这就是用户反复说的"门槛"真凶：之前误标"无入口"做成了整段）
+                {
+                    const _doorHalf = DOOR_W/2 + 0.12;       // 门洞半宽+余量
+                    const _zS = CORR_Z + skirtD + wD/2;
+                    const _rcX = [ROOM_XS[0]+DOOR_W/2+0.6, ROOM_XS[1]+DOOR_W/2+0.6, ROOM_XS[2]+DOOR_W/2+0.6];
+                    // 门洞把北墙分成若干段：[墙端, 门左, 门右, 门左, 门右, ..., 墙端]
+                    const _edges = [BLDG_X1];
+                    _rcX.forEach(function(d){ _edges.push(d-_doorHalf, d+_doorHalf); });
+                    _edges.push(BLDG_X1+corrLen);
+                    for (let s=0; s<_edges.length-1; s+=2) {
+                        const x1=_edges[s], x2=_edges[s+1], len=x2-x1;
+                        if (len <= 0.05) continue;
+                        const wp=new THREE.Mesh(new THREE.BoxGeometry(len,wH,wD),wainMat);
+                        wp.position.set(x1+len/2, yB+wH/2, _zS); scene.add(wp);
+                        const cap=new THREE.Mesh(new THREE.BoxGeometry(len,0.05,wD+0.01),capMat);
+                        cap.position.set(x1+len/2, yB+wH+0.025, _zS); scene.add(cap);
+                    }
+                }
             }
 
             // ── 储物柜组（仅中高配，南墙内侧，避开入口门洞）──
