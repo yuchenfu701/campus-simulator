@@ -1903,6 +1903,35 @@
                 }
             })();
 
+            // ── HDRI 风格环境光照（PMREM 处理的天空渐变 → scene.environment）──
+            // PBR 材质靠它获得真实的环境反射 + 柔和的图像光照（IBL）；低配跳过
+            (function initEnvironmentIBL(){
+                if (window._gfxTier === 'low') return;
+                if (typeof THREE.PMREMGenerator === 'undefined') return;
+                try {
+                    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+                    const c = cv.getContext('2d');
+                    // 等距矩形天空渐变：天顶蓝 → 地平线浅 → 地面暗
+                    const g = c.createLinearGradient(0, 0, 0, 128);
+                    g.addColorStop(0.00, '#7ba6da'); // 天顶
+                    g.addColorStop(0.42, '#bcd4ee');
+                    g.addColorStop(0.50, '#e6dcc8'); // 地平线
+                    g.addColorStop(0.62, '#9a9484');
+                    g.addColorStop(1.00, '#5c6356'); // 地面反射
+                    c.fillStyle = g; c.fillRect(0, 0, 256, 128);
+                    const skyTex = new THREE.CanvasTexture(cv);
+                    skyTex.mapping = THREE.EquirectangularReflectionMapping;
+                    const pmrem = new THREE.PMREMGenerator(renderer);
+                    pmrem.compileEquirectangularShader();
+                    const envRT = pmrem.fromEquirectangular(skyTex);
+                    scene.environment = envRT.texture; // 不设为 background（天空另有动态系统）
+                    skyTex.dispose(); pmrem.dispose();
+                    console.log('🌅 环境光照(IBL) 已启用');
+                } catch (e) {
+                    console.warn('⚠️ 环境光照初始化失败，PBR降级为纯灯光:', e.message);
+                }
+            })();
+
             initTimeWeatherSystems();
             
             // 补光A：东南方向（照亮西北立面，减少死黑阴面）
@@ -6164,8 +6193,10 @@
             if (window._matUpgradeDone) return;
             window._matUpgradeDone = true;
             const tier   = window._gfxTier || 'high';
-            const isSW   = (tier === 'low');   // 软件渲染：最小化镜面计算
-            const matMap = new Map();           // Lambert uuid → Phong 实例（去重）
+            const isLow  = (tier === 'low');   // 软件渲染：不用IBL，PBR也最省
+            const useEnv = !isLow && !!scene.environment; // 有环境贴图才开IBL
+            const matMap = new Map();           // Lambert uuid → Standard 实例（去重）
+            const pbrMats = window._pbrMats || (window._pbrMats = []); // 供渲染循环按昼夜调 envMapIntensity
             let n = 0;
 
             scene.traverse(function(obj){
@@ -6183,30 +6214,34 @@
                     const isDkMet  = br < 0.22 && Math.abs(c.r-c.g)<0.08 && Math.abs(c.g-c.b)<0.08;
                     const isLight  = br > 0.70;
 
-                    let sh, sp;
-                    if (isSW)      { sh=2;  sp=new THREE.Color(0.015,0.015,0.015); }  // 软渲染极保守
-                    else if(isGreen){ sh=2;  sp=new THREE.Color(0.010,0.018,0.010); } // 草地/树叶
-                    else if(isDkMet){ sh=32; sp=new THREE.Color(0.065,0.065,0.075); } // 深色金属/沥青
-                    else if(isLight){ sh=9;  sp=new THREE.Color(0.042,0.042,0.042); } // 白/浅色混凝土
-                    else            { sh=5;  sp=new THREE.Color(0.030,0.030,0.038); } // 其余（砖/木/路面）
+                    // PBR 粗糙度/金属度：决定质感（越低越反光）
+                    let rough, metal;
+                    if (isGreen)      { rough=0.94; metal=0.00; } // 草地/树叶 哑光
+                    else if (isDkMet) { rough=0.52; metal=0.32; } // 沥青/深金属 半反光
+                    else if (isLight) { rough=0.80; metal=0.00; } // 白墙/混凝土
+                    else              { rough=0.78; metal=0.03; } // 砖/木/路面
 
-                    matMap.set(m.uuid, new THREE.MeshPhongMaterial({
+                    const sm = new THREE.MeshStandardMaterial({
                         color:       c.clone(),
                         map:         m.map || null,
                         transparent: m.transparent,
                         opacity:     m.opacity,
                         side:        m.side,
-                        shininess:   sh,
-                        specular:    sp,
+                        roughness:   rough,
+                        metalness:   metal,
+                        envMapIntensity: useEnv ? 0.85 : 0,
                         fog:         m.fog !== false,
                         depthWrite:  m.depthWrite !== false,
-                    }));
+                    });
+                    sm.userData.baseEnv = useEnv ? 0.85 : 0;
+                    matMap.set(m.uuid, sm);
+                    pbrMats.push(sm);
                     n++;
                 }
                 obj.material = matMap.get(m.uuid);
             });
 
-            // 玻璃窗升级为 Phong（保持透明，增加高光）
+            // 玻璃窗 → Standard（高反光透明，吃环境贴图反射）
             scene.traverse(function(obj){
                 if (!obj.isMesh || !obj.material) return;
                 const m = obj.material;
@@ -6216,15 +6251,16 @@
                 // 只升级蓝色系玻璃（排除云/雨雪等其他透明体）
                 if (c.b < c.r + 0.1) return;
                 if (matMap.has(m.uuid)) { obj.material = matMap.get(m.uuid); return; }
-                const glassPhong = new THREE.MeshPhongMaterial({
+                const glass = new THREE.MeshStandardMaterial({
                     color: c.clone(), transparent: true, opacity: m.opacity,
-                    shininess: isSW ? 20 : 80,
-                    specular: new THREE.Color(0.18, 0.22, 0.28),
+                    roughness: 0.06, metalness: 0.0,
+                    envMapIntensity: useEnv ? 1.5 : 0.3,
                     side: m.side || THREE.DoubleSide,
                     depthWrite: false, fog: false,
                 });
-                matMap.set(m.uuid, glassPhong);
-                obj.material = glassPhong;
+                glass.userData.baseEnv = useEnv ? 1.5 : 0.3;
+                matMap.set(m.uuid, glass);
+                pbrMats.push(glass);
                 n++;
             });
 
@@ -6262,7 +6298,7 @@
                 });
             }
 
-            console.log('✨ 材质升级 Lambert→Phong × ' + n + ' 种 [tier:' + tier + ']');
+            console.log('✨ 材质升级 Lambert→PBR(Standard) × ' + n + ' 种 [tier:' + tier + ' env:' + useEnv + ']');
         }
 
         // 从缓存数据还原已合并的Mesh + 碰撞盒
@@ -9865,6 +9901,16 @@
                     ring.scale.setScalar(1 + t * 26);
                     ring.material.opacity = Math.max(0, (1 - t) * 0.42);
                 });
+            }
+
+            // ── PBR 环境光强度随昼夜调节（环境贴图是白天天空，夜间需调暗避免物体被"白天天空"照亮）──
+            if (window._pbrMats && scene.environment) {
+                const _edf = window._dayFactor != null ? window._dayFactor : 1;
+                const _envF = 0.16 + 0.84 * _edf; // 夜间降到16%，白天满
+                if (Math.abs((window._lastEnvF || -1) - _envF) > 0.01) { // 变化明显才更新，省开销
+                    window._lastEnvF = _envF;
+                    window._pbrMats.forEach(function(mm){ mm.envMapIntensity = (mm.userData.baseEnv || 0) * _envF; });
+                }
             }
 
             // ── 樱花花瓣飘落动画 ──
