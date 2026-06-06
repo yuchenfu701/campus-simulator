@@ -4894,7 +4894,7 @@
                 const _lampGlows=[];
                 const _lampLights=[];
                 const _highTier=(window._gfxTier==='high'); // 只在高配加真实点光源，中低配用光晕+地面光池
-                function _mkLampGlow(x,y,z){
+                function _mkLampGlow(x,y,z,withLight){
                     // 小光晕（灯泡本体的辉光，不再是大橙球）
                     const mat=new THREE.MeshBasicMaterial({
                         color:0xffd27a,transparent:true,opacity:0,
@@ -4904,8 +4904,9 @@
                     m.position.set(x,y,z);
                     m.renderOrder=3; m._noMerge=true;
                     scene.add(m); _lampGlows.push(m);
-                    // 真实点光源（暖白，初始intensity=0，夜间由渲染循环驱动）；仅高配
-                    if(_highTier){
+                    // 真实点光源（仅高配 + 仅指定灯）：限制总数避免合并网格上多光源拖慢帧率
+                    // 之前所有16盏都加→20个点光源太多会卡；现在只给广场主轴6盏，其余用光晕+地面光池
+                    if(_highTier && withLight){
                         const pl=new THREE.PointLight(0xffdca0, 0, 14, 1.6);
                         pl.position.set(x, y-0.15, z);
                         pl._noMerge=true; scene.add(pl);
@@ -4933,8 +4934,8 @@
                         cap.position.set(px-side*1.1,6.42,pz); cap._noMerge=true; scene.add(cap);
                         const gl=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.08,0.2),_glM);
                         gl.position.set(px-side*1.1,6.36,pz); gl._noMerge=true; scene.add(gl);
-                        // 光晕（灯头正下方）
-                        _mkLampGlow(px-side*1.1, 6.36, pz);
+                        // 光晕 + 真实点光源（广场主轴是玩家出生/常驻区，给真实光源最值）
+                        _mkLampGlow(px-side*1.1, 6.36, pz, true);
                     });
                 });
 
