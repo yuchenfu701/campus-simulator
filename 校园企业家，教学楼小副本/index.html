@@ -681,8 +681,9 @@
     </div>
 
     <!-- Three.js 及后处理库（本地优先 → CDN兜底）：软件版断网/断CDN也能加载3D引擎 -->
-    <script src="../js/three.min.js"></script>
-    <script src="../js/GLTFLoader.js"></script>
+    <!-- 注意：用 r134 专属文件（js/three.min.js 是给其他页面的 r150+，与本游戏的r134扩展库不兼容）-->
+    <script src="../js/three-r134.min.js"></script>
+    <script src="../js/GLTFLoader-r134.js"></script>
     <script src="../js/OrbitControls.js"></script>
     <script src="../js/BufferGeometryUtils.js"></script>
     <!-- 后处理：FXAA 抗锯齿 + 微量 Bloom -->
