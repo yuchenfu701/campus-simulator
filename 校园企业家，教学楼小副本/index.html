@@ -6161,6 +6161,43 @@
             return result;
         }
 
+        // 程序化"细节法线贴图"：给PBR表面加微观凹凸，让平面在光下有真实质感（非纯平死板）
+        // 全sin多倍频→无缝可平铺；不含随机噪声避免接缝
+        function _buildDetailNormal() {
+            const N = 128;
+            const cv = document.createElement('canvas'); cv.width = cv.height = N;
+            const ctx = cv.getContext('2d');
+            const h = new Float32Array(N * N);
+            const TAU = Math.PI * 2;
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+                const u = x / N, v = y / N;
+                // 多倍频可平铺起伏（整数倍频率保证无缝）
+                let val = 0;
+                val += 1.00 * Math.sin(u * TAU * 6) * Math.cos(v * TAU * 5);
+                val += 0.55 * Math.sin(u * TAU * 13 + 1.1) * Math.cos(v * TAU * 11 + 0.4);
+                val += 0.30 * Math.sin(u * TAU * 23 + 2.3) * Math.cos(v * TAU * 27 + 1.9);
+                val += 0.18 * Math.sin(u * TAU * 41 + 0.7) * Math.cos(v * TAU * 37 + 2.7);
+                h[y * N + x] = val;
+            }
+            const img = ctx.createImageData(N, N);
+            const S = 1.4; // 起伏强度
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+                const xl = h[y * N + ((x - 1 + N) % N)], xr = h[y * N + ((x + 1) % N)];
+                const yu = h[((y - 1 + N) % N) * N + x], yd = h[((y + 1) % N) * N + x];
+                let nx = (xl - xr) * S, ny = (yu - yd) * S, nz = 1.0;
+                const len = Math.hypot(nx, ny, nz) || 1; nx /= len; ny /= len; nz /= len;
+                const i = (y * N + x) * 4;
+                img.data[i]     = (nx * 0.5 + 0.5) * 255;
+                img.data[i + 1] = (ny * 0.5 + 0.5) * 255;
+                img.data[i + 2] = (nz * 0.5 + 0.5) * 255;
+                img.data[i + 3] = 255;
+            }
+            ctx.putImageData(img, 0, 0);
+            const t = new THREE.CanvasTexture(cv);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            return t;
+        }
+
         // 序列化合并后的Mesh为可存入IndexedDB的纯ArrayBuffer结构
         function _serializeMerged(mergedMeshes) {
             return mergedMeshes.map(m => {
@@ -6197,6 +6234,8 @@
             const useEnv = !isLow && !!scene.environment; // 有环境贴图才开IBL
             const matMap = new Map();           // Lambert uuid → Standard 实例（去重）
             const pbrMats = window._pbrMats || (window._pbrMats = []); // 供渲染循环按昼夜调 envMapIntensity
+            // 细节法线贴图（微观凹凸）；低配不用(省一次纹理采样)
+            const detailNormal = isLow ? null : (window._detailNormal || (window._detailNormal = _buildDetailNormal()));
             let n = 0;
 
             scene.traverse(function(obj){
@@ -6233,6 +6272,17 @@
                         fog:         m.fog !== false,
                         depthWrite:  m.depthWrite !== false,
                     });
+                    // 细节法线：让平面有微观凹凸质感；草地弱、混凝土/沥青强；强度按表面类型
+                    if (detailNormal) {
+                        const nrm = detailNormal.clone();
+                        // 法线平铺：跟随颜色贴图的tiling；无颜色贴图(纯色盒子)用基于尺寸的默认平铺
+                        if (m.map && m.map.repeat) { nrm.repeat.copy(m.map.repeat); }
+                        else { nrm.repeat.set(6, 6); }
+                        nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping;
+                        sm.normalMap = nrm;
+                        const ns = isGreen ? 0.25 : (isDkMet ? 0.7 : (isLight ? 0.45 : 0.5));
+                        sm.normalScale = new THREE.Vector2(ns, ns);
+                    }
                     sm.userData.baseEnv = useEnv ? 0.85 : 0;
                     matMap.set(m.uuid, sm);
                     pbrMats.push(sm);
@@ -6298,7 +6348,7 @@
                 });
             }
 
-            console.log('✨ 材质升级 Lambert→PBR(Standard) × ' + n + ' 种 [tier:' + tier + ' env:' + useEnv + ']');
+            console.log('✨ 材质升级 Lambert→PBR(Standard) × ' + n + ' 种 [tier:' + tier + ' env:' + useEnv + ' normal:' + !!detailNormal + ']');
         }
 
         // 从缓存数据还原已合并的Mesh + 碰撞盒
