@@ -680,31 +680,43 @@
         <input type="text" id="console-input" placeholder="输入命令...">
     </div>
 
-    <!-- 引入Three.js库（jsDelivr：国内速度快；失败自动换cdnjs） -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"></script>
+    <!-- Three.js 及后处理库（本地优先 → CDN兜底）：软件版断网/断CDN也能加载3D引擎 -->
+    <script src="../js/three.min.js"></script>
+    <script src="../js/GLTFLoader.js"></script>
+    <script src="../js/OrbitControls.js"></script>
+    <script src="../js/BufferGeometryUtils.js"></script>
     <!-- 后处理：FXAA 抗锯齿 + 微量 Bloom -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/FXAAShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="../js/EffectComposer.js"></script>
+    <script src="../js/RenderPass.js"></script>
+    <script src="../js/ShaderPass.js"></script>
+    <script src="../js/CopyShader.js"></script>
+    <script src="../js/FXAAShader.js"></script>
+    <script src="../js/UnrealBloomPass.js"></script>
+    <script src="../js/LuminosityHighPassShader.js"></script>
 
-    <!-- 备用CDN（jsDelivr失败时） -->
+    <!-- 本地缺失/损坏时回退 CDN（先补核心 three，再补缺失的扩展）-->
     <script>
         if (typeof THREE === 'undefined') {
-            console.log('主CDN失败，尝试备用CDN...');
-            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"><\/script>');
-            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/loaders/GLTFLoader.js"><\/script>');
-            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/controls/OrbitControls.js"><\/script>');
+            console.log('本地 three.min.js 未加载，回退 CDN...');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"><\/script>');
         }
-        if (typeof THREE !== 'undefined' && !THREE.BufferGeometryUtils) {
-            document.write('<script src="https://unpkg.com/three@0.134.0/examples/js/utils/BufferGeometryUtils.js"><\/script>');
-        }
+    </script>
+    <script>
+        (function(){
+            if (typeof THREE === 'undefined') return; // 核心都没有，等上面的CDN three加载后由下一段补
+            var J = 'https://cdn.jsdelivr.net/npm/three@0.134.0';
+            function need(missing, url){ if (missing) document.write('<script src="'+url+'"><\/scr'+'ipt>'); }
+            need(!THREE.GLTFLoader,              J+'/examples/js/loaders/GLTFLoader.js');
+            need(!THREE.OrbitControls,           J+'/examples/js/controls/OrbitControls.js');
+            need(!THREE.BufferGeometryUtils,     J+'/examples/js/utils/BufferGeometryUtils.js');
+            need(!THREE.EffectComposer,          J+'/examples/js/postprocessing/EffectComposer.js');
+            need(!THREE.RenderPass,              J+'/examples/js/postprocessing/RenderPass.js');
+            need(!THREE.ShaderPass,              J+'/examples/js/postprocessing/ShaderPass.js');
+            need(!THREE.CopyShader,              J+'/examples/js/shaders/CopyShader.js');
+            need(!THREE.FXAAShader,              J+'/examples/js/shaders/FXAAShader.js');
+            need(!THREE.UnrealBloomPass,         J+'/examples/js/postprocessing/UnrealBloomPass.js');
+            need(!THREE.LuminosityHighPassShader,J+'/examples/js/shaders/LuminosityHighPassShader.js');
+        })();
     </script>
 
     <script>
