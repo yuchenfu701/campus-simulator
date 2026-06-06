@@ -943,7 +943,7 @@
 
         // ── 昼夜 / 天气系统（gameTime ∈ [0,1) = 一昼夜，见项目说明文档）──
         let gameDayDurationSec = 600;
-        const TRANSITION_DUR = 6; // 天气切换时天空/雾等过渡时长（秒）
+        const TRANSITION_DUR = 16; // 天气切换时天空/雾等过渡时长（秒）——原6s太突兀，改长更自然
         const WEATHER_RANGE = 35;
         const SUN_ORBIT_R = 600;
         let gameTime = (14 / 24) % 1; // 14:00
@@ -1035,7 +1035,8 @@
             snow: { fogNear: 38, fogFar: 205, fogR: 0.78, fogG: 0.80, fogB: 0.84, rainOp: 0, snowOp: 0.78, skyR: 0.74, skyG: 0.77, skyB: 0.82 },
             fog: { fogNear: 8, fogFar: 95, fogR: 0.52, fogG: 0.55, fogB: 0.60, rainOp: 0, snowOp: 0, skyR: 0.50, skyG: 0.53, skyB: 0.58 }
         };
-        const WEATHER_DURATION = { clear: [300, 360], rain: [120, 180], snow: [120, 180], fog: [60, 120] };
+        // 每种天气持续时长(秒)——原值偏短导致天气切换太频繁，整体拉长约2倍，变化更舒缓
+        const WEATHER_DURATION = { clear: [540, 780], rain: [260, 380], snow: [260, 380], fog: [200, 320] };
         const WEATHER_PROBS = {
             morning: { clear: 40, rain: 20, snow: 15, fog: 25 },
             noon: { clear: 60, rain: 20, snow: 10, fog: 10 },
