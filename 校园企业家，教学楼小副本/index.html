@@ -3172,7 +3172,7 @@
             if (x + crownReach > 18 && x - crownReach < 40 && z + crownReach > -23.5 && z - crownReach < -12) return;
             buildDetailTextures();
             const T = window._dtex || {};
-            const LIME = 0xa2f55c;
+            const LIME = 0x6b9a45; // 自然叶绿(原0xa2f55c霓虹绿太卡通)
             const colMain = (cc != null && cc !== undefined) ? cc : LIME;
             const r0 = (colMain >> 16) & 255, g0 = (colMain >> 8) & 255, b0 = colMain & 255;
             const darkHex = (Math.max(10, r0 - 48) << 16) | (Math.max(20, g0 - 58) << 8) | Math.max(12, b0 - 38);
@@ -4181,7 +4181,7 @@
             box(-0.6,17.0,55,1.0,0.4,0.07,0xffdd00);
 
             // ── 行道树（与 addLowPolyTree 一致：簇状二十面体 + 锥形树干）──
-            function campusTree(x,z,h,r){ addLowPolyTree(x,z,h,r,0x8ee848); }
+            function campusTree(x,z,h,r){ addLowPolyTree(x,z,h,r,0x5f8c3c); } // 自然绿(原0x8ee848过亮)
             for(let z=12;z<110;z+=16){
                 [[-5,z],[5,z]].forEach(([x,zt])=>{
                     if(zt>=50 && zt<=60) return;
@@ -6066,7 +6066,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v60'; // v60：副楼外墙改预制混凝土面板纹理(原纯白盒子) + 点光源优化
+        const MAP_VER = 'campus_v61'; // v61：树叶改自然绿(原霓虹绿太卡通) + 副楼混凝土面板 + 点光源优化
 
         function _dbOpen(cb) {
             try {
