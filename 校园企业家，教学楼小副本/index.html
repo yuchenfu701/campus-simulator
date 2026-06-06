@@ -6195,6 +6195,7 @@
             ctx.putImageData(img, 0, 0);
             const t = new THREE.CanvasTexture(cv);
             t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            t.repeat.set(12, 12); // 固定平铺(共用，不per-material clone)，微观细节足够
             return t;
         }
 
@@ -6272,14 +6273,10 @@
                         fog:         m.fog !== false,
                         depthWrite:  m.depthWrite !== false,
                     });
-                    // 细节法线：让平面有微观凹凸质感；草地弱、混凝土/沥青强；强度按表面类型
+                    // 细节法线：微观凹凸质感。共用同一张法线贴图(固定平铺)，
+                    // 不再 clone —— 否则每种材质一张GPU纹理(~4500张)会吃掉数百MB显存
                     if (detailNormal) {
-                        const nrm = detailNormal.clone();
-                        // 法线平铺：跟随颜色贴图的tiling；无颜色贴图(纯色盒子)用基于尺寸的默认平铺
-                        if (m.map && m.map.repeat) { nrm.repeat.copy(m.map.repeat); }
-                        else { nrm.repeat.set(6, 6); }
-                        nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping;
-                        sm.normalMap = nrm;
+                        sm.normalMap = detailNormal;
                         const ns = isGreen ? 0.25 : (isDkMet ? 0.7 : (isLight ? 0.45 : 0.5));
                         sm.normalScale = new THREE.Vector2(ns, ns);
                     }
