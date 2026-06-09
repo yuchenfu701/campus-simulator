@@ -2078,6 +2078,7 @@
                     _upgradeSceneMaterials(); // 缓存还原后升级材质
                     _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
+                    _loadAndInstanceLamps();  // 路灯用GLB精模实例化
                 } else {
                     // ── 缓存未命中：完整生成，合并后保存到IndexedDB ──
                     // 手机端强制低画质（跳过装饰物），大幅减少几何体生成时间
@@ -2103,6 +2104,7 @@
                         _upgradeSceneMaterials(); // 手机无合并路径，直接升级
                         _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
+                    _loadAndInstanceLamps();  // 路灯用GLB精模实例化
                     } else {
                         _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
                         // 使用 setTimeout 让提示文字先渲染再执行耗时合并
@@ -2116,6 +2118,7 @@
                             _upgradeSceneMaterials(); // 合并完成后升级（合并后每个Mesh材质唯一，安全替换）
                             _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
+                    _loadAndInstanceLamps();  // 路灯用GLB精模实例化
                             // 保存合并结果+碰撞盒到IndexedDB
                             const cacheData = {
                                 meshData:   _serializeMerged(mergedMeshes),
@@ -3423,6 +3426,67 @@
             console.log('🪑 兜底盒子长椅 × ' + pts.length);
         }
 
+        // ── 路灯：Blender 处理过的 Meshy 精模 GLB 实例化（灯臂在 ry=0 时朝 -X）──
+        // 灯柱几何体替代原程序化圆柱+盒子；夜间光晕/点光源/地面光池系统保持不动。
+        const _LAMP_YAW = 0; // 若灯臂方向整体反了，改成 Math.PI 即可
+        const _LAMP_PLACEMENTS = (function () {
+            const a = [];
+            // 南侧主干道（z=16,31,46，x=±6，灯臂朝路中心），灯高约5.6m → scale 2.8
+            [16, 31, 46].forEach(function (z) {
+                a.push({ x: -6, z: z, ry: Math.PI, s: 2.8 }); // 左侧→臂朝+X
+                a.push({ x: 6, z: z, ry: 0, s: 2.8 });        // 右侧→臂朝-X
+            });
+            // 北侧走廊（z=-15,-45，x=±5）
+            [-15, -45].forEach(function (z) {
+                a.push({ x: -5, z: z, ry: Math.PI, s: 2.8 });
+                a.push({ x: 5, z: z, ry: 0, s: 2.8 });
+            });
+            // 广场主轴（z=25,33,41，x=±9，灯高约6.4m → scale 3.2）
+            [25, 33, 41].forEach(function (z) {
+                a.push({ x: -9, z: z, ry: Math.PI, s: 3.2 });
+                a.push({ x: 9, z: z, ry: 0, s: 3.2 });
+            });
+            return a;
+        })();
+        function _loadAndInstanceLamps() {
+            if (window._lampsInstanced) return;
+            window._lampsInstanced = true;
+            const pts = _LAMP_PLACEMENTS;
+            if (typeof THREE.GLTFLoader === 'undefined') return;
+            const loader = new THREE.GLTFLoader();
+            loader.load('../assets/models/streetlamp.glb', function (gltf) {
+                const parts = [];
+                gltf.scene.updateMatrixWorld(true);
+                gltf.scene.traverse(function (o) {
+                    if (o.isMesh && o.geometry) {
+                        const g = o.geometry.clone();
+                        g.applyMatrix4(o.matrixWorld);
+                        parts.push({ geo: g, mat: o.material });
+                    }
+                });
+                if (!parts.length) return;
+                const dummy = new THREE.Object3D();
+                parts.forEach(function (part) {
+                    const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
+                    inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
+                    inst.frustumCulled = false;
+                    for (let i = 0; i < pts.length; i++) {
+                        const p = pts[i];
+                        dummy.position.set(p.x, 0, p.z);
+                        dummy.rotation.set(0, p.ry + _LAMP_YAW, 0);
+                        dummy.scale.set(p.s, p.s, p.s);
+                        dummy.updateMatrix();
+                        inst.setMatrixAt(i, dummy.matrix);
+                    }
+                    inst.instanceMatrix.needsUpdate = true;
+                    scene.add(inst);
+                });
+                console.log('💡 GLB路灯实例化 × ' + pts.length);
+            }, undefined, function (err) {
+                console.warn('⚠️ GLB路灯加载失败:', err && err.message);
+            });
+        }
+
         // 操场/跑道为 PlaneGeometry，不参与 mergeStaticMeshes；IndexedDB 缓存加载时 createCampus 会 skip，必须补建否则只剩一片纯色草地
         function ensureCampusAthleticFieldPlanes() {
             if (window._campusFieldPlanesBuilt || !scene) return;
@@ -4401,6 +4465,7 @@
             for(let z=16;z<110;z+=15){
                 [[-6,z],[6,z]].forEach(([x,zt])=>{
                     if (zt >= 54 && zt <= 116) return;
+                    return; // 灯柱改用 GLB 精模实例化（_loadAndInstanceLamps）
                     const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,5.5,6),
                         new THREE.MeshLambertMaterial({color:0x606060}));
                     pole.position.set(x,2.75,zt); scene.add(pole);
@@ -4413,6 +4478,7 @@
             [[-15],[-25],[-35],[-45]].forEach(([zt])=>{
                 if(zt>=-39 && zt<=-21) return; // 食堂区不放路灯（已有内部照明）
                 [[-5,zt],[5,zt]].forEach(([x,z2])=>{
+                    return; // 灯柱改用 GLB 精模实例化（_loadAndInstanceLamps）
                     const pole2=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,5.5,6),
                         new THREE.MeshLambertMaterial({color:0x606060}));
                     pole2.position.set(x,2.75,z2); scene.add(pole2);
@@ -5124,17 +5190,7 @@
                 [25,33,41].forEach(function(pz){
                     [-9,9].forEach(function(px){
                         const side=px>0?1:-1;
-                        // 灯柱
-                        const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,6.5,7),_poleM);
-                        pole.position.set(px,3.25,pz); pole._noMerge=true; scene.add(pole);
-                        // 灯臂（朝路中心延伸）
-                        const arm=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.08,0.08),_poleM);
-                        arm.position.set(px-side*0.55,6.52,pz); arm._noMerge=true; scene.add(arm);
-                        // 灯头
-                        const cap=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.18,0.28),_capM);
-                        cap.position.set(px-side*1.1,6.42,pz); cap._noMerge=true; scene.add(cap);
-                        const gl=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.08,0.2),_glM);
-                        gl.position.set(px-side*1.1,6.36,pz); gl._noMerge=true; scene.add(gl);
+                        // 灯柱/灯臂/灯头改用 GLB 精模实例化（_loadAndInstanceLamps）；此处仅保留光晕+点光源
                         // 光晕 + 真实点光源（广场主轴是玩家出生/常驻区，给真实光源最值）
                         _mkLampGlow(px-side*1.1, 6.36, pz, true);
                     });
@@ -6233,7 +6289,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v64'; // v64：长椅改用 Blender GLB 精模实例化（木条座+金属框）；树模型升级（圆润树冠/细树干）
+        const MAP_VER = 'campus_v65'; // v65：路灯改用 Meshy 精模 GLB 实例化（白杆蓝座LED头，道路/走廊/广场16盏），夜间光晕保留
 
         function _dbOpen(cb) {
             try {
