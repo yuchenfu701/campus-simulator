@@ -2077,6 +2077,7 @@
                     console.log('⚡ 地图缓存加载完成（跳过视觉重建）');
                     _upgradeSceneMaterials(); // 缓存还原后升级材质
                     _loadAndInstanceTrees();  // 绿树用GLB模型实例化
+                    _loadAndInstanceBenches();// 长椅用GLB精模实例化
                 } else {
                     // ── 缓存未命中：完整生成，合并后保存到IndexedDB ──
                     // 手机端强制低画质（跳过装饰物），大幅减少几何体生成时间
@@ -2101,6 +2102,7 @@
                         console.log('📱 手机端跳过几何体合并，直接进入');
                         _upgradeSceneMaterials(); // 手机无合并路径，直接升级
                         _loadAndInstanceTrees();  // 绿树用GLB模型实例化
+                    _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     } else {
                         _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
                         // 使用 setTimeout 让提示文字先渲染再执行耗时合并
@@ -2113,6 +2115,7 @@
                             const mergedMeshes = mergeStaticMeshes();
                             _upgradeSceneMaterials(); // 合并完成后升级（合并后每个Mesh材质唯一，安全替换）
                             _loadAndInstanceTrees();  // 绿树用GLB模型实例化
+                    _loadAndInstanceBenches();// 长椅用GLB精模实例化
                             // 保存合并结果+碰撞盒到IndexedDB
                             const cacheData = {
                                 meshData:   _serializeMerged(mergedMeshes),
@@ -3337,6 +3340,89 @@
             console.log('🌲 兜底程序化树 × ' + pts.length);
         }
 
+        // ── 长椅：用 Blender 精模 GLB 实例化（替代原程序化盒子长椅）──
+        // 放置表（单一数据源）：{x,z,ry}。ry=0 时游戏约定靠背在 -Z、人朝 +Z。
+        const _BENCH_PLACEMENTS = [
+            // 旗台四周（大门右侧 FPX=28,FPZ=25），由 facX/facZ 朝向换算 ry=atan2(facX,facZ)
+            { x: 28, z: 16, ry: 0 }, { x: 28, z: 34, ry: Math.PI },
+            { x: 19, z: 25, ry: Math.PI / 2 }, { x: 37, z: 25, ry: -Math.PI / 2 },
+            // 花坛旁
+            { x: -15, z: 14.8, ry: 0 }, { x: 15, z: 14.8, ry: 0 },
+            { x: -26, z: 14.8, ry: 0 }, { x: 26, z: 14.8, ry: 0 },
+            // 主路两侧
+            { x: -8, z: 24, ry: Math.PI / 2 }, { x: 8, z: 24, ry: Math.PI / 2 },
+            { x: -8, z: 36, ry: Math.PI / 2 }, { x: 8, z: 36, ry: Math.PI / 2 },
+            { x: -8, z: 48, ry: Math.PI / 2 }, { x: 8, z: 48, ry: Math.PI / 2 },
+            // 旗杆区
+            { x: -14, z: 52, ry: 0 }, { x: 14, z: 52, ry: 0 },
+            { x: -14, z: 58, ry: 0 }, { x: 14, z: 58, ry: 0 }
+        ];
+        function _loadAndInstanceBenches() {
+            if (window._benchInstanced) return;
+            window._benchInstanced = true;
+            const pts = _BENCH_PLACEMENTS;
+            const YAW = Math.PI; // GLB(yup)靠背在+Z，游戏约定-Z，需+π对齐
+            if (typeof THREE.GLTFLoader === 'undefined') { _fallbackProcBenches(pts, YAW); return; }
+            const loader = new THREE.GLTFLoader();
+            loader.load('../assets/models/bench.glb', function (gltf) {
+                const parts = [];
+                gltf.scene.updateMatrixWorld(true);
+                gltf.scene.traverse(function (o) {
+                    if (o.isMesh && o.geometry) {
+                        const g = o.geometry.clone();
+                        g.applyMatrix4(o.matrixWorld);
+                        let mat = o.material;
+                        if (mat && !mat.isMeshStandardMaterial && mat.color) {
+                            mat = new THREE.MeshStandardMaterial({ color: mat.color.clone(), roughness: 0.7, metalness: 0.1 });
+                        }
+                        parts.push({ geo: g, mat: mat });
+                    }
+                });
+                if (!parts.length) { _fallbackProcBenches(pts, YAW); return; }
+                const dummy = new THREE.Object3D();
+                parts.forEach(function (part) {
+                    const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
+                    inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
+                    for (let i = 0; i < pts.length; i++) {
+                        const p = pts[i];
+                        dummy.position.set(p.x, 0, p.z);
+                        dummy.rotation.set(0, p.ry + YAW, 0);
+                        dummy.scale.set(1, 1, 1);
+                        dummy.updateMatrix();
+                        inst.setMatrixAt(i, dummy.matrix);
+                    }
+                    inst.instanceMatrix.needsUpdate = true;
+                    scene.add(inst);
+                });
+                console.log('🪑 GLB长椅实例化 × ' + pts.length);
+            }, undefined, function (err) {
+                console.warn('⚠️ GLB长椅加载失败，回退盒子长椅:', err && err.message);
+                _fallbackProcBenches(pts, YAW);
+            });
+        }
+        function _fallbackProcBenches(pts, YAW) {
+            const seatM = new THREE.MeshStandardMaterial({ color: 0xb06830, roughness: 0.7 });
+            const legM = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.5, metalness: 0.7 });
+            const seatG = new THREE.BoxGeometry(1.4, 0.09, 0.42);
+            const backG = new THREE.BoxGeometry(1.4, 0.36, 0.07);
+            const legG = new THREE.BoxGeometry(0.10, 0.46, 0.40);
+            const sI = new THREE.InstancedMesh(seatG, seatM, pts.length);
+            const bI = new THREE.InstancedMesh(backG, seatM, pts.length);
+            const l1 = new THREE.InstancedMesh(legG, legM, pts.length);
+            const l2 = new THREE.InstancedMesh(legG, legM, pts.length);
+            [sI, bI, l1, l2].forEach(m => { m._noMerge = true; });
+            const d = new THREE.Object3D();
+            for (let i = 0; i < pts.length; i++) {
+                const p = pts[i], ry = p.ry, cs = Math.cos(ry), sn = Math.sin(ry);
+                d.position.set(p.x, 0.47, p.z); d.rotation.set(0, ry, 0); d.scale.set(1, 1, 1); d.updateMatrix(); sI.setMatrixAt(i, d.matrix);
+                d.position.set(p.x - sn * -0.17, 0.72, p.z - cs * 0.17); d.updateMatrix(); bI.setMatrixAt(i, d.matrix);
+                d.position.set(p.x + cs * -0.52, 0.23, p.z + sn * -0.52); d.updateMatrix(); l1.setMatrixAt(i, d.matrix);
+                d.position.set(p.x + cs * 0.52, 0.23, p.z + sn * 0.52); d.updateMatrix(); l2.setMatrixAt(i, d.matrix);
+            }
+            [sI, bI, l1, l2].forEach(m => { m.instanceMatrix.needsUpdate = true; scene.add(m); });
+            console.log('🪑 兜底盒子长椅 × ' + pts.length);
+        }
+
         // 操场/跑道为 PlaneGeometry，不参与 mergeStaticMeshes；IndexedDB 缓存加载时 createCampus 会 skip，必须补建否则只剩一片纯色草地
         function ensureCampusAthleticFieldPlanes() {
             if (window._campusFieldPlanesBuilt || !scene) return;
@@ -4523,7 +4609,7 @@
             })();
 
             // ── 旗台广场长椅（四方向各一张，FPZ=22）──
-            if (!window._skipVisualMesh) (function addPlazaBenches(){
+            if (false) (function addPlazaBenches(){  // 已由 _loadAndInstanceBenches() GLB精模替代
                 const woodM=new THREE.MeshLambertMaterial({color:0xb06830});
                 const metM=new THREE.MeshLambertMaterial({color:0x6a7280});
                 function addBench(cx,cz,facX,facZ){
@@ -5360,6 +5446,7 @@
                 const seatM=new THREE.MeshLambertMaterial({color:0xb8b0a8});
                 const legM =new THREE.MeshLambertMaterial({color:0x9c9488});
                 function addBench(bx,bz,ry){
+                    return; // 已由 _loadAndInstanceBenches() GLB精模替代
                     const cs=Math.cos(ry),sn=Math.sin(ry);
                     function rp(ox,oz){return[bx+ox*cs-oz*sn, bz+ox*sn+oz*cs];}
                     // 坐板
@@ -6146,7 +6233,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v63'; // v63：绿树改用 Blender GLB 模型实例化（替代程序化球块）+ 门槛修复
+        const MAP_VER = 'campus_v64'; // v64：长椅改用 Blender GLB 精模实例化（木条座+金属框）；树模型升级（圆润树冠/细树干）
 
         function _dbOpen(cb) {
             try {
