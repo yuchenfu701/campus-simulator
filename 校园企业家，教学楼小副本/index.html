@@ -6289,7 +6289,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v65'; // v65：路灯改用 Meshy 精模 GLB 实例化（白杆蓝座LED头，道路/走廊/广场16盏），夜间光晕保留
+        const MAP_VER = 'campus_v66'; // v66：墙面去"绗缝菱格"(法线贴图减弱)，黑板绿板凸出木框(原来被框挡住像棕板)
 
         function _dbOpen(cb) {
             try {
@@ -6500,7 +6500,9 @@
                     // 不再 clone —— 否则每种材质一张GPU纹理(~4500张)会吃掉数百MB显存
                     if (detailNormal) {
                         sm.normalMap = detailNormal;
-                        const ns = isGreen ? 0.25 : (isDkMet ? 0.7 : (isLight ? 0.45 : 0.5));
+                        // 白墙/浅色面几乎不要法线（之前0.45在室内大平墙上呈"绗缝菱格"很假）；
+                        // 沥青/砖/木保留微观凹凸
+                        const ns = isGreen ? 0.18 : (isDkMet ? 0.6 : (isLight ? 0.08 : 0.4));
                         sm.normalScale = new THREE.Vector2(ns, ns);
                     }
                     sm.userData.baseEnv = useEnv ? 0.85 : 0;
@@ -7300,7 +7302,8 @@
             const bbH = 1.48;
             const bbY = yBase + 2.46;
             const boardTh = 0.085;
-            const bx = eastFaceX - boardTh / 2 - 0.025;
+            // 绿板要"凸"在木框前面（之前在框后面 → 被棕色框挡住，看着像一大块棕板）
+            const bx = eastFaceX - boardTh / 2 - 0.20;
 
             // 外木框 + 内灰压条 + 墨绿板面（略分层）
             const fD = boardTh + 0.14, fH = bbH + 0.34, fW = bbW + 0.32;
