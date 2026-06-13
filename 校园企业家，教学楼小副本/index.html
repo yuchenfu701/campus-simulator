@@ -3949,9 +3949,9 @@
                 console.log('✅ B4教学楼完整内部建造完成（3层×3间=9间教室）');
             })();
 
-            // ── 新版教学楼原型 v2（内廊式：南侧操场空地 Z=110 试造，不动现有楼）──
-            // 7间/侧 × 2侧 × 5层 = 70间；深约19m（前后加深）
-            buildModernTeachingBuilding({cx:0, zSouth:110, roomsPerSide:7, floors:5, roomW:8.5, roomD:8, corrD:3.2, floorH:4});
+            // ── 新版教学楼原型 v3（内廊式：南侧操场空地 Z=110 试造，不动现有楼）──
+            // 5间/侧×2侧×5层=50间；教室更大(12×8.5m)、走廊更宽(4m)、修正空气墙、可视楼梯
+            buildModernTeachingBuilding({cx:0, zSouth:110, roomsPerSide:5, floors:5, roomW:12, roomD:8.5, corrD:4, floorH:4});
 
             // ── 食堂（B1南侧，大型单层，含完整内部）──
             (function buildCanteen(){
@@ -4348,7 +4348,7 @@
                 if(!window._skipVisualMesh){
                     const iMat=new THREE.MeshLambertMaterial({color:0x253348});
                     const sMat=new THREE.MeshLambertMaterial({color:0x1c2839});
-                    const leafH = gH - 1.5;  // 门叶高度
+                    const leafH = 2.3;  // 门叶高度（矮门，门上方敞开——不再像监狱铁栏）
 
                     function buildGateLeaf(leafW){
                         const g=new THREE.Group();
@@ -4362,7 +4362,7 @@
                         const midR=new THREE.Mesh(new THREE.BoxGeometry(leafW,0.09,0.07),iMat);
                         midR.position.set(0, -leafH*0.35, 0); g.add(midR);
                         // 竖杆（间距约0.5m）
-                        const nV=Math.max(3, Math.round(leafW/0.52));
+                        const nV=Math.max(3, Math.round(leafW/0.92));
                         for(let i=0;i<nV;i++){
                             const bx=-leafW/2+(i+0.5)*(leafW/nV);
                             const vBar=new THREE.Mesh(new THREE.BoxGeometry(0.08,leafH,0.08),sMat);
@@ -4377,13 +4377,13 @@
 
                     // 左扇：铰链在左柱内侧（x=-halfW），门叶向右延伸halfW
                     const pivL=new THREE.Group();
-                    pivL.position.set(-halfW, gH-0.88, gZ); scene.add(pivL);
+                    pivL.position.set(-halfW, 2.5, gZ); scene.add(pivL);
                     const leafL=buildGateLeaf(halfW);
                     leafL.position.set(halfW/2, 0, 0); pivL.add(leafL);
 
                     // 右扇：铰链在右柱内侧（x=+halfW），门叶向左延伸halfW
                     const pivR=new THREE.Group();
-                    pivR.position.set(halfW, gH-0.88, gZ); scene.add(pivR);
+                    pivR.position.set(halfW, 2.5, gZ); scene.add(pivR);
                     const leafR=buildGateLeaf(halfW);
                     leafR.position.set(-halfW/2, 0, 0); pivR.add(leafR);
 
@@ -4397,8 +4397,8 @@
                 const _sgB = {
                     _schoolGateBarrier: true,
                     bbox: new THREE.Box3().setFromCenterAndSize(
-                        new THREE.Vector3(0, (gH-1.5)/2, gZ),
-                        new THREE.Vector3(gGap-0.4, gH-1.5, 0.55)
+                        new THREE.Vector3(0, 1.15, gZ),
+                        new THREE.Vector3(gGap-0.4, 2.3, 0.55)
                     )
                 };
                 window._schoolGateBarrier = _sgB;
@@ -6293,7 +6293,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v70'; // v70：教学楼v2内廊式(中央走廊+两排教室+西端楼梯/厕所+东端应急+正面西端大门)，加深到19m
+        const MAP_VER = 'campus_v71'; // v71：教学楼v3(修空气墙/室内地板/大教室4m走廊/可视楼梯)；校门改矮门(不再像监狱)
 
         function _dbOpen(cb) {
             try {
@@ -7266,27 +7266,33 @@
         // roomX1/roomX2: 房间X范围, roomZ1/roomZ2: Z范围
         // yBase: 该楼层地板Y坐标
         // ─────────────────────────────────────────────────
-        // ══ 参数化教学楼 v2（内廊式，依GB50099+用户布局）══
-        //  中央 E-W 走廊(净宽≥3m) · 南北两排教室 · 西端楼梯(南)+厕所(北) · 东端应急通道 · 正面西端大门
+        // ══ 参数化教学楼 v3（内廊式；修正空气墙：水平件不进碰撞）══
+        //  中央走廊 · 南北两排大教室 · 西端楼梯(南)+厕所(北) · 东端应急楼梯 · 正面西端大门 · 室内地板 + 可视楼梯
         function buildModernTeachingBuilding(opts){
-            const cx=opts.cx, zS=opts.zSouth;                // zS=南外墙Z（+Z为南/正面）
-            const perSide=opts.roomsPerSide||7, floors=opts.floors||5;
-            const rW=opts.roomW||8.5, rD=opts.roomD||8, corrD=Math.max(opts.corrD||3.2,3), fh=opts.floorH||4;
-            const endW=9, emerW=5, WT=WALL_T;                // 西端(楼梯+厕所)宽 / 东端应急通道宽
+            const cx=opts.cx, zS=opts.zSouth;
+            const perSide=opts.roomsPerSide||5, floors=opts.floors||5;
+            const rW=opts.roomW||12, rD=opts.roomD||8.5, corrD=Math.max(opts.corrD||4,3), fh=opts.floorH||4;
+            const endW=9, emerW=6, WT=WALL_T;
             const totW=endW+perSide*rW+emerW;
             const xW=cx-totW/2, xE=cx+totW/2;
-            const xRW=xW+endW, xRE=xRW+perSide*rW;           // 教室区 X 范围
-            const zRoomSN=zS-rD, zCorrN=zRoomSN-corrD, zN=zCorrN-rD; // 南排北界/走廊北界/北外墙
+            const xRW=xW+endW, xRE=xRW+perSide*rW;
+            const zRoomSN=zS-rD, zCorrN=zRoomSN-corrD, zN=zCorrN-rD;
             const depth=zS-zN, zMid=(zS+zN)/2;
-            const col=0xeae6de, colC=0xf0ede6, colF=0xe8dfd0;
+            const col=0xeae6de, colC=0xf0ede6, floorC=0xc2bcb0, stairC=0xc9c4bc;
+            // 竖墙：可视 + 碰撞
             function W(x,y,z,w,h,d,c){
                 if(window._skipVisualMesh) return null;
                 const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:c||col}));
                 m.position.set(x,y,z); m.receiveShadow=true;
                 m.bbox=new THREE.Box3().setFromObject(m); scene.add(m); walls.push(m); return m;
             }
-            // 一道沿X的E-W隔墙(在z=zPos)，每间教室开一个门洞
-            function partition(zPos,yB){
+            // 水平件(楼板/地板/楼梯/屋顶)：纯可视，绝不进 walls（否则=脚下空气墙，玩家被弹回）
+            function F(x,y,z,w,h,d,c){
+                if(window._skipVisualMesh) return null;
+                const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:c||0xd8d4cc}));
+                m.position.set(x,y,z); m.receiveShadow=true; scene.add(m); return m;
+            }
+            function partition(zPos,yB){ // E-W隔墙，每间开门
                 for(let i=0;i<perSide;i++){
                     const r0=xRW+i*rW, r1=r0+rW, dC=r0+rW*0.30;
                     const lL=(dC-DOOR_W/2)-r0; if(lL>0.1) W((r0+dC-DOOR_W/2)/2,yB+fh/2,zPos,lL,fh,WT,colC);
@@ -7294,33 +7300,42 @@
                     W(dC,yB+DOOR_H+(fh-DOOR_H)/2,zPos,DOOR_W,fh-DOOR_H,WT,colC);
                 }
             }
+            function stairFlight(sx0,sx1,szTop,yB){ // 直跑楼梯(可视)
+                const N=16, rise=fh/N, run=0.30;
+                for(let s=0;s<N;s++) F((sx0+sx1)/2, yB+(s+0.5)*rise, szTop-(s+0.5)*run, sx1-sx0, rise+0.03, run, stairC);
+                F((sx0+sx1)/2, yB+fh-0.04, szTop-N*run-1.0, sx1-sx0, 0.1, 2.0, stairC); // 半层平台
+            }
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
-                W(cx,yB-0.05,zMid,totW,0.12,depth,colF);                 // 楼板
+                F(cx, yB+0.02, zMid, totW-WT, 0.05, depth-WT, floorC);   // 室内地板(可视,无碰撞)
                 W(cx,yB+fh/2,zN,totW,fh,WT);                             // 北外墙
                 W(xW,yB+fh/2,zMid,WT,fh,depth);                          // 西外墙
                 W(xE,yB+fh/2,zMid,WT,fh,depth);                          // 东外墙
                 if(f===0){                                              // 南外墙：底层西端开大门
-                    const gC=xRW+rW*0.5, gHalf=DOOR_W*1.4;
-                    const sl=(gC-gHalf)-xW; if(sl>0.1) W((xW+gC-gHalf)/2,yB+fh/2,zS,sl,fh,WT);
-                    const sr=xE-(gC+gHalf); if(sr>0.1) W((gC+gHalf+xE)/2,yB+fh/2,zS,sr,fh,WT);
-                    W(gC,yB+DOOR_H+(fh-DOOR_H)/2,zS,gHalf*2,fh-DOOR_H,WT);
+                    const gC=xRW+rW*0.5, gH=DOOR_W*1.4;
+                    const sl=(gC-gH)-xW; if(sl>0.1) W((xW+gC-gH)/2,yB+fh/2,zS,sl,fh,WT);
+                    const sr=xE-(gC+gH); if(sr>0.1) W((gC+gH+xE)/2,yB+fh/2,zS,sr,fh,WT);
+                    W(gC,yB+DOOR_H+(fh-DOOR_H)/2,zS,gH*2,fh-DOOR_H,WT);
                 } else W(cx,yB+fh/2,zS,totW,fh,WT);
-                partition(zRoomSN,yB);                                   // 南排教室↔走廊
-                partition(zCorrN,yB);                                    // 走廊↔北排教室
-                for(let i=1;i<perSide;i++){                              // 教室间隔墙(南排+北排)
+                partition(zRoomSN,yB); partition(zCorrN,yB);
+                for(let i=1;i<perSide;i++){                              // 教室间隔墙
                     const dx=xRW+i*rW;
                     W(dx,yB+fh/2,(zS+zRoomSN)/2,WT,fh,rD,colC);
                     W(dx,yB+fh/2,(zCorrN+zN)/2,WT,fh,rD,colC);
                 }
-                W(xRW,yB+fh/2,zMid,WT,fh,depth,colC);                    // 教室区↔西端 隔墙
-                W(xRE,yB+fh/2,zMid,WT,fh,depth,colC);                    // 教室区↔东端 隔墙
-                W((xW+xRW)/2,yB+0.03,(zS+zRoomSN)/2,endW-WT,0.05,rD,0x9aa0a8);   // 西端楼梯井(南)地标
-                W((xW+xRW)/2,yB+0.03,(zCorrN+zN)/2,endW-WT,0.05,rD,0x6fa8c8);    // 西端厕所(北)地标
-                W((xRE+xE)/2,yB+0.03,zMid,emerW-WT,0.05,depth-WT,0xcda85a);      // 东端应急通道地标
+                // 教室区↔两端隔墙（走廊处留通道：分南/北两段，中间走廊敞开）
+                [xRW,xRE].forEach(function(xx){
+                    W(xx,yB+fh/2,(zS+zRoomSN)/2,WT,fh,rD,colC);
+                    W(xx,yB+fh/2,(zCorrN+zN)/2,WT,fh,rD,colC);
+                });
+                if(f<floors-1){
+                    stairFlight(xW+1, xRW-1, zS-1.5, yB);               // 西端主楼梯
+                    stairFlight(xRE+1, xE-1, zS-1.5, yB);               // 东端应急楼梯
+                }
+                for(let t=0;t<3;t++) W(xW+1.8+t*2.1, yB+1.05, (zCorrN+zN)/2-rD*0.15, 0.1, 2.1, rD*0.5, colC); // 厕所隔断
             }
-            W(cx,floors*fh+0.06,zMid,totW+0.3,0.12,depth+0.3,0xd8d4cc);  // 屋顶
-            console.log('🏫 教学楼v2(内廊) @cx='+cx+' '+perSide+'间×2侧×'+floors+'层 宽'+totW.toFixed(0)+'m 深'+depth.toFixed(0)+'m');
+            F(cx,floors*fh+0.06,zMid,totW+0.3,0.12,depth+0.3,0xd8d4cc); // 屋顶
+            console.log('🏫 教学楼v3 @cx='+cx+' '+perSide+'间×2侧×'+floors+'层 宽'+totW.toFixed(0)+' 深'+depth.toFixed(0)+' 室'+rW+'×'+rD);
         }
         function createRoomContents(floorIdx, roomIdx, roomX1, roomX2, roomZ1, roomZ2, yBase) {
             if (window._skipVisualMesh) return; // 缓存命中时跳过（家具已在合并几何体缓存中）
