@@ -3949,6 +3949,9 @@
                 console.log('✅ B4教学楼完整内部建造完成（3层×3间=9间教室）');
             })();
 
+            // ── 新版教学楼原型（Stage1：南侧操场空地 Z=105 试造，平地好观察，不动现有楼）──
+            buildModernTeachingBuilding({cx:0, zSouth:105, rooms:6, floors:4, roomW:8, roomD:7.5, corrD:2.6, floorH:4});
+
             // ── 食堂（B1南侧，大型单层，含完整内部）──
             (function buildCanteen(){
                 const cX=0,cZ=-30,cW=40,cD=18,cH=5.5;
@@ -6289,7 +6292,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v66'; // v66：墙面去"绗缝菱格"(法线贴图减弱)，黑板绿板凸出木框(原来被框挡住像棕板)
+        const MAP_VER = 'campus_v68'; // v68：新版参数化教学楼原型(南操场Z=105空地试造，朝南长排/走廊在北/楼梯两端/厕所在内)
 
         function _dbOpen(cb) {
             try {
@@ -7262,6 +7265,50 @@
         // roomX1/roomX2: 房间X范围, roomZ1/roomZ2: Z范围
         // yBase: 该楼层地板Y坐标
         // ─────────────────────────────────────────────────
+        // ══ 新版参数化教学楼（真实学校：长排 · 教室朝南(+Z) · 走廊在北(-Z) · 楼梯两端 · 厕所走廊尽头内）══
+        // Stage1：外壳+楼板+走廊隔墙(带门洞)+教室隔墙+两端楼梯井+尽头厕所地标；内部家具后续走 createRoomContents
+        function buildModernTeachingBuilding(opts){
+            const cx=opts.cx, zS=opts.zSouth;               // zS=南墙Z（+Z为南）
+            const rooms=opts.rooms||6, floors=opts.floors||4;
+            const rW=opts.roomW||8, rD=opts.roomD||7.5, corrD=opts.corrD||2.6, fh=opts.floorH||4;
+            const stairW=6, wcW=4;
+            const WT=WALL_T;
+            const totW=rooms*rW+stairW*2;
+            const xW=cx-totW/2, xE=cx+totW/2;
+            const xRoomW=xW+stairW, xRoomE=xE-stairW;
+            const zRoomN=zS-rD, zN=zS-rD-corrD;
+            const col=0xeae6de, colF=0xe8dfd0, colC=0xf0ede6;
+            function W(x,y,z,w,h,d,c){
+                if(window._skipVisualMesh) return null;
+                const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:c||col}));
+                m.position.set(x,y,z); m.receiveShadow=true;
+                m.bbox=new THREE.Box3().setFromObject(m); scene.add(m); walls.push(m); return m;
+            }
+            const zMid=(zS+zN)/2, depth=rD+corrD;
+            for(let f=0;f<floors;f++){
+                const yB=f*fh;
+                W(cx,yB-0.05,zMid,totW,0.12,depth,colF);                 // 楼板
+                W(cx,yB+fh/2,zS+WT/2,totW,fh,WT);                        // 南墙
+                W(cx,yB+fh/2,zN-WT/2,totW,fh,WT);                        // 北墙
+                W(xW-WT/2,yB+fh/2,zMid,WT,fh,depth);                     // 西墙
+                W(xE+WT/2,yB+fh/2,zMid,WT,fh,depth);                     // 东墙
+                for(let i=0;i<rooms;i++){                                // 教室/走廊隔墙(带门洞)
+                    const rxW=xRoomW+i*rW, rxE=rxW+rW, dCx=rxW+DOOR_W/2+0.6;
+                    const lL=(dCx-DOOR_W/2)-rxW; if(lL>0.1) W((rxW+dCx-DOOR_W/2)/2,yB+fh/2,zRoomN,lL,fh,WT,colC);
+                    const rL=rxE-(dCx+DOOR_W/2); if(rL>0.1) W((dCx+DOOR_W/2+rxE)/2,yB+fh/2,zRoomN,rL,fh,WT,colC);
+                    W(dCx,yB+DOOR_H+(fh-DOOR_H)/2,zRoomN,DOOR_W,fh-DOOR_H,WT,colC);
+                }
+                for(let i=1;i<rooms;i++) W(xRoomW+i*rW,yB+fh/2,(zS+zRoomN)/2,WT,fh,rD,colC); // 教室间隔墙
+                W(xRoomW,yB+fh/2,zMid,WT,fh,depth,colC);                 // 楼梯井隔墙(西)
+                W(xRoomE,yB+fh/2,zMid,WT,fh,depth,colC);                 // 楼梯井隔墙(东)
+                W((xW+xRoomW)/2,yB+0.02,zMid,stairW-WT,0.04,depth-WT,0x9aa0a8); // 西楼梯井地标
+                W((xE+xRoomE)/2,yB+0.02,zMid,stairW-WT,0.04,depth-WT,0x9aa0a8); // 东楼梯井地标
+                W(xRoomW+wcW/2,yB+0.03,(zRoomN+zN)/2,wcW,0.05,corrD-WT,0x6fa8c8); // 西厕所地标
+                W(xRoomE-wcW/2,yB+0.03,(zRoomN+zN)/2,wcW,0.05,corrD-WT,0x6fa8c8); // 东厕所地标
+            }
+            W(cx,floors*fh+0.06,zMid,totW+0.3,0.12,depth+0.3,0xd8d4cc);  // 屋顶
+            console.log('🏫 新版教学楼原型 @cx='+cx+' zS='+zS+' '+rooms+'间×'+floors+'层');
+        }
         function createRoomContents(floorIdx, roomIdx, roomX1, roomX2, roomZ1, roomZ2, yBase) {
             if (window._skipVisualMesh) return; // 缓存命中时跳过（家具已在合并几何体缓存中）
             const roomW  = roomX2 - roomX1;
