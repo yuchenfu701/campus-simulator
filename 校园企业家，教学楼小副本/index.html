@@ -728,7 +728,7 @@
         const SOLDIER_SPEED = 4.0;
         const SOLDIER_RADIUS = 0.22;
         const MIN_PATH_LENGTH = 5;  // 最小路径长度：5步（超小迷宫，快速通关）
-        let FIRST_PERSON_HEIGHT = 1.0;  // 第一人称相机高度（VRM 2x时会覆盖为1.8）
+        let FIRST_PERSON_HEIGHT = 1.0;  // 第一人称相机/眼睛高度（VRM 角色覆盖为1.55）
         const THIRD_PERSON_DISTANCE = 2.8;
         const THIRD_PERSON_HEIGHT = 2.2;
         const CAMERA_LERP = 0.2;
@@ -8619,7 +8619,7 @@
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
                         _vrmBonesResolved = false;
-                        FIRST_PERSON_HEIGHT = 1.8;
+                        FIRST_PERSON_HEIGHT = 1.55;
                         normalHeight = FIRST_PERSON_HEIGHT;
                         initializeSoldier(vrmWrapper);
                         setTimeout(_collectVrmBones, 100);
@@ -8708,7 +8708,7 @@
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
                         _vrmBonesResolved = false;
-                        FIRST_PERSON_HEIGHT = 1.8;
+                        FIRST_PERSON_HEIGHT = 1.55;
                         normalHeight = FIRST_PERSON_HEIGHT;
                         _hideMaleVrmOverlay();
                         initializeSoldier(vrmWrapper);
@@ -8964,12 +8964,17 @@
             if (!soldier || !isMouseLocked) return;
             
             // 计算鼠标移动的相对位置
-            const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-            const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-            
+            let movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+            let movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+            // 防卡顿瞬移：一帧卡住后浏览器会把积压的鼠标位移合并成一个超大值，
+            // 直接用会让视角"猛地跳一下"。单事件位移夹到合理上限（正常快速转头远小于此）。
+            const _MAX_MOVE = 170;
+            if (movementX >  _MAX_MOVE) movementX =  _MAX_MOVE; else if (movementX < -_MAX_MOVE) movementX = -_MAX_MOVE;
+            if (movementY >  _MAX_MOVE) movementY =  _MAX_MOVE; else if (movementY < -_MAX_MOVE) movementY = -_MAX_MOVE;
+
             // 更新水平角度（左右旋转）
             cameraHorizontalAngle -= movementX * MOUSE_SENSITIVITY;
-            
+
             // 在第一人称视角下才更新垂直角度
             if (isFirstPerson) {
                 // 更新垂直角度（上下旋转），将符号取反使其符合直觉
