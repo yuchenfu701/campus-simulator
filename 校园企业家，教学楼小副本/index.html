@@ -3552,7 +3552,7 @@
             // 校门: 南围墙中央 Z=118
             // ══════════════════════════════════════════════════════
 
-            const CX1=-100, CX2=100, CZ1=-78, CZ2=118;
+            const CX1=-150, CX2=150, CZ1=-78, CZ2=118; // 校园东西向放大 ±100→±150（给长排教学楼留地）
             const wallH=3.0, wallT=0.45;
             const wallColor=0xe8e0d0, wallTopColor=0x3a6eb5;
 
@@ -3950,7 +3950,8 @@
             })();
 
             // ── 新版教学楼原型（Stage1：南侧操场空地 Z=105 试造，平地好观察，不动现有楼）──
-            buildModernTeachingBuilding({cx:0, zSouth:105, rooms:6, floors:4, roomW:8, roomD:7.5, corrD:2.6, floorH:4});
+            // 放大：12间/层 × 5层 × 更大教室（约114m长，配合校园放大）
+            buildModernTeachingBuilding({cx:0, zSouth:105, rooms:12, floors:5, roomW:8.5, roomD:8, corrD:3, floorH:4});
 
             // ── 食堂（B1南侧，大型单层，含完整内部）──
             (function buildCanteen(){
@@ -4281,7 +4282,7 @@
 
             // ── 校园主干道（与广场/沥青错开高度）──
             plane(0, 0.008,  32,   8,  46, 0x9a9088); // 主干道（南北向）
-            plane(0, 0.010,  12, 200,   6, 0x9a9088); // 东西横向大道 ↑ Y+2mm 避免与主干道Z-fighting
+            plane(0, 0.010,  12, 300,   6, 0x9a9088); // 东西横向大道 ↑ Y+2mm 避免与主干道Z-fighting（随校园放大到±150）
             plane(0, 0.009, -14.5, 8,  13, 0x9a9088); // 北侧连廊     ↑ Y+1mm
             plane(0, 0.009, -46,   8,  14, 0x9a9088); // 北门通道     ↑ Y+1mm
             plane(37,  0.010, 0,  35,   6, 0x9a9088); // 东侧横路     ↑ Y+2mm 与东西道同高
@@ -4289,14 +4290,14 @@
 
             // ── 围墙（4倍校园） ──
             wall(0,wallH/2,CZ1, CX2-CX1,wallH,wallT,wallColor);
-            wall(-53.5,wallH/2,CZ2, 93,wallH,wallT,wallColor); // 南围墙左 X=-100~-7（修复缺口）
-            wall( 53.5,wallH/2,CZ2, 93,wallH,wallT,wallColor); // 南围墙右 X=7~100（修复缺口）
+            wall(-78.5,wallH/2,CZ2, 143,wallH,wallT,wallColor); // 南围墙左 X=-150~-7（随校园放大）
+            wall( 78.5,wallH/2,CZ2, 143,wallH,wallT,wallColor); // 南围墙右 X=7~150（随校园放大）
             wall(CX1,wallH/2,(CZ1+CZ2)/2, wallT,wallH,CZ2-CZ1,wallColor);
             wall(CX2,wallH/2,(CZ1+CZ2)/2, wallT,wallH,CZ2-CZ1,wallColor);
             // 围墙压顶
             box(0,wallH+0.14,CZ1,(CX2-CX1)+0.1,0.28,wallT+0.1,wallTopColor);
-            box(-53.5,wallH+0.14,CZ2,93,0.28,wallT+0.1,wallTopColor); // 南围墙压顶左
-            box( 53.5,wallH+0.14,CZ2,93,0.28,wallT+0.1,wallTopColor); // 南围墙压顶右
+            box(-78.5,wallH+0.14,CZ2,143,0.28,wallT+0.1,wallTopColor); // 南围墙压顶左
+            box( 78.5,wallH+0.14,CZ2,143,0.28,wallT+0.1,wallTopColor); // 南围墙压顶右
             box(CX1,wallH+0.14,(CZ1+CZ2)/2,wallT+0.1,0.28,CZ2-CZ1,wallTopColor);
             box(CX2,wallH+0.14,(CZ1+CZ2)/2,wallT+0.1,0.28,CZ2-CZ1,wallTopColor);
 
@@ -5488,13 +5489,13 @@
                 add(s*0.14,y0+s*0.9,s*0.16,s*0.4,silhDark);
                 add(-s*0.12,y0+s*0.82,-s*0.18,s*0.36,silhTreeMat);
             }
-            for(let x=-135; x<=135; x+=11){
+            for(let x=-185; x<=185; x+=11){
                 if(Math.abs(x-88)<13||Math.abs(x+88)<13) continue; // 避开东西公厕一带远景树
                 silhTreeCluster(x,-75,1.1+Math.abs(Math.sin(x*0.21))*0.5);
             }
             for(let z=-70; z<150; z+=14){
-                silhTreeCluster(-145,z,1+Math.abs(Math.sin(z*0.17))*0.45);
-                silhTreeCluster(145,z,1+Math.abs(Math.sin(z*0.17))*0.45);
+                silhTreeCluster(-162,z,1+Math.abs(Math.sin(z*0.17))*0.45); // 随校园放大到±150，远景树移到墙外
+                silhTreeCluster(162,z,1+Math.abs(Math.sin(z*0.17))*0.45);
             }
 
             // ── 星光（已移至addDetailMeshes() InstancedMesh系统，此处留空）
@@ -6292,7 +6293,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v68'; // v68：新版参数化教学楼原型(南操场Z=105空地试造，朝南长排/走廊在北/楼梯两端/厕所在内)
+        const MAP_VER = 'campus_v69'; // v69：校园东西向放大±100→±150；原型教学楼放大到12间×5层
 
         function _dbOpen(cb) {
             try {
