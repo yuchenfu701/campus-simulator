@@ -6293,7 +6293,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v75'; // v75：楼梯改薄踏板(去掉下方实心块)；服务核厕所/电梯只占北段→门厅+走廊通行，学生能进教室
+        const MAP_VER = 'campus_v76'; // v76：填上楼梯井旁的空地(南/北侧每层补楼板→可用房间)，去掉旁边那堵20m高空白墙
 
         function _dbOpen(cb) {
             try {
@@ -7313,7 +7313,6 @@
                 const shW=stX1-xW, sCX=xW+shW/2, hw=(shW-WT*2)/2, cxW=sCX-hw/2, cxE=sCX+hw/2, fw=hw-0.08;
                 const S=11, rise=(fh/2)/S, run=0.42;
                 const zEnter=zCorrMid, zNorth=zEnter-S*run;
-                W(sCX, floors*fh/2, zNorth-1.5, shW, floors*fh, WT, colC);   // 楼梯井北围墙
                 for(let f=0;f<floors-1;f++){
                     const fB=f*fh;
                     // 薄踏板(不再实心到地→去掉楼梯下方那块没用的实心块)
@@ -7325,8 +7324,13 @@
             }
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
+                const _hz0=zCorrMid-5.8, _hz1=zCorrMid+1.0;                      // 楼梯井真正开洞的Z范围(仅楼梯那一段)
                 if(f===0) F(cx, 0.03, zMid, totW-WT, 0.05, depth-WT, floorC);   // 一楼地砖(踩世界地面)
-                else SLAB((stX1+xE)/2, yB-0.06, zMid, (xE-stX1)-0.02, depth-WT); // 上层可站楼板：覆盖[stX1,xE]，只在楼梯井留洞
+                else {
+                    SLAB((stX1+xE)/2, yB-0.06, zMid, (xE-stX1)-0.02, depth-WT);  // 主楼板(核心+走廊+教室+应急)
+                    const _sD=zS-_hz1; if(_sD>0.4) SLAB((xW+stX1)/2, yB-0.06, (_hz1+zS)/2, (stX1-xW)-0.02, _sD-0.06); // 楼梯井南侧补板(原空地→可用房间)
+                    const _nD=_hz0-zN; if(_nD>0.4) SLAB((xW+stX1)/2, yB-0.06, (zN+_hz0)/2, (stX1-xW)-0.02, _nD-0.06); // 楼梯井北侧补板
+                }
                 W(cx,yB+fh/2,zN,totW,fh,WT);                                    // 北外墙
                 W(xW,yB+fh/2,zMid,WT,fh,depth);                                 // 西外墙
                 if(f===0){                                                     // 东外墙底层应急出口
