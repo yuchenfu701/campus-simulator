@@ -6293,7 +6293,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v74'; // v74：楼梯真连通各层(楼板留井洞+落脚平台经门接楼板)；西端服务核=厕所·电梯·厕所+楼梯井
+        const MAP_VER = 'campus_v75'; // v75：楼梯改薄踏板(去掉下方实心块)；服务核厕所/电梯只占北段→门厅+走廊通行，学生能进教室
 
         function _dbOpen(cb) {
             try {
@@ -7316,10 +7316,11 @@
                 W(sCX, floors*fh/2, zNorth-1.5, shW, floors*fh, WT, colC);   // 楼梯井北围墙
                 for(let f=0;f<floors-1;f++){
                     const fB=f*fh;
-                    for(let s=0;s<S;s++){ const h=(s+1)*rise; W(cxW, fB+h/2, zEnter-(s+0.5)*run, fw, h, run+0.02, stairC); } // 上行(西)
-                    W(sCX, fB+fh/2-0.06, zNorth-0.75, shW-WT, 0.16, 1.5, stairC);                                          // 中转平台
-                    for(let s=0;s<S;s++){ const h=(s+1)*rise; W(cxE, fB+fh/2+h/2, zNorth+(s+0.5)*run, fw, h, run+0.02, stairC); } // 上行(东)
-                    W((cxE+stX1)/2, (f+1)*fh-0.06, zCorrMid, (stX1-cxE)+fw+0.3, 0.16, corrD*0.6, stairC);                  // 落脚平台→stX1门→楼板
+                    // 薄踏板(不再实心到地→去掉楼梯下方那块没用的实心块)
+                    for(let s=0;s<S;s++) W(cxW, fB+(s+0.7)*rise, zEnter-(s+0.5)*run, fw, 0.14, run+0.05, stairC); // 上行(西) 南→北
+                    W(sCX, fB+fh/2-0.07, zNorth-0.7, shW-WT, 0.14, 1.4, stairC);                                  // 中转平台
+                    for(let s=0;s<S;s++) W(cxE, fB+fh/2+(s+0.7)*rise, zNorth+(s+0.5)*run, fw, 0.14, run+0.05, stairC); // 上行(东) 北→南
+                    W((cxE+stX1)/2, (f+1)*fh-0.07, zCorrMid, (stX1-cxE)+fw+0.3, 0.14, corrD*0.6, stairC);          // 落脚平台→stX1门→楼板
                 }
             }
             for(let f=0;f<floors;f++){
@@ -7344,12 +7345,12 @@
                 doorWallX(stX1,yB,zCorrMid,DOOR_W*1.7);                         // 楼梯井↔核心 隔墙(走廊处开门)
                 doorWallX(xRW,yB,zCorrMid,DOOR_W*1.7);                          // 核心↔教室区 隔墙(走廊处开门)
                 W(xRE,yB+fh/2,(zS+zRoomSN)/2,WT,fh,rD,colC); W(xRE,yB+fh/2,(zCorrN+zN)/2,WT,fh,rD,colC); // 教室区↔应急
-                // 服务核：厕所 | 电梯 | 厕所
-                const c1=stX1+(xRW-stX1)*0.40, c2=stX1+(xRW-stX1)*0.60;
-                W(c1,yB+fh/2,zMid,WT,fh,depth,colC); W(c2,yB+fh/2,zMid,WT,fh,depth,colC);
+                // 服务核：厕所 | 电梯 | 厕所——只占【北段】，走廊带和南门厅留空通行(否则学生进不去教室)
+                const c1=stX1+(xRW-stX1)*0.40, c2=stX1+(xRW-stX1)*0.60, zNb=(zN+zCorrN)/2;
+                W(c1,yB+fh/2,zNb,WT,fh,rD,colC); W(c2,yB+fh/2,zNb,WT,fh,rD,colC);                 // 隔断(北段)
                 if(f===0){
-                    W((c1+c2)/2,2.0,zMid,(c2-c1)-0.5,4.0,4.0,elevC);            // 电梯轿厢(中)
-                    for(let t=0;t<3;t++){ W(stX1+1.0+t*1.1,yB+1.1,zMid+rD*0.45,0.08,2.2,2.6,colC); W(c2+0.7+t*1.1,yB+1.1,zMid+rD*0.45,0.08,2.2,2.6,colC); } // 厕所隔断(两侧)
+                    W((c1+c2)/2,2.0,zNb,(c2-c1)-0.5,4.0,3.4,elevC);             // 电梯轿厢(中,北段)
+                    for(let t=0;t<3;t++){ W(stX1+1.0+t*1.1,yB+1.1,zNb,0.08,2.2,2.6,colC); W(c2+0.7+t*1.1,yB+1.1,zNb,0.08,2.2,2.6,colC); } // 厕所隔断(北段两侧)
                 }
             }
             uStairs();
