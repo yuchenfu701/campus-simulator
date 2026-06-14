@@ -6293,7 +6293,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v72'; // v72：教学楼v4(大教室15×9/宽走廊5.5/可爬U形楼梯/东端应急通道/上层可站/楼梯只在西端)
+        const MAP_VER = 'campus_v73'; // v73：楼梯改实心台阶+北围墙+去掉飘空栏杆(原来像乱麻/搞艺术)
 
         function _dbOpen(cb) {
             try {
@@ -7303,17 +7303,19 @@
                     W(dC,yB+DOOR_H+(fh-DOOR_H)/2,zPos,DOOR_W,fh-DOOR_H,WT,colC);
                 }
             }
-            // U形楼梯(可爬，复用B1做法：右半上行→中转平台→左半上行→顶平台接走廊)
+            // U形楼梯(可爬)：实心台阶(不再是飘空踏板) + 中转/楼层平台 + 北侧围墙(封住,不透视成乱麻)
+            //   东半: 南(走廊)→北 爬上半层 → 中转平台 → 西半: 北→南 爬上半层 → 楼层平台(接走廊)
             function uStairs(){
-                const sCX=xW+endW*0.42, sW=5.0, hw=sW/2, cxR=sCX+hw/2, cxL=sCX-hw/2;
-                const S=11, rise=(fh/2)/S, run=0.44;
+                const sCX=xW+endW*0.45, sW=5.2, hw=sW/2, cxR=sCX+hw*0.5, cxL=sCX-hw*0.5, fw=hw-0.12;
+                const S=11, rise=(fh/2)/S, run=0.42;
+                const zBot=zCorrMid+0.6, zTopN=zBot-S*run;
+                W(sCX, floors*fh/2, zTopN-1.7, sW+0.5, floors*fh, WT, colC);                 // 楼梯间北围墙
                 for(let f=0;f<floors-1;f++){
                     const fB=f*fh;
-                    for(let s=0;s<S;s++) W(cxR, fB+(s+0.6)*rise, zCorrMid-(s+0.5)*run, hw-0.15, rise+0.06, run, stairC); // 上行(右)
-                    const zM=zCorrMid-S*run;
-                    W(sCX, fB+fh/2-0.05, zM-0.8, sW, 0.16, 1.8, stairC);                                           // 中转平台
-                    for(let s=0;s<S;s++) W(cxL, fB+fh/2+(s+0.6)*rise, zM+(s+0.5)*run, hw-0.15, rise+0.06, run, stairC); // 上行(左)
-                    F(sCX, (f+1)*fh+fh/2-0.1, zCorrMid, sW+0.3, fh-0.2, 0.16, stairC);                              // 栏杆示意(可视)
+                    for(let s=0;s<S;s++){ const h=(s+1)*rise; W(cxR, fB+h/2, zBot-(s+0.5)*run, fw, h, run+0.02, stairC); } // 东半 南→北 实心台阶
+                    W(sCX, fB+fh/2-0.06, zTopN-0.85, sW, 0.18, 1.7, stairC);                  // 中转平台(北)
+                    for(let s=0;s<S;s++){ const h=(s+1)*rise; W(cxL, fB+fh/2+h/2, zTopN+(s+0.5)*run, fw, h, run+0.02, stairC); } // 西半 北→南 实心台阶
+                    W(sCX, (f+1)*fh-0.06, zBot+0.5, sW, 0.18, 1.8, stairC);                   // 楼层平台(南,接走廊)
                 }
             }
             for(let f=0;f<floors;f++){
