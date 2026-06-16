@@ -6311,7 +6311,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v78'; // v78：教学楼南北立面加带形窗(玻璃带+窗梃)，从外面看像真楼
+        const MAP_VER = 'campus_v79'; // v79：新教学楼每间教室铺课桌椅+黑板+讲台(复用createRoomContents)
 
         function _dbOpen(cb) {
             try {
@@ -7391,6 +7391,12 @@
                 }
             }
             uStairs();
+            // 教室家具：南北两排每间铺课桌椅+黑板+讲台(复用 createRoomContents，黑板在东墙、学生朝东)
+            for(let f=0;f<floors;f++) for(let i=0;i<perSide;i++){
+                const rx1=xRW+i*rW, rx2=xRW+(i+1)*rW, yB=f*fh;
+                createRoomContents(f, i, rx1, rx2, zRoomSN, zS, yB);   // 南排教室
+                createRoomContents(f, i, rx1, rx2, zN, zCorrN, yB);    // 北排教室
+            }
             F(cx,floors*fh+0.06,zMid,totW+0.3,0.12,depth+0.3,0xd8d4cc);         // 屋顶
             console.log('🏫 教学楼v5(连通) @cx='+cx+' '+perSide+'间×2侧×'+floors+'层 宽'+totW.toFixed(0)+' 深'+depth.toFixed(0));
         }
