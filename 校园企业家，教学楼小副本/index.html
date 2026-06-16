@@ -6311,7 +6311,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v80'; // v80：修楼板/墙之间的缝(满铺到墙)；厕所加便池+洗手台；走廊加踢脚线
+        const MAP_VER = 'campus_v81'; // v81：功能教室门牌(物理/化学/音乐/美术/图书/办公…按楼层分配，门上挂牌)
 
         function _dbOpen(cb) {
             try {
@@ -7405,6 +7405,24 @@
                 const rx1=xRW+i*rW, rx2=xRW+(i+1)*rW, yB=f*fh;
                 createRoomContents(f, i, rx1, rx2, zRoomSN, zS, yB);   // 南排教室
                 createRoomContents(f, i, rx1, rx2, zN, zCorrN, yB);    // 北排教室
+            }
+            // 功能教室门牌：按楼层分配功能，门上方挂牌(canvas文字，朝走廊)。canvas纹理不入合并缓存→每次加载都重建
+            {
+                const _names=[
+                    ['教师办公室','图书阅览室','心理咨询室','普通教室','小卖部','普通教室','普通教室','普通教室'],
+                    ['普通教室','普通教室','普通教室','普通教室','普通教室','普通教室','普通教室','普通教室'],
+                    ['普通教室','普通教室','普通教室','普通教室','普通教室','普通教室','普通教室','普通教室'],
+                    ['物理实验室','化学实验室','生物实验室','计算机教室','语言教室','普通教室','普通教室','普通教室'],
+                    ['美术教室','音乐教室','书法教室','多功能厅','劳技教室','普通教室','普通教室','普通教室']
+                ];
+                const _signTex=function(txt){ const c=document.createElement('canvas');c.width=256;c.height=72;const x=c.getContext('2d'); x.fillStyle='#16386b';x.fillRect(0,0,256,72); x.strokeStyle='#cda85a';x.lineWidth=4;x.strokeRect(3,3,250,66); x.fillStyle='#fff';x.font='bold 36px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,128,40); return new THREE.CanvasTexture(c); };
+                const _sign=function(txt,sx,yy,zc,faceN){ const m=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.48),new THREE.MeshBasicMaterial({map:_signTex(txt)})); m.position.set(sx,yy,zc+(faceN?-0.14:0.14)); m.rotation.y=faceN?Math.PI:0; m._noMerge=true; scene.add(m); };
+                for(let f=0;f<floors;f++){ const nm=_names[Math.min(f,_names.length-1)], yB=f*fh;
+                    for(let i=0;i<perSide;i++){ const dC=xRW+i*rW+rW*0.30;
+                        _sign(nm[i]||'普通教室', dC, yB+DOOR_H+0.25, zRoomSN, true);   // 南排(朝走廊/北)
+                        _sign(nm[4+i]||'普通教室', dC, yB+DOOR_H+0.25, zCorrN, false); // 北排(朝走廊/南)
+                    }
+                }
             }
             F(cx,floors*fh+0.06,zMid,totW+0.3,0.12,depth+0.3,0xd8d4cc);         // 屋顶
             console.log('🏫 教学楼v5(连通) @cx='+cx+' '+perSide+'间×2侧×'+floors+'层 宽'+totW.toFixed(0)+' 深'+depth.toFixed(0));
