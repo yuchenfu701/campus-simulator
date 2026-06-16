@@ -6311,7 +6311,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v79'; // v79：新教学楼每间教室铺课桌椅+黑板+讲台(复用createRoomContents)
+        const MAP_VER = 'campus_v80'; // v80：修楼板/墙之间的缝(满铺到墙)；厕所加便池+洗手台；走廊加踢脚线
 
         function _dbOpen(cb) {
             try {
@@ -7358,11 +7358,11 @@
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
                 const _hz0=zCorrMid-5.8, _hz1=zCorrMid+1.0;                      // 楼梯井真正开洞的Z范围(仅楼梯那一段)
-                if(f===0) F(cx, 0.03, zMid, totW-WT, 0.05, depth-WT, floorC);   // 一楼地砖(踩世界地面)
+                if(f===0) F(cx, 0.03, zMid, totW, 0.05, depth, floorC);         // 一楼地砖(满铺到墙,无缝)
                 else {
-                    SLAB((stX1+xE)/2, yB-0.06, zMid, (xE-stX1)-0.02, depth-WT);  // 主楼板(核心+走廊+教室+应急)
-                    const _sD=zS-_hz1; if(_sD>0.4) SLAB((xW+stX1)/2, yB-0.06, (_hz1+zS)/2, (stX1-xW)-0.02, _sD-0.06); // 楼梯井南侧补板(原空地→可用房间)
-                    const _nD=_hz0-zN; if(_nD>0.4) SLAB((xW+stX1)/2, yB-0.06, (zN+_hz0)/2, (stX1-xW)-0.02, _nD-0.06); // 楼梯井北侧补板
+                    SLAB((stX1+xE)/2, yB-0.06, zMid, (xE-stX1)+0.4, depth+0.3);  // 主楼板(满铺压进墙,无缝)
+                    const _sD=zS-_hz1; if(_sD>0.4) SLAB((xW+stX1)/2, yB-0.06, (_hz1+zS)/2, (stX1-xW)+0.4, _sD+0.3); // 楼梯井南侧补板
+                    const _nD=_hz0-zN; if(_nD>0.4) SLAB((xW+stX1)/2, yB-0.06, (zN+_hz0)/2, (stX1-xW)+0.4, _nD+0.3); // 楼梯井北侧补板
                 }
                 ribbon(zN,yB);                                                 // 北外墙(带形窗)
                 W(xW,yB+fh/2,zMid,WT,fh,depth);                                 // 西外墙
@@ -7385,10 +7385,19 @@
                 // 服务核：厕所 | 电梯 | 厕所——只占【北段】，走廊带和南门厅留空通行(否则学生进不去教室)
                 const c1=stX1+(xRW-stX1)*0.40, c2=stX1+(xRW-stX1)*0.60, zNb=(zN+zCorrN)/2;
                 W(c1,yB+fh/2,zNb,WT,fh,rD,colC); W(c2,yB+fh/2,zNb,WT,fh,rD,colC);                 // 隔断(北段)
-                if(f===0){
-                    W((c1+c2)/2,2.0,zNb,(c2-c1)-0.5,4.0,3.4,elevC);             // 电梯轿厢(中,北段)
-                    for(let t=0;t<3;t++){ W(stX1+1.0+t*1.1,yB+1.1,zNb,0.08,2.2,2.6,colC); W(c2+0.7+t*1.1,yB+1.1,zNb,0.08,2.2,2.6,colC); } // 厕所隔断(北段两侧)
-                }
+                if(f===0) W((c1+c2)/2,2.0,zNb,(c2-c1)-0.5,4.0,3.4,elevC);        // 电梯轿厢(中,北段,底层)
+                // 厕所(核心两侧)：隔间隔断 + 便池 + 洗手台(每层都有)
+                const _wcM=0xeef2f5;
+                [stX1, c2].forEach(function(bx0){
+                    for(let t=0;t<3;t++){
+                        W(bx0+0.9+t*1.05, yB+1.15, zNb, 0.07, 2.3, 2.6, colC);    // 隔间隔断
+                        W(bx0+1.4+t*1.05, yB+0.35, zN+0.7, 0.55, 0.7, 0.62, _wcM); // 便池(白)
+                    }
+                    W(bx0+1.9, yB+0.82, zCorrN-0.55, 3.0, 0.18, 0.5, _wcM);        // 洗手台
+                });
+                // 走廊踢脚线(两侧)——"精致"基础
+                F((xRW+xRE)/2, yB+0.12, zRoomSN, xRE-xRW, 0.24, WT+0.05, 0x5e5044);
+                F((xRW+xRE)/2, yB+0.12, zCorrN, xRE-xRW, 0.24, WT+0.05, 0x5e5044);
             }
             uStairs();
             // 教室家具：南北两排每间铺课桌椅+黑板+讲台(复用 createRoomContents，黑板在东墙、学生朝东)
