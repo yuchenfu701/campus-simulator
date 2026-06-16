@@ -6311,7 +6311,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v77'; // v77：楼梯井四面封墙(全高,防掉落)；出生点改到校门口；加载页加"跳过动画"按钮
+        const MAP_VER = 'campus_v78'; // v78：教学楼南北立面加带形窗(玻璃带+窗梃)，从外面看像真楼
 
         function _dbOpen(cb) {
             try {
@@ -7344,6 +7344,17 @@
                     W((cxE+stX1)/2, (f+1)*fh-0.07, zCorrMid, (stX1-cxE)+fw+0.3, 0.14, corrD*0.6, stairC);          // 落脚平台→stX1门→楼板
                 }
             }
+            const _winMat=new THREE.MeshLambertMaterial({color:0xaadcff,transparent:true,opacity:0.32,side:THREE.DoubleSide,depthWrite:false});
+            function ribbon(zF,yB){ // 带形窗：下窗台(实心)+上窗楣(实心)+中间玻璃带(挡人,可透光)
+                W(cx,yB+0.55,zF,totW,1.1,WT);
+                W(cx,yB+fh-0.35,zF,totW,0.7,WT);
+                if(window._skipVisualMesh) return;
+                const gh=fh-1.8;
+                const g=new THREE.Mesh(new THREE.BoxGeometry(totW-0.6,gh,0.06),_winMat);
+                g.position.set(cx,yB+1.1+gh/2,zF); scene.add(g);
+                addWallBBoxOnly(cx,yB+1.1+gh/2,zF,totW-0.6,gh,0.06);
+                for(let mx=xW+4;mx<xE-1;mx+=4) F(mx,yB+1.1+gh/2,zF,0.12,gh,0.14,0x33404e); // 竖向窗梃
+            }
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
                 const _hz0=zCorrMid-5.8, _hz1=zCorrMid+1.0;                      // 楼梯井真正开洞的Z范围(仅楼梯那一段)
@@ -7353,7 +7364,7 @@
                     const _sD=zS-_hz1; if(_sD>0.4) SLAB((xW+stX1)/2, yB-0.06, (_hz1+zS)/2, (stX1-xW)-0.02, _sD-0.06); // 楼梯井南侧补板(原空地→可用房间)
                     const _nD=_hz0-zN; if(_nD>0.4) SLAB((xW+stX1)/2, yB-0.06, (zN+_hz0)/2, (stX1-xW)-0.02, _nD-0.06); // 楼梯井北侧补板
                 }
-                W(cx,yB+fh/2,zN,totW,fh,WT);                                    // 北外墙
+                ribbon(zN,yB);                                                 // 北外墙(带形窗)
                 W(xW,yB+fh/2,zMid,WT,fh,depth);                                 // 西外墙
                 if(f===0){                                                     // 东外墙底层应急出口
                     const sN=(zCorrMid-DOOR_W)-zN; if(sN>0.1) W(xE,yB+fh/2,(zN+zCorrMid-DOOR_W)/2,WT,fh,sN);
@@ -7365,7 +7376,7 @@
                     const sl=(gC-gH)-xW; if(sl>0.1) W((xW+gC-gH)/2,yB+fh/2,zS,sl,fh,WT);
                     const sr=xE-(gC+gH); if(sr>0.1) W((gC+gH+xE)/2,yB+fh/2,zS,sr,fh,WT);
                     W(gC,yB+DOOR_H+(fh-DOOR_H)/2,zS,gH*2,fh-DOOR_H,WT);
-                } else W(cx,yB+fh/2,zS,totW,fh,WT);
+                } else ribbon(zS,yB);                                          // 南外墙(带形窗)
                 partition(zRoomSN,yB); partition(zCorrN,yB);
                 for(let i=1;i<perSide;i++){ const dx=xRW+i*rW; W(dx,yB+fh/2,(zS+zRoomSN)/2,WT,fh,rD,colC); W(dx,yB+fh/2,(zCorrN+zN)/2,WT,fh,rD,colC); } // 教室间隔墙
                 doorWallX(stX1,yB,zCorrMid,DOOR_W*1.7);                         // 楼梯井↔核心 隔墙(走廊处开门)
