@@ -6321,7 +6321,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v86'; // v86：教学楼墙面上真实贴图(共享材质,消灭白模感+可合并提速)
+        const MAP_VER = 'campus_v87'; // v87：撤掉丑斜纹墙贴图，改干净纯色+走廊墙裙(踢脚线+蓝灰墙裙+上沿压条)
 
         function _dbOpen(cb) {
             try {
@@ -7307,14 +7307,9 @@
             const zRoomSN=zS-rD, zCorrN=zRoomSN-corrD, zN=zCorrN-rD;
             const depth=zS-zN, zMid=(zS+zN)/2, zCorrMid=(zRoomSN+zCorrN)/2;
             const col=0xeae6de, colC=0xf0ede6, floorC=0xc2bcb0, stairC=0xcac4ba, elevC=0x8c9aa8;
-            // 共享带贴图墙面材质：①消灭"白模/纯色"感 ②同材质可合并(提速)。带 _cacheTexKey 以便缓存还原纹理
-            function _wallMat(hex,rep){
-                const m=new THREE.MeshLambertMaterial({color:hex});
-                const key=(window._dtex&&window._dtex.corrWall)?'corrWall':((window._dtex&&window._dtex.concretePanel)?'concretePanel':null);
-                if(key){ const t=window._dtex[key].clone(); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rep,rep); m.map=t; m._cacheTexKey=key; m._cacheTexRX=rep; m._cacheTexRY=rep; }
-                return m;
-            }
-            const _wmExt=_wallMat(col,7), _wmInt=_wallMat(colC,5);
+            // 共享墙面材质(纯净色,不用那张会平铺成斜网格的丑纹理)；共享=可合并提速。精致靠墙裙/踢脚线几何，不靠贴图
+            function _wallMat(hex){ return new THREE.MeshLambertMaterial({color:hex}); }
+            const _wmExt=_wallMat(col), _wmInt=_wallMat(colC);
             function W(x,y,z,w,h,d,c){ // 竖墙：可视+碰撞。col/colC 用共享带贴图材质(可合并)，其它(楼梯/电梯/洁具)用纯色
                 if(window._skipVisualMesh) return null;
                 const mat=(c===undefined||c===col)?_wmExt:(c===colC?_wmInt:new THREE.MeshLambertMaterial({color:c}));
@@ -7418,9 +7413,12 @@
                     }
                     W(bx0+1.9, yB+0.82, zCorrN-0.55, 3.0, 0.18, 0.5, _wcM);        // 洗手台
                 });
-                // 走廊踢脚线(两侧)——"精致"基础
-                F((xRW+xRE)/2, yB+0.12, zRoomSN, xRE-xRW, 0.24, WT+0.05, 0x5e5044);
-                F((xRW+xRE)/2, yB+0.12, zCorrN, xRE-xRW, 0.24, WT+0.05, 0x5e5044);
+                // 走廊踢脚线 + 墙裙(下半墙柔和蓝灰,2-tone) + 上沿压条 —— 干净的"精致"
+                [zRoomSN, zCorrN].forEach(function(zw){
+                    F((xRW+xRE)/2, yB+0.12, zw, xRE-xRW, 0.24, WT+0.06, 0x5e5044); // 踢脚线(深)
+                    F((xRW+xRE)/2, yB+0.80, zw, xRE-xRW, 1.05, WT+0.04, 0xbcc8d4); // 墙裙(蓝灰)
+                    F((xRW+xRE)/2, yB+1.36, zw, xRE-xRW, 0.07, WT+0.07, 0x8a98a6); // 墙裙上沿压条
+                });
             }
             uStairs();
             // 教室家具：南北两排每间铺课桌椅+黑板+讲台(opts.furnish===false 时为毛坯壳，省性能)
