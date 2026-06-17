@@ -2085,7 +2085,7 @@
                     _setLoadHint('生成互动元素…');
                     // 仍需完整执行建筑生成（创建碰撞盒+互动门），但只生成碰撞盒，跳过视觉Mesh
                     window._skipVisualMesh = true;
-                    createBuilding();
+                    /* createBuilding(); 旧B1已删，改用新教学楼 */
                     createCampus();
                     createOutdoorEnvironment();
                     window._skipVisualMesh = false;
@@ -2105,7 +2105,7 @@
                         console.log('📱 手机端：强制低画质加速加载');
                     }
                     _setLoadHint('生成教学楼…');
-                    createBuilding();
+                    /* createBuilding(); 旧B1已删，改用新教学楼 */
                     _setLoadHint('生成校园…');
                     createCampus();
                     _setLoadHint('生成室外环境…');
@@ -3609,8 +3609,8 @@
             // 食堂门前广场（压在底层沥青之上）
             texPlane(0, 0.012, -30, 45, 22, 'outdoorPlaza', 2.2, 1.05, 0xf8f5f0);
 
-            // ── 教学楼 B2（北侧，完整内部：走廊+教室+楼梯） ──
-            (function buildB2(){
+            // ── 教学楼 B2（已删，改用新教学楼） ──
+            if(false) (function buildB2(){
                 const BX1=-20,BX2=20,BZ1=-70,BZ2=-53;
                 const BW=BX2-BX1,BD=BZ2-BZ1,TH=12,ST=0.25;
                 const corrZ=BZ2-4; // =-57，走廊南边界（走廊：corrZ~BZ2）
@@ -3746,8 +3746,8 @@
                 console.log('✅ B2教学楼完整内部建造完成（3层×3间=9间教室）');
             })();
 
-            // ── 教学楼 B3（东侧，完整内部） ──
-            (function buildB3(){
+            // ── 教学楼 B3（已删，改用新教学楼） ──
+            if(false) (function buildB3(){
                 const BX1=55,BX2=95,BZ1=-8,BZ2=9;
                 const BW=BX2-BX1,BD=BZ2-BZ1,TH=12,ST=0.25;
                 const corrZ=CORR_Z; // 5，与B1相同
@@ -3856,8 +3856,8 @@
                 console.log('✅ B3教学楼完整内部建造完成（3层×3间=9间教室）');
             })();
 
-            // ── 教学楼 B4（西侧，完整内部，楼梯间在西端）──
-            (function buildB4(){
+            // ── 教学楼 B4（已删，改用新教学楼）──
+            if(false) (function buildB4(){
                 const BX1=-95,BX2=-55,BZ1=-8,BZ2=9;
                 const BW=BX2-BX1,BD=BZ2-BZ1,TH=12,ST=0.25;
                 const corrZ=CORR_Z; // 5
@@ -3967,9 +3967,9 @@
                 console.log('✅ B4教学楼完整内部建造完成（3层×3间=9间教室）');
             })();
 
-            // ── 新版教学楼原型 v4（内廊式：南侧操场空地 Z=110 试造，不动现有楼）──
-            // 4间/侧×2侧×5层=40间；大教室(15×9m)、宽走廊(5.5m)、可爬U形楼梯、东端应急通道、上层可站
-            buildModernTeachingBuilding({cx:0, zSouth:110, roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4});
+            // ── 新教学楼 ×2（替换 B1-B4）：前排退在操场/广场之后，后排在食堂北侧，均朝南 ──
+            buildModernTeachingBuilding({cx:0, zSouth:35,  roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4, furnish:true});  // 前排教学楼 z[12,35] (满铺家具)
+            buildModernTeachingBuilding({cx:0, zSouth:-45, roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4, furnish:false}); // 后排教学楼 z[-68,-45] (毛坯壳,省性能)
 
             // ── 食堂（B1南侧，大型单层，含完整内部）──
             (function buildCanteen(){
@@ -6311,7 +6311,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v81'; // v81：功能教室门牌(物理/化学/音乐/美术/图书/办公…按楼层分配，门上挂牌)
+        const MAP_VER = 'campus_v83'; // v83：删B1-B4换2栋新教学楼；前排满铺家具/后排毛坯壳(省性能,避免合并卡死)
 
         function _dbOpen(cb) {
             try {
@@ -7400,14 +7400,14 @@
                 F((xRW+xRE)/2, yB+0.12, zCorrN, xRE-xRW, 0.24, WT+0.05, 0x5e5044);
             }
             uStairs();
-            // 教室家具：南北两排每间铺课桌椅+黑板+讲台(复用 createRoomContents，黑板在东墙、学生朝东)
-            for(let f=0;f<floors;f++) for(let i=0;i<perSide;i++){
+            // 教室家具：南北两排每间铺课桌椅+黑板+讲台(opts.furnish===false 时为毛坯壳，省性能)
+            if(opts.furnish!==false) for(let f=0;f<floors;f++) for(let i=0;i<perSide;i++){
                 const rx1=xRW+i*rW, rx2=xRW+(i+1)*rW, yB=f*fh;
                 createRoomContents(f, i, rx1, rx2, zRoomSN, zS, yB);   // 南排教室
                 createRoomContents(f, i, rx1, rx2, zN, zCorrN, yB);    // 北排教室
             }
             // 功能教室门牌：按楼层分配功能，门上方挂牌(canvas文字，朝走廊)。canvas纹理不入合并缓存→每次加载都重建
-            {
+            if(opts.furnish!==false){
                 const _names=[
                     ['教师办公室','图书阅览室','心理咨询室','普通教室','小卖部','普通教室','普通教室','普通教室'],
                     ['普通教室','普通教室','普通教室','普通教室','普通教室','普通教室','普通教室','普通教室'],
