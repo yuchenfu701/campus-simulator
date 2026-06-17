@@ -6321,7 +6321,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v85'; // v85：樱花花瓣不在楼里飘(过滤位置)；厕所围成房间(zCorrN隔墙+两门)
+        const MAP_VER = 'campus_v86'; // v86：教学楼墙面上真实贴图(共享材质,消灭白模感+可合并提速)
 
         function _dbOpen(cb) {
             try {
@@ -7307,9 +7307,18 @@
             const zRoomSN=zS-rD, zCorrN=zRoomSN-corrD, zN=zCorrN-rD;
             const depth=zS-zN, zMid=(zS+zN)/2, zCorrMid=(zRoomSN+zCorrN)/2;
             const col=0xeae6de, colC=0xf0ede6, floorC=0xc2bcb0, stairC=0xcac4ba, elevC=0x8c9aa8;
-            function W(x,y,z,w,h,d,c){ // 竖墙：可视+碰撞
+            // 共享带贴图墙面材质：①消灭"白模/纯色"感 ②同材质可合并(提速)。带 _cacheTexKey 以便缓存还原纹理
+            function _wallMat(hex,rep){
+                const m=new THREE.MeshLambertMaterial({color:hex});
+                const key=(window._dtex&&window._dtex.corrWall)?'corrWall':((window._dtex&&window._dtex.concretePanel)?'concretePanel':null);
+                if(key){ const t=window._dtex[key].clone(); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rep,rep); m.map=t; m._cacheTexKey=key; m._cacheTexRX=rep; m._cacheTexRY=rep; }
+                return m;
+            }
+            const _wmExt=_wallMat(col,7), _wmInt=_wallMat(colC,5);
+            function W(x,y,z,w,h,d,c){ // 竖墙：可视+碰撞。col/colC 用共享带贴图材质(可合并)，其它(楼梯/电梯/洁具)用纯色
                 if(window._skipVisualMesh) return null;
-                const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:c||col}));
+                const mat=(c===undefined||c===col)?_wmExt:(c===colC?_wmInt:new THREE.MeshLambertMaterial({color:c}));
+                const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
                 m.position.set(x,y,z); m.receiveShadow=true;
                 m.bbox=new THREE.Box3().setFromObject(m); scene.add(m); walls.push(m); return m;
             }
