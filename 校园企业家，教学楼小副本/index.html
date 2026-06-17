@@ -3191,8 +3191,15 @@
         //   公厕: 西 X≈-98~-78、东 X≈78~98，Z≈-27~-13（北移与教学楼错层，南向外开门）
         //   校门: 南围墙中央 Z=65, X:-5~5
         // ══════════════════════════════════════════════════════
+        // 判断 (x,z) 是否落在新教学楼 footprint 内（部署后清理"道具戳进楼里"用）
+        window._inNewBldg = function(x,z){
+            if(x>-43 && x<43 && z>10  && z<37 ) return true;   // 前排教学楼 z[12,35]
+            if(x>-43 && x<43 && z>-70 && z<-43) return true;   // 后排教学楼 z[-68,-45]
+            return false;
+        };
         /** 参考图：下粗上细棱柱干 + 竖纹树皮；棕色枝条接到多颗二十面体冠（青柠绿、哑光分面）；无地面碎块 */
         function addLowPolyTree(x, z, h, cr, cc) {
+            if (window._inNewBldg(x, z)) return; // 新教学楼里不种树/花坛
             const crownReach = (cr || 1.8) * 2.2 + 1.5;
             if (x + crownReach > 61 && x - crownReach < 83 && z + crownReach > -22.5 && z - crownReach < -9.5) return;
             if (x + crownReach > 18 && x - crownReach < 40 && z + crownReach > -23.5 && z - crownReach < -12) return;
@@ -3381,7 +3388,7 @@
         function _loadAndInstanceBenches() {
             if (window._benchInstanced) return;
             window._benchInstanced = true;
-            const pts = _BENCH_PLACEMENTS;
+            const pts = _BENCH_PLACEMENTS.filter(function(p){ return !window._inNewBldg(p.x, p.z); }); // 剔除戳进新楼的长椅
             const YAW = Math.PI; // GLB(yup)靠背在+Z，游戏约定-Z，需+π对齐
             if (typeof THREE.GLTFLoader === 'undefined') { _fallbackProcBenches(pts, YAW); return; }
             const loader = new THREE.GLTFLoader();
@@ -3469,7 +3476,7 @@
         function _loadAndInstanceLamps() {
             if (window._lampsInstanced) return;
             window._lampsInstanced = true;
-            const pts = _LAMP_PLACEMENTS;
+            const pts = _LAMP_PLACEMENTS.filter(function(p){ return !window._inNewBldg(p.x, p.z); }); // 剔除戳进新楼的路灯
             if (typeof THREE.GLTFLoader === 'undefined') return;
             const loader = new THREE.GLTFLoader();
             loader.load('../assets/models/streetlamp.glb', function (gltf) {
@@ -4457,6 +4464,7 @@
             // ── 花坛（B1南广场） ──
             // 花坛盆体 + 土壤（box/wall 内部自动处理 _skipVisualMesh）
             [[-20,13],[20,13],[-20,17],[20,17],[-35,13],[35,13]].forEach(([fx,fz])=>{
+                if(window._inNewBldg(fx,fz)) return; // 楼里不放花坛
                 wall(fx,0.35,fz,4,0.7,2.8,0xa07848);
                 box(fx,0.8,fz,3.5,0.45,2.4,0x5a8a3a+(fx%2)*0x081008);
             });
@@ -4471,6 +4479,7 @@
                     new THREE.MeshLambertMaterial({color:0xff6699,flatShading:true}),
                 ];
                 [[-20,13],[20,13],[-20,17],[20,17],[-35,13],[35,13]].forEach(([fx,fz])=>{
+                    if(window._inNewBldg(fx,fz)) return; // 楼里不放花朵
                     for(let k=0;k<10;k++){
                         const stemH=0.10+Math.random()*0.10;
                         const sx=fx+(Math.random()-0.5)*2.8, sz=fz+(Math.random()-0.5)*1.8;
@@ -5109,7 +5118,7 @@
             if (!window._fountainInited) {
                 window._fountainInited = true;
                 (function initFountainWater(){
-                    const FX=-28, FZ=25; // 移到升旗台(28,25)对侧（进大门向左）
+                    const FX=0, FZ=-5; // 移到前楼与食堂之间的中庭(避开新教学楼)
                     window._fountainPos={x:FX,z:FZ};
                     const waterM=new THREE.MeshLambertMaterial({color:0x4aa8d8,transparent:true,opacity:0.62,depthWrite:false});
                     // 主水池水面（圆形）
@@ -5613,7 +5622,7 @@
 
             // ── 广场装饰喷泉（三层叠盘石质结构，移到升旗台对侧）──
             (function addFountain(){
-                const FX=-28, FZ=25; // 与 initFountainWater 一致
+                const FX=0, FZ=-5; // 与 initFountainWater 一致(中庭)
                 const stone =new THREE.MeshLambertMaterial({color:0xd2cabe});
                 const stoneD=new THREE.MeshLambertMaterial({color:0xb8b0a4}); // 深一档，增加层次
                 // 外围环形池壁（用圆环柱体一次成型，不再是会变成"辐条"的8段方块）
@@ -6311,7 +6320,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v83'; // v83：删B1-B4换2栋新教学楼；前排满铺家具/后排毛坯壳(省性能,避免合并卡死)
+        const MAP_VER = 'campus_v84'; // v84：清理道具与新楼重叠(树/路灯/长椅/喷泉/花坛避开楼footprint)，喷泉移到中庭
 
         function _dbOpen(cb) {
             try {
