@@ -5323,8 +5323,9 @@
             if (!window._petalInited) {
                 window._petalInited = true;
                 const PCNT = 280;
-                // 樱花树位置（对应 createCampus 中的樱花树坐标）
-                const _cherryPos = [[-24,20],[24,20],[-24,36],[24,36],[-24,50],[24,50]];
+                // 樱花树位置（对应 createCampus 中的樱花树坐标）——剔除落在新教学楼里的，否则花瓣在楼里飘
+                let _cherryPos = [[-24,20],[24,20],[-24,36],[24,36],[-24,50],[24,50]].filter(function(p){ return !(window._inNewBldg&&window._inNewBldg(p[0],p[1])); });
+                if(_cherryPos.length===0) _cherryPos=[[-60,90],[60,90]]; // 兜底：操场两侧
                 const pGeo = new THREE.PlaneGeometry(0.09, 0.06);
                 const pMat = new THREE.MeshBasicMaterial({
                     color: 0xffb8cc, transparent: true, opacity: 0.82,
@@ -6320,7 +6321,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v84'; // v84：清理道具与新楼重叠(树/路灯/长椅/喷泉/花坛避开楼footprint)，喷泉移到中庭
+        const MAP_VER = 'campus_v85'; // v85：樱花花瓣不在楼里飘(过滤位置)；厕所围成房间(zCorrN隔墙+两门)
 
         function _dbOpen(cb) {
             try {
@@ -7394,6 +7395,10 @@
                 // 服务核：厕所 | 电梯 | 厕所——只占【北段】，走廊带和南门厅留空通行(否则学生进不去教室)
                 const c1=stX1+(xRW-stX1)*0.40, c2=stX1+(xRW-stX1)*0.60, zNb=(zN+zCorrN)/2;
                 W(c1,yB+fh/2,zNb,WT,fh,rD,colC); W(c2,yB+fh/2,zNb,WT,fh,rD,colC);                 // 隔断(北段)
+                // 厕所/电梯区↔走廊 隔墙(zCorrN)：两侧厕所各开门→把厕所围成房间，不再敞在走廊边
+                { const _dW=(stX1+c1)/2, _dE=(c2+xRW)/2, _hw=DOOR_W/2;
+                  [[stX1,_dW-_hw],[_dW+_hw,_dE-_hw],[_dE+_hw,xRW]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
+                  [_dW,_dE].forEach(function(dx){ W(dx,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC); }); }
                 if(f===0) W((c1+c2)/2,2.0,zNb,(c2-c1)-0.5,4.0,3.4,elevC);        // 电梯轿厢(中,北段,底层)
                 // 厕所(核心两侧)：隔间隔断 + 便池 + 洗手台(每层都有)
                 const _wcM=0xeef2f5;
