@@ -2097,6 +2097,7 @@
                     _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     _loadAndInstanceLamps();  // 路灯用GLB精模实例化
+                    _loadAndInstanceToilets();// 厕所洁具用GLB精模实例化
                 } else {
                     // ── 缓存未命中：完整生成，合并后保存到IndexedDB ──
                     // 手机端强制低画质（跳过装饰物），大幅减少几何体生成时间
@@ -2123,6 +2124,7 @@
                         _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     _loadAndInstanceLamps();  // 路灯用GLB精模实例化
+                    _loadAndInstanceToilets();// 厕所洁具用GLB精模实例化
                     } else {
                         _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
                         // 使用 setTimeout 让提示文字先渲染再执行耗时合并
@@ -2137,6 +2139,7 @@
                             _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     _loadAndInstanceLamps();  // 路灯用GLB精模实例化
+                    _loadAndInstanceToilets();// 厕所洁具用GLB精模实例化
                             // 保存合并结果+碰撞盒到IndexedDB
                             const cacheData = {
                                 meshData:   _serializeMerged(mergedMeshes),
@@ -3510,6 +3513,45 @@
             }, undefined, function (err) {
                 console.warn('⚠️ GLB路灯加载失败:', err && err.message);
             });
+        }
+
+        // ── 厕所洁具(Meshy精模)实例化：小便池/蹲便隔间/洗手台 ──
+        function _loadFixture(loader, url, pts, yawOff) {
+            if (!pts.length || typeof THREE.GLTFLoader === 'undefined') return;
+            loader.load(url, function (gltf) {
+                const parts = []; gltf.scene.updateMatrixWorld(true);
+                gltf.scene.traverse(function (o) { if (o.isMesh && o.geometry) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); parts.push({ geo: g, mat: o.material }); } });
+                if (!parts.length) return;
+                const dummy = new THREE.Object3D();
+                parts.forEach(function (part) {
+                    const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
+                    inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
+                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
+                    inst.instanceMatrix.needsUpdate = true; scene.add(inst);
+                });
+                console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length);
+            }, undefined, function (err) { console.warn('⚠️ 洁具加载失败 ' + url, err && err.message); });
+        }
+        // 各洁具朝向偏移(若装反了改这里)：urinals/squat/sink
+        const _TOILET_YAW = { urinal: 0, squat: 0, sink: 0 };
+        function _loadAndInstanceToilets() {
+            if (window._toiletsInstanced) return; window._toiletsInstanced = true;
+            if (typeof THREE.GLTFLoader === 'undefined') return;
+            const loader = new THREE.GLTFLoader();
+            // 前排教学楼(zSouth=35) 两侧厕所中心 × 每层
+            const xWc = -32.98, xEc = -26.62, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4;
+            const urinal = [], squat = [], sink = [];
+            for (let f = 0; f < FL; f++) {
+                const y = f * FH;
+                [xWc, xEc].forEach(function (xc) {
+                    urinal.push({ x: xc, y: y, z: zN + 0.45, ry: 0 });        // 北墙小便池
+                    squat.push({ x: xc, y: y, z: 15, ry: 0 });                 // 中部蹲便隔间
+                    sink.push({ x: xc, y: y, z: zCorrN - 2.0, ry: Math.PI });  // 近门洗手台
+                });
+            }
+            _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
+            _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
+            _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
         }
 
         // 操场/跑道为 PlaneGeometry，不参与 mergeStaticMeshes；IndexedDB 缓存加载时 createCampus 会 skip，必须补建否则只剩一片纯色草地
@@ -6321,7 +6363,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v87'; // v87：撤掉丑斜纹墙贴图，改干净纯色+走廊墙裙(踢脚线+蓝灰墙裙+上沿压条)
+        const MAP_VER = 'campus_v88'; // v88：厕所放入Meshy精模洁具(小便池/蹲便隔间/洗手台,减面+压贴图后实例化)，删旧白盒子
 
         function _dbOpen(cb) {
             try {
@@ -7404,15 +7446,7 @@
                   [[stX1,_dW-_hw],[_dW+_hw,_dE-_hw],[_dE+_hw,xRW]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
                   [_dW,_dE].forEach(function(dx){ W(dx,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC); }); }
                 if(f===0) W((c1+c2)/2,2.0,zNb,(c2-c1)-0.5,4.0,3.4,elevC);        // 电梯轿厢(中,北段,底层)
-                // 厕所(核心两侧)：隔间隔断 + 便池 + 洗手台(每层都有)
-                const _wcM=0xeef2f5;
-                [stX1, c2].forEach(function(bx0){
-                    for(let t=0;t<3;t++){
-                        W(bx0+0.9+t*1.05, yB+1.15, zNb, 0.07, 2.3, 2.6, colC);    // 隔间隔断
-                        W(bx0+1.4+t*1.05, yB+0.35, zN+0.7, 0.55, 0.7, 0.62, _wcM); // 便池(白)
-                    }
-                    W(bx0+1.9, yB+0.82, zCorrN-0.55, 3.0, 0.18, 0.5, _wcM);        // 洗手台
-                });
+                // 厕所洁具改用 Meshy 精模 GLB 实例化(_loadAndInstanceToilets)，此处不再放白盒子
                 // 走廊踢脚线 + 墙裙(下半墙柔和蓝灰,2-tone) + 上沿压条 —— 干净的"精致"
                 [zRoomSN, zCorrN].forEach(function(zw){
                     F((xRW+xRE)/2, yB+0.12, zw, xRE-xRW, 0.24, WT+0.06, 0x5e5044); // 踢脚线(深)
