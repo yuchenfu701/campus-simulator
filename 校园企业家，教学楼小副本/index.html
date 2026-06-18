@@ -3526,7 +3526,7 @@
                 parts.forEach(function (part) {
                     const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
                     inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
-                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
+                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
                 });
                 console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length);
@@ -3546,7 +3546,7 @@
                 [xWc, xEc].forEach(function (xc) {
                     urinal.push({ x: xc, y: y, z: zN + 0.45, ry: 0 });        // 北墙小便池
                     squat.push({ x: xc, y: y, z: 15, ry: 0 });                 // 中部蹲便隔间
-                    sink.push({ x: xc, y: y, z: zCorrN - 2.0, ry: Math.PI });  // 近门洗手台
+                    sink.push({ x: xc, y: y, z: zCorrN - 2.0, ry: Math.PI, s: 1.25 });  // 近门洗手台(放大1.25)
                 });
             }
             _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
