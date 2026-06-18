@@ -3520,16 +3520,18 @@
             if (!pts.length || typeof THREE.GLTFLoader === 'undefined') return;
             loader.load(url, function (gltf) {
                 const parts = []; gltf.scene.updateMatrixWorld(true);
-                gltf.scene.traverse(function (o) { if (o.isMesh && o.geometry) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); parts.push({ geo: g, mat: o.material }); } });
+                let minY = Infinity;
+                gltf.scene.traverse(function (o) { if (o.isMesh && o.geometry) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.computeBoundingBox(); if (g.boundingBox.min.y < minY) minY = g.boundingBox.min.y; parts.push({ geo: g, mat: o.material }); } });
                 if (!parts.length) return;
+                if (!isFinite(minY)) minY = 0;  // 模型底部相对原点的Y——下面减掉它,把底部贴到 p.y(地面),杜绝悬空
                 const dummy = new THREE.Object3D();
                 parts.forEach(function (part) {
                     const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
                     inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
-                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
+                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y - minY * s, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
                 });
-                console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length);
+                console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length + ' (底部Y=' + minY.toFixed(2) + ')');
             }, undefined, function (err) { console.warn('⚠️ 洁具加载失败 ' + url, err && err.message); });
         }
         // 各洁具朝向偏移(若装反了改这里)：urinals/squat/sink
@@ -3546,7 +3548,7 @@
                 [xWc, xEc].forEach(function (xc) {
                     urinal.push({ x: xc, y: y, z: zN + 0.45, ry: 0 });        // 北墙小便池
                     squat.push({ x: xc, y: y, z: 15, ry: 0 });                 // 中部蹲便隔间
-                    sink.push({ x: xc, y: y, z: zCorrN - 2.0, ry: Math.PI, s: 1.25 });  // 近门洗手台(放大1.25)
+                    sink.push({ x: xc, y: y, z: zCorrN - 1.4, ry: Math.PI });  // 近门洗手台(原尺寸,朝室内)
                 });
             }
             _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
