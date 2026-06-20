@@ -3520,18 +3520,20 @@
             if (!pts.length || typeof THREE.GLTFLoader === 'undefined') return;
             loader.load(url, function (gltf) {
                 const parts = []; gltf.scene.updateMatrixWorld(true);
-                let minY = Infinity;
-                gltf.scene.traverse(function (o) { if (o.isMesh && o.geometry) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.computeBoundingBox(); if (g.boundingBox.min.y < minY) minY = g.boundingBox.min.y; parts.push({ geo: g, mat: o.material }); } });
+                const box = new THREE.Box3();
+                gltf.scene.traverse(function (o) { if (o.isMesh && o.geometry) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.computeBoundingBox(); box.union(g.boundingBox); parts.push({ geo: g, mat: o.material }); } });
                 if (!parts.length) return;
-                if (!isFinite(minY)) minY = 0;  // 模型底部相对原点的Y——下面减掉它,把底部贴到 p.y(地面),杜绝悬空
+                // 把模型原点统一搬到「底面中心」：X/Z居中(绕Y旋转才不会偏),Y底贴地——再放哪都可预测,不悬空不偏移
+                const cX = (box.min.x + box.max.x) / 2, cZ = (box.min.z + box.max.z) / 2, minY = isFinite(box.min.y) ? box.min.y : 0;
+                parts.forEach(function (part) { part.geo.translate(-cX, -minY, -cZ); });
                 const dummy = new THREE.Object3D();
                 parts.forEach(function (part) {
                     const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
                     inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
-                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y - minY * s, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
+                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
                 });
-                console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length + ' (底部Y=' + minY.toFixed(2) + ')');
+                console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length + ' (足迹 ' + (box.max.x - box.min.x).toFixed(2) + '×' + (box.max.z - box.min.z).toFixed(2) + 'm)');
             }, undefined, function (err) { console.warn('⚠️ 洁具加载失败 ' + url, err && err.message); });
         }
         // 各洁具朝向偏移(若装反了改这里)：urinals/squat/sink
@@ -3540,16 +3542,22 @@
             if (window._toiletsInstanced) return; window._toiletsInstanced = true;
             if (typeof THREE.GLTFLoader === 'undefined') return;
             const loader = new THREE.GLTFLoader();
-            // 前排教学楼(zSouth=35) 两侧厕所中心 × 每层
-            const xWc = -32.98, xEc = -26.62, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4;
+            // 前排教学楼(zSouth=35) 服务核北段：男厕(西) | 女厕(东)，各5.3m；门在南墙(zCorrN)，窗在北墙(zN)
+            // 真实布局：洗手台贴一面长墙、蹲位隔间贴对面长墙、中间留过道；小便池只在男厕北墙
+            const stX1 = -35.1, cMid = -29.8, xRW = -24.5, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4;
+            const HW = Math.PI / 2;                         // 90°
+            const wIn = 0.125;                              // 半墙厚(贴墙内表面)
+            const stallZ = [14, 16, 18];                    // 一排3个蹲位的Z
             const urinal = [], squat = [], sink = [];
             for (let f = 0; f < FL; f++) {
                 const y = f * FH;
-                [xWc, xEc].forEach(function (xc) {
-                    urinal.push({ x: xc, y: y, z: zN + 0.45, ry: 0 });        // 北墙小便池
-                    squat.push({ x: xc, y: y, z: 15, ry: 0 });                 // 中部蹲便隔间
-                    sink.push({ x: xc, y: y, z: zCorrN - 1.4, ry: Math.PI });  // 近门洗手台(原尺寸,朝室内)
-                });
+                // ── 男厕(西, x∈[-35.1,-29.8]) ──
+                sink.push({ x: stX1 + wIn + 0.36, y: y, z: 16, ry: HW });                  // 洗手台：西墙,朝东(+X)
+                stallZ.forEach(function (z) { squat.push({ x: cMid - wIn - 0.95, y: y, z: z, ry: -HW }); }); // 蹲位×3：东墙(中隔墙),朝西(-X)
+                urinal.push({ x: (stX1 + cMid) / 2, y: y, z: zN + wIn + 0.55, ry: 0 });    // 小便池：北墙(仅男厕),朝南(+Z)
+                // ── 女厕(东, x∈[-29.8,-24.5])：无小便池,改为一排蹲位 ──
+                sink.push({ x: cMid + wIn + 0.36, y: y, z: 16, ry: HW });                  // 洗手台：西墙(中隔墙),朝东(+X)
+                stallZ.forEach(function (z) { squat.push({ x: xRW - wIn - 0.95, y: y, z: z, ry: -HW }); });  // 蹲位×3：东墙(xRW),朝西(-X)
             }
             _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
             _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
@@ -6365,7 +6373,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v88'; // v88：厕所放入Meshy精模洁具(小便池/蹲便隔间/洗手台,减面+压贴图后实例化)，删旧白盒子
+        const MAP_VER = 'campus_v89'; // v89：厕所重做真实布局(取消电梯→男女厕各5.3m;洗手台/蹲位分贴对墙+隔间隔板;女厕去小便池);第一人称相机略降
 
         function _dbOpen(cb) {
             try {
@@ -7441,13 +7449,16 @@
                 doorWallX(xRW,yB,zCorrMid,DOOR_W*1.7);                          // 核心↔教室区 隔墙(走廊处开门)
                 W(xRE,yB+fh/2,(zS+zRoomSN)/2,WT,fh,rD,colC); W(xRE,yB+fh/2,(zCorrN+zN)/2,WT,fh,rD,colC); // 教室区↔应急
                 // 服务核：厕所 | 电梯 | 厕所——只占【北段】，走廊带和南门厅留空通行(否则学生进不去教室)
-                const c1=stX1+(xRW-stX1)*0.40, c2=stX1+(xRW-stX1)*0.60, zNb=(zN+zCorrN)/2;
-                W(c1,yB+fh/2,zNb,WT,fh,rD,colC); W(c2,yB+fh/2,zNb,WT,fh,rD,colC);                 // 隔断(北段)
-                // 厕所/电梯区↔走廊 隔墙(zCorrN)：两侧厕所各开门→把厕所围成房间，不再敞在走廊边
-                { const _dW=(stX1+c1)/2, _dE=(c2+xRW)/2, _hw=DOOR_W/2;
-                  [[stX1,_dW-_hw],[_dW+_hw,_dE-_hw],[_dE+_hw,xRW]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
-                  [_dW,_dE].forEach(function(dx){ W(dx,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC); }); }
-                if(f===0) W((c1+c2)/2,2.0,zNb,(c2-c1)-0.5,4.0,3.4,elevC);        // 电梯轿厢(中,北段,底层)
+                const cMid=(stX1+xRW)/2, zNb=(zN+zCorrN)/2;                       // 取消狭窄电梯,男女厕各占一半(各≈5.3m,更大)
+                W(cMid,yB+fh/2,zNb,WT,fh,rD,colC);                                // 男女厕中央隔墙(北段)
+                // 两厕↔走廊 南隔墙(zCorrN)：男厕(中心xMc)/女厕(中心xWmc)各居中开一道门
+                { const xMc=(stX1+cMid)/2, xWmc=(cMid+xRW)/2, _hw=DOOR_W/2;
+                  [[stX1,xMc-_hw],[xMc+_hw,cMid],[cMid,xWmc-_hw],[xWmc+_hw,xRW]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
+                  [xMc,xWmc].forEach(function(dx){ W(dx,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC); }); }
+                // 蹲位隔间隔板(仅前排已装修楼)：男厕东墙(cMid)/女厕东墙(xRW)各一排,4道竖板围出3个隔间(贴墙向室内-X伸,高1.8m)
+                if(opts.furnish!==false){ const pH=1.8,pD=1.35,pT=0.08,pMat=0xe9eef2;
+                  [cMid,xRW].forEach(function(wx){ const cxP=wx-WT/2-pD/2;
+                    [12.9,15.0,17.0,19.1].forEach(function(zp){ W(cxP,yB+pH/2,zp,pD,pH,pT,pMat); }); }); }
                 // 厕所洁具改用 Meshy 精模 GLB 实例化(_loadAndInstanceToilets)，此处不再放白盒子
                 // 走廊踢脚线 + 墙裙(下半墙柔和蓝灰,2-tone) + 上沿压条 —— 干净的"精致"
                 [zRoomSN, zCorrN].forEach(function(zw){
@@ -8766,7 +8777,7 @@
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
                         _vrmBonesResolved = false;
-                        FIRST_PERSON_HEIGHT = 1.55;
+                        FIRST_PERSON_HEIGHT = 1.45;
                         normalHeight = FIRST_PERSON_HEIGHT;
                         initializeSoldier(vrmWrapper);
                         setTimeout(_collectVrmBones, 100);
@@ -8855,7 +8866,7 @@
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
                         _vrmBonesResolved = false;
-                        FIRST_PERSON_HEIGHT = 1.55;
+                        FIRST_PERSON_HEIGHT = 1.45;
                         normalHeight = FIRST_PERSON_HEIGHT;
                         _hideMaleVrmOverlay();
                         initializeSoldier(vrmWrapper);
