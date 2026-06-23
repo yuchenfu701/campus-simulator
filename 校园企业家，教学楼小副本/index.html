@@ -3516,7 +3516,7 @@
         }
 
         // ── 厕所洁具(Meshy精模)实例化：小便池/蹲便隔间/洗手台 ──
-        function _loadFixture(loader, url, pts, yawOff) {
+        function _loadFixture(loader, url, pts, yawOff, matOverride) {
             if (!pts.length || typeof THREE.GLTFLoader === 'undefined') return;
             loader.load(url, function (gltf) {
                 const parts = []; gltf.scene.updateMatrixWorld(true);
@@ -3528,7 +3528,7 @@
                 parts.forEach(function (part) { part.geo.translate(-cX, -minY, -cZ); });
                 const dummy = new THREE.Object3D();
                 parts.forEach(function (part) {
-                    const inst = new THREE.InstancedMesh(part.geo, part.mat, pts.length);
+                    const inst = new THREE.InstancedMesh(part.geo, matOverride || part.mat, pts.length);
                     inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
                     for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
@@ -3574,8 +3574,10 @@
             }
             const partGeo = new THREE.BoxGeometry(1.35, 1.9, 0.06);  // 隔间侧板:进深1.35×高1.9×薄
             const partMat = tileMat(tiles.wall, 1.35, 1.9, false);
-            const doorGeo = new THREE.BoxGeometry(0.04, 1.6, 1.0);   // 隔间门(基准Z=1,实例按格宽scale.z)
-            const doorMat = new THREE.MeshLambertMaterial({ color: 0xd9d2c4 }); doorMat._noMerge = true;
+            const doorGeo = new THREE.BoxGeometry(0.05, 1.9, 1.0);   // 隔间门(基准Z=1,实例按格宽scale.z)
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0xaeb6bf, roughness: 0.7, metalness: 0.0 }); doorMat._noMerge = true;
+            // 洁具统一改干净白瓷(去掉Meshy自带木纹/金属青贴图→与场景同一"图层",且更像真实白瓷)
+            const ceramic = new THREE.MeshStandardMaterial({ color: 0xf3f4f2, roughness: 0.3, metalness: 0.05 }); ceramic._noMerge = true;
             const parts = [], doors = [], urinal = [], squat = [], sink = [];
             const rooms = [
                 { xW: stX1, eastWall: cMid, n: 5, z0: 12.4, z1: 20.0, men: true,  cx: (stX1 + cMid) / 2 },
@@ -3592,20 +3594,20 @@
                     for (let k = 0; k <= rm.n; k++) parts.push({ x: partCX, y: y + 0.95, z: rm.z0 + k * pitch });   // n+1侧板
                     for (let k = 0; k < rm.n; k++) {
                         const zc = rm.z0 + (k + 0.5) * pitch;
-                        squat.push({ x: eastInt - 0.27, y: y, z: zc, ry: -HW, s: 0.53 });                  // 蹲位(缩到~1m),背贴东墙,朝西
-                        const a = -0.7, len = pitch - 0.12, hingeZ = rm.z0 + k * pitch + 0.06, xF = eastInt - 1.35;
-                        doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 0.9, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 半开隔间门
+                        squat.push({ x: eastInt - 0.24, y: y, z: zc, ry: -HW, s: 0.46 });                  // 蹲位(缩到~0.9m),背贴东墙,朝西
+                        const a = -0.18, len = pitch - 0.1, hingeZ = rm.z0 + k * pitch + 0.05, xF = eastInt - 1.35;
+                        doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 0.97, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(微开,基本关着→清楚成排门)
                     }
                     const westInt = rm.xW + WT / 2;
                     [14.2, 17.6].forEach(function (zc) { sink.push({ x: westInt + 0.5, y: y, z: zc, ry: HW }); });  // 洗手台(西墙,朝东)
-                    if (rm.men) [rm.cx - 1.05, rm.cx + 1.05].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.2, ry: 0 }); }); // 小便池×6(仅男厕,北墙,朝南)
+                    if (rm.men) [rm.xW + WT / 2 + 1.05, rm.xW + WT / 2 + 3.05].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.2, ry: 0 }); }); // 小便池×6(2组3连,仅男厕,北墙西段,朝南)
                 });
             }
             if (parts.length) { const im = new THREE.InstancedMesh(partGeo, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (doors.length) { const im = new THREE.InstancedMesh(doorGeo, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
-            _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
-            _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
-            _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
+            _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal, ceramic);
+            _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat, ceramic);
+            _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink, ceramic);
         }
 
         // 操场/跑道为 PlaneGeometry，不参与 mergeStaticMeshes；IndexedDB 缓存加载时 createCampus 会 skip，必须补建否则只剩一片纯色草地
