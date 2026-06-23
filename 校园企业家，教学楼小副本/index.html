@@ -3538,27 +3538,71 @@
         }
         // 各洁具朝向偏移(若装反了改这里)：urinals/squat/sink
         const _TOILET_YAW = { urinal: 0, squat: 0, sink: 0 };
+        // 厕所瓷砖纹理(白墙砖/深地砖,程序化canvas;不入合并缓存,每次加载重建)
+        function _toiletTiles() {
+            if (window._toiletTexCache) return window._toiletTexCache;
+            function mk(dark) {
+                const c = document.createElement('canvas'); c.width = c.height = 256;
+                const g = c.getContext('2d');
+                g.fillStyle = dark ? '#3b4248' : '#eef2f5'; g.fillRect(0, 0, 256, 256);
+                g.strokeStyle = dark ? '#23282d' : '#bfc8d0'; g.lineWidth = dark ? 8 : 4;
+                const n = dark ? 2 : 4, s = 256 / n;            // 深砖0.5m/格,白砖0.25m/格(配合按米repeat)
+                for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, 256); g.stroke(); g.beginPath(); g.moveTo(0, i * s); g.lineTo(256, i * s); g.stroke(); }
+                const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+            }
+            window._toiletTexCache = { wall: mk(false), floor: mk(true) };
+            return window._toiletTexCache;
+        }
         function _loadAndInstanceToilets() {
             if (window._toiletsInstanced) return; window._toiletsInstanced = true;
             if (typeof THREE.GLTFLoader === 'undefined') return;
             const loader = new THREE.GLTFLoader();
             // 前排教学楼(zSouth=35) 服务核北段：男厕(西) | 女厕(东)，各5.3m；门在南墙(zCorrN)，窗在北墙(zN)
-            // 真实布局：洗手台贴一面长墙、蹲位隔间贴对面长墙、中间留过道；小便池只在男厕北墙
-            const stX1 = -35.1, cMid = -29.8, xRW = -24.5, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4;
-            const HW = Math.PI / 2;                         // 90°
-            const wIn = 0.125;                              // 半墙厚(贴墙内表面)
-            const stallZ = [14, 16, 18];                    // 一排3个蹲位的Z
-            const urinal = [], squat = [], sink = [];
+            // 真实布局：洗手台贴西墙、蹲位隔间(带门)贴东墙、中间过道；小便池只在男厕北墙；整间贴瓷砖以融入写实洁具
+            const stX1 = -35.1, cMid = -29.8, xRW = -24.5, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
+            const tiles = _toiletTiles();
+            const tGroup = new THREE.Group(); tGroup._noMerge = true; scene.add(tGroup);
+            function tileMat(tex, rw, rh, dbl) { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rw, rh); const m = new THREE.MeshLambertMaterial({ map: t, side: dbl ? THREE.DoubleSide : THREE.FrontSide }); m._noMerge = true; return m; }
+            function floorTile(x0, x1, yB) {
+                const w = x1 - x0, d = zCorrN - zN;
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), tileMat(tiles.floor, w, d, false));
+                g.rotation.x = -HW; g.position.set((x0 + x1) / 2, yB + 0.04, (zN + zCorrN) / 2); g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
+            }
+            function wallTile(cx, cz, w, h, alongZ, yB) {   // 白砖贴面(DoubleSide); alongZ=沿Z的长墙
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tileMat(tiles.wall, w, h, true));
+                g.position.set(cx, yB + h / 2 + 0.02, cz); if (alongZ) g.rotation.y = HW; g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
+            }
+            const partGeo = new THREE.BoxGeometry(1.35, 1.9, 0.06);  // 隔间侧板:进深1.35×高1.9×薄
+            const partMat = tileMat(tiles.wall, 1.35, 1.9, false);
+            const doorGeo = new THREE.BoxGeometry(0.04, 1.6, 1.0);   // 隔间门(基准Z=1,实例按格宽scale.z)
+            const doorMat = new THREE.MeshLambertMaterial({ color: 0xd9d2c4 }); doorMat._noMerge = true;
+            const parts = [], doors = [], urinal = [], squat = [], sink = [];
+            const rooms = [
+                { xW: stX1, eastWall: cMid, n: 5, z0: 12.4, z1: 20.0, men: true,  cx: (stX1 + cMid) / 2 },
+                { xW: cMid, eastWall: xRW,  n: 6, z0: 11.8, z1: 20.0, men: false, cx: (cMid + xRW) / 2 }
+            ];
             for (let f = 0; f < FL; f++) {
                 const y = f * FH;
-                // ── 男厕(西, x∈[-35.1,-29.8]) ──
-                sink.push({ x: stX1 + wIn + 0.36, y: y, z: 16, ry: HW });                  // 洗手台：西墙,朝东(+X)
-                stallZ.forEach(function (z) { squat.push({ x: cMid - wIn - 0.95, y: y, z: z, ry: -HW }); }); // 蹲位×3：东墙(中隔墙),朝西(-X)
-                urinal.push({ x: (stX1 + cMid) / 2, y: y, z: zN + wIn + 0.55, ry: 0 });    // 小便池：北墙(仅男厕),朝南(+Z)
-                // ── 女厕(东, x∈[-29.8,-24.5])：无小便池,改为一排蹲位 ──
-                sink.push({ x: cMid + wIn + 0.36, y: y, z: 16, ry: HW });                  // 洗手台：西墙(中隔墙),朝东(+X)
-                stallZ.forEach(function (z) { squat.push({ x: xRW - wIn - 0.95, y: y, z: z, ry: -HW }); });  // 蹲位×3：东墙(xRW),朝西(-X)
+                rooms.forEach(function (rm) {
+                    floorTile(rm.xW, rm.eastWall, y);
+                    wallTile(rm.eastWall - WT / 2 - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, true, y);     // 东墙(隔间背)
+                    wallTile(rm.xW + WT / 2 + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, true, y);          // 西墙(洗手台背)
+                    wallTile(rm.cx, zN + WT / 2 + 0.01, rm.eastWall - rm.xW, 1.25, false, y);              // 北墙裙(下1.25m,留窗)
+                    const eastInt = rm.eastWall - WT / 2, partCX = eastInt - 1.35 / 2, pitch = (rm.z1 - rm.z0) / rm.n;
+                    for (let k = 0; k <= rm.n; k++) parts.push({ x: partCX, y: y + 0.95, z: rm.z0 + k * pitch });   // n+1侧板
+                    for (let k = 0; k < rm.n; k++) {
+                        const zc = rm.z0 + (k + 0.5) * pitch;
+                        squat.push({ x: eastInt - 0.27, y: y, z: zc, ry: -HW, s: 0.53 });                  // 蹲位(缩到~1m),背贴东墙,朝西
+                        const a = -0.7, len = pitch - 0.12, hingeZ = rm.z0 + k * pitch + 0.06, xF = eastInt - 1.35;
+                        doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 0.9, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 半开隔间门
+                    }
+                    const westInt = rm.xW + WT / 2;
+                    [14.2, 17.6].forEach(function (zc) { sink.push({ x: westInt + 0.5, y: y, z: zc, ry: HW }); });  // 洗手台(西墙,朝东)
+                    if (rm.men) [rm.cx - 1.05, rm.cx + 1.05].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.2, ry: 0 }); }); // 小便池×6(仅男厕,北墙,朝南)
+                });
             }
+            if (parts.length) { const im = new THREE.InstancedMesh(partGeo, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
+            if (doors.length) { const im = new THREE.InstancedMesh(doorGeo, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
             _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
             _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
@@ -6373,7 +6417,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v89'; // v89：厕所重做真实布局(取消电梯→男女厕各5.3m;洗手台/蹲位分贴对墙+隔间隔板;女厕去小便池);第一人称相机略降
+        const MAP_VER = 'campus_v90'; // v90：厕所重做(整间贴瓷砖+几何体隔间带门+蹲位缩放;男厕6小便池/5蹲位,女厕6蹲位无小便池);移除旧薄隔板(改合并后运行时实例化)
 
         function _dbOpen(cb) {
             try {
@@ -7455,10 +7499,7 @@
                 { const xMc=(stX1+cMid)/2, xWmc=(cMid+xRW)/2, _hw=DOOR_W/2;
                   [[stX1,xMc-_hw],[xMc+_hw,cMid],[cMid,xWmc-_hw],[xWmc+_hw,xRW]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
                   [xMc,xWmc].forEach(function(dx){ W(dx,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC); }); }
-                // 蹲位隔间隔板(仅前排已装修楼)：男厕东墙(cMid)/女厕东墙(xRW)各一排,4道竖板围出3个隔间(贴墙向室内-X伸,高1.8m)
-                if(opts.furnish!==false){ const pH=1.8,pD=1.35,pT=0.08,pMat=0xe9eef2;
-                  [cMid,xRW].forEach(function(wx){ const cxP=wx-WT/2-pD/2;
-                    [12.9,15.0,17.0,19.1].forEach(function(zp){ W(cxP,yB+pH/2,zp,pD,pH,pT,pMat); }); }); }
+                // 蹲位隔间+瓷砖+洁具改由 _loadAndInstanceToilets 在合并后实例化(每次加载重建,不入缓存),此处不再放隔板
                 // 厕所洁具改用 Meshy 精模 GLB 实例化(_loadAndInstanceToilets)，此处不再放白盒子
                 // 走廊踢脚线 + 墙裙(下半墙柔和蓝灰,2-tone) + 上沿压条 —— 干净的"精致"
                 [zRoomSN, zCorrN].forEach(function(zw){
