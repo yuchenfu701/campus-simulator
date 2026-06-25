@@ -3530,7 +3530,7 @@
                 parts.forEach(function (part) {
                     const inst = new THREE.InstancedMesh(part.geo, matOverride || part.mat, pts.length);
                     inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
-                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const s = p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
+                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const sx = p.sx || p.s || 1, sy = p.sy || p.s || 1, sz = p.sz || p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
                 });
                 console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length + ' (足迹 ' + (box.max.x - box.min.x).toFixed(2) + '×' + (box.max.z - box.min.z).toFixed(2) + 'm)');
@@ -3541,16 +3541,18 @@
         // 厕所瓷砖纹理(白墙砖/深地砖,程序化canvas;不入合并缓存,每次加载重建)
         function _toiletTiles() {
             if (window._toiletTexCache) return window._toiletTexCache;
-            function mk(dark) {
-                const c = document.createElement('canvas'); c.width = c.height = 256;
+            function mk(dark, bump) {
+                const R = 512, c = document.createElement('canvas'); c.width = c.height = R;
                 const g = c.getContext('2d');
-                g.fillStyle = dark ? '#3b4248' : '#eef2f5'; g.fillRect(0, 0, 256, 256);
-                g.strokeStyle = dark ? '#23282d' : '#bfc8d0'; g.lineWidth = dark ? 8 : 4;
-                const n = dark ? 2 : 4, s = 256 / n;            // 深砖0.5m/格,白砖0.25m/格(配合按米repeat)
-                for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, 256); g.stroke(); g.beginPath(); g.moveTo(0, i * s); g.lineTo(256, i * s); g.stroke(); }
-                const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+                const face = bump ? '#ffffff' : (dark ? '#2b3137' : '#e7ecf1');
+                const grout = bump ? '#6f6f6f' : (dark ? '#171b1f' : '#aab4be');
+                g.fillStyle = face; g.fillRect(0, 0, R, R);
+                g.strokeStyle = grout; g.lineWidth = bump ? (dark ? 18 : 12) : (dark ? 14 : 8);
+                const n = dark ? 2 : 4, s = R / n;              // 深砖0.5m/格,白砖0.25m/格(配合按米repeat)
+                for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, R); g.stroke(); g.beginPath(); g.moveTo(0, i * s); g.lineTo(R, i * s); g.stroke(); }
+                const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
             }
-            window._toiletTexCache = { wall: mk(false), floor: mk(true) };
+            window._toiletTexCache = { wall: mk(false, false), wallBump: mk(false, true), floor: mk(true, false), floorBump: mk(true, true) };
             return window._toiletTexCache;
         }
         function _loadAndInstanceToilets() {
@@ -3562,18 +3564,24 @@
             const stX1 = -35.1, cMid = -29.8, xRW = -24.5, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
             const tiles = _toiletTiles();
             const tGroup = new THREE.Group(); tGroup._noMerge = true; scene.add(tGroup);
-            function tileMat(tex, rw, rh, dbl) { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rw, rh); const m = new THREE.MeshLambertMaterial({ map: t, side: dbl ? THREE.DoubleSide : THREE.FrontSide }); m._noMerge = true; return m; }
+            // 瓷砖升级为PBR(光泽+砖缝凹凸+环境反射)→把"其他建模"拉到写实洁具的图层,而不是把洁具削平
+            function tileMat(tex, bumpTex, rw, rh, dbl, rough, envI) {
+                const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rw, rh);
+                const b = bumpTex.clone(); b.needsUpdate = true; b.repeat.set(rw, rh);
+                const m = new THREE.MeshStandardMaterial({ map: t, bumpMap: b, bumpScale: 0.035, roughness: rough !== undefined ? rough : 0.22, metalness: 0.0, side: dbl ? THREE.DoubleSide : THREE.FrontSide });
+                m.envMapIntensity = envI !== undefined ? envI : 0.7; m._noMerge = true; return m;
+            }
             function floorTile(x0, x1, yB) {
                 const w = x1 - x0, d = zCorrN - zN;
-                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), tileMat(tiles.floor, w, d, false));
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), tileMat(tiles.floor, tiles.floorBump, w, d, false, 0.82, 0.25));  // 地砖:哑光低反射→保持深色,出对比
                 g.rotation.x = -HW; g.position.set((x0 + x1) / 2, yB + 0.04, (zN + zCorrN) / 2); g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
             }
             function wallTile(cx, cz, w, h, alongZ, yB) {   // 白砖贴面(DoubleSide); alongZ=沿Z的长墙
-                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tileMat(tiles.wall, w, h, true));
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tileMat(tiles.wall, tiles.wallBump, w, h, true));
                 g.position.set(cx, yB + h / 2 + 0.02, cz); if (alongZ) g.rotation.y = HW; g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
             }
             const partGeo = new THREE.BoxGeometry(1.35, 1.9, 0.06);  // 隔间侧板:进深1.35×高1.9×薄
-            const partMat = tileMat(tiles.wall, 1.35, 1.9, false);
+            const partMat = tileMat(tiles.wall, tiles.wallBump, 1.35, 1.9, false);
             const doorGeo = new THREE.BoxGeometry(0.05, 1.9, 1.0);   // 隔间门(基准Z=1,实例按格宽scale.z)
             const doorMat = new THREE.MeshStandardMaterial({ color: 0xaeb6bf, roughness: 0.7, metalness: 0.0 }); doorMat._noMerge = true;
             // 洁具统一改干净白瓷(去掉Meshy自带木纹/金属青贴图→与场景同一"图层",且更像真实白瓷)
@@ -3599,15 +3607,16 @@
                         doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 0.97, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(微开,基本关着→清楚成排门)
                     }
                     const westInt = rm.xW + WT / 2;
-                    [14.2, 17.6].forEach(function (zc) { sink.push({ x: westInt + 0.5, y: y, z: zc, ry: HW }); });  // 洗手台(西墙,朝东)
+                    [14.2, 17.6].forEach(function (zc) { sink.push({ x: westInt + 0.33, y: y, z: zc, ry: HW, sx: 1, sy: 1.18, sz: 0.62 }); });  // 洗手台(西墙,朝东;压薄进深+加高,改比例)
                     if (rm.men) [rm.xW + WT / 2 + 1.05, rm.xW + WT / 2 + 3.05].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.2, ry: 0 }); }); // 小便池×6(2组3连,仅男厕,北墙西段,朝南)
                 });
             }
             if (parts.length) { const im = new THREE.InstancedMesh(partGeo, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (doors.length) { const im = new THREE.InstancedMesh(doorGeo, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
-            _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal, ceramic);
-            _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat, ceramic);
-            _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink, ceramic);
+            // 恢复Meshy原贴图(不再削平洁具);靠上面的PBR瓷砖把环境拉到同一图层
+            _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
+            _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
+            _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
         }
 
         // 操场/跑道为 PlaneGeometry，不参与 mergeStaticMeshes；IndexedDB 缓存加载时 createCampus 会 skip，必须补建否则只剩一片纯色草地
