@@ -6592,6 +6592,8 @@
         function _upgradeSceneMaterials() {
             if (window._matUpgradeDone) return;
             window._matUpgradeDone = true;
+            // 色彩管理修正：所有颜色贴图按 sRGB 解码（原来被当线性→暗部洗白、整体发灰发平）。法线/凹凸贴图保持线性不动。
+            (function () { var s = THREE.sRGBEncoding; if (s === undefined) return; scene.traverse(function (o) { if (!o.isMesh || !o.material) return; var ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(function (m) { if (m.map && m.map.encoding !== s) { m.map.encoding = s; m.map.needsUpdate = true; m.needsUpdate = true; } }); }); })();
             const tier   = window._gfxTier || 'high';
             const isLow  = (tier === 'low');   // 软件渲染：不用IBL，PBR也最省
             const useEnv = !isLow && !!scene.environment; // 有环境贴图才开IBL
@@ -6612,6 +6614,9 @@
                 if (!matMap.has(m.uuid)) {
                     const c  = m.color || new THREE.Color(0x888888);
                     const br = (c.r + c.g + c.b) / 3;       // 亮度 0-1
+                    // 无贴图的近白墙体压成混凝土灰：消除"白模过曝/白blob"，立刻有体积感(运行时,不动缓存)
+                    const cBase = c.clone();
+                    if (!m.map && br > 0.74 && Math.abs(c.r - c.b) < 0.12 && Math.abs(c.r - c.g) < 0.12) cBase.multiplyScalar(0.74);
                     const isGreen  = c.g > c.r*1.18 && c.g > c.b*1.12 && c.g > 0.18;
                     const isDkMet  = br < 0.22 && Math.abs(c.r-c.g)<0.08 && Math.abs(c.g-c.b)<0.08;
                     const isLight  = br > 0.70;
@@ -6624,7 +6629,7 @@
                     else              { rough=0.78; metal=0.03; } // 砖/木/路面
 
                     const sm = new THREE.MeshStandardMaterial({
-                        color:       c.clone(),
+                        color:       cBase,
                         map:         m.map || null,
                         transparent: m.transparent,
                         opacity:     m.opacity,
@@ -10610,7 +10615,7 @@
 
             // ── 动态曝光：白天稍亮/夜间稍暗，增加电影感 ──
             if (window._dayFactor != null) {
-                const _expTarget = 0.82 + window._dayFactor * 0.28; // 夜0.82→白天1.10
+                const _expTarget = 0.76 + window._dayFactor * 0.12; // 夜0.76→白天0.88(降曝光,救回过曝白楼)
                 renderer.toneMappingExposure += (_expTarget - renderer.toneMappingExposure) * 0.018;
             }
 
@@ -11329,11 +11334,11 @@
                 });
             }
             if (_hemiLight) {
-                _hemiLight.intensity = 0.08 + 0.42 * dayFactor;
+                _hemiLight.intensity = 0.06 + 0.30 * dayFactor;  // 收一点天光,恢复对比/体积
                 _hemiLight.color.setHex(0x9eb8e0);
                 _hemiLight.groundColor.setHex(dayFactor > 0.08 ? 0xb8a080 : 0x1a2838);
             }
-            if (_ambientLight) _ambientLight.intensity = 0.03 + 0.11 * dayFactor;
+            if (_ambientLight) _ambientLight.intensity = 0.02 + 0.08 * dayFactor;  // 收环境光,减"洗白"
             if (_fillLight) _fillLight.intensity = 0.02 + (1 - dayFactor) * 0.07;
             const nightEnough = sunH < -0.22;
             const sunDiskUp = _sunVisual && _sunVisual.visible;
