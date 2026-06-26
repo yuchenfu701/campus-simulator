@@ -3608,8 +3608,8 @@
                         doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 1.03, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(窄门+地缝)
                     }
                     const westInt = rm.xW + WT / 2;
-                    [14.2, 17.6].forEach(function (zc) { sink.push({ x: westInt + 0.33, y: y, z: zc, ry: HW, sx: 1, sy: 1.18, sz: 0.62 }); });  // 洗手台(西墙,朝东;压薄进深+加高,改比例)
-                    if (rm.men) [rm.xW + WT / 2 + 1.05, rm.xW + WT / 2 + 3.05].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.2, ry: 0 }); }); // 小便池×6(2组3连,仅男厕,北墙西段,朝南)
+                    [13.8, 17.4].forEach(function (zc) { sink.push({ x: westInt + 0.46, y: y, z: zc, ry: HW, sx: 1.18, sy: 1.32, sz: 0.82 }); });  // 洗手台(西墙,朝东;整体放大到正常尺寸)
+                    if (rm.men) [rm.xW + WT / 2 + 1.35, rm.xW + WT / 2 + 3.85].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.26, ry: 0, s: 1.25 }); }); // 小便池×6(2组3连,放大1.25倍铺满北墙,仅男厕,朝南)
                 });
             }
             if (parts.length) { const im = new THREE.InstancedMesh(partGeo, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
