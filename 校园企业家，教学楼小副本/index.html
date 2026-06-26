@@ -3544,8 +3544,8 @@
             function mk(dark, bump) {
                 const R = 512, c = document.createElement('canvas'); c.width = c.height = R;
                 const g = c.getContext('2d');
-                const face = bump ? '#ffffff' : (dark ? '#2b3137' : '#e7ecf1');
-                const grout = bump ? '#6f6f6f' : (dark ? '#171b1f' : '#aab4be');
+                const face = bump ? '#ffffff' : (dark ? '#2b3137' : '#d4dade');
+                const grout = bump ? '#6f6f6f' : (dark ? '#171b1f' : '#97a2ac');
                 g.fillStyle = face; g.fillRect(0, 0, R, R);
                 g.strokeStyle = grout; g.lineWidth = bump ? (dark ? 18 : 12) : (dark ? 14 : 8);
                 const n = dark ? 2 : 4, s = R / n;              // 深砖0.5m/格,白砖0.25m/格(配合按米repeat)
@@ -3568,7 +3568,7 @@
             function tileMat(tex, bumpTex, rw, rh, dbl, rough, envI) {
                 const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rw, rh);
                 const b = bumpTex.clone(); b.needsUpdate = true; b.repeat.set(rw, rh);
-                const m = new THREE.MeshStandardMaterial({ map: t, bumpMap: b, bumpScale: 0.035, roughness: rough !== undefined ? rough : 0.22, metalness: 0.0, side: dbl ? THREE.DoubleSide : THREE.FrontSide });
+                const m = new THREE.MeshStandardMaterial({ map: t, bumpMap: b, bumpScale: 0.04, roughness: rough !== undefined ? rough : 0.5, metalness: 0.0, side: dbl ? THREE.DoubleSide : THREE.FrontSide });
                 m.envMapIntensity = envI !== undefined ? envI : 0.7; m._noMerge = true; return m;
             }
             function floorTile(x0, x1, yB) {
@@ -3583,8 +3583,8 @@
             const DCUB = 1.2;  // 隔间进深(缩浅,让蹲位填满,不空旷)
             const partGeo = new THREE.BoxGeometry(DCUB, 1.9, 0.06);  // 隔间侧板:进深×高1.9×薄
             const partMat = tileMat(tiles.wall, tiles.wallBump, DCUB, 1.9, false);
-            const doorGeo = new THREE.BoxGeometry(0.05, 1.9, 1.0);   // 隔间门(基准Z=1,实例按格宽scale.z)
-            const doorMat = new THREE.MeshStandardMaterial({ color: 0xaeb6bf, roughness: 0.7, metalness: 0.0 }); doorMat._noMerge = true;
+            const doorGeo = new THREE.BoxGeometry(0.05, 1.7, 1.0);   // 隔间门(高1.7,留地缝;基准Z=1,实例按门宽scale.z)
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x5f6b75, roughness: 0.6, metalness: 0.0 }); doorMat._noMerge = true;  // 深蓝灰隔间门:和白瓷砖拉开对比
             // 洁具统一改干净白瓷(去掉Meshy自带木纹/金属青贴图→与场景同一"图层",且更像真实白瓷)
             const ceramic = new THREE.MeshStandardMaterial({ color: 0xf3f4f2, roughness: 0.3, metalness: 0.05 }); ceramic._noMerge = true;
             const parts = [], doors = [], urinal = [], squat = [], sink = [];
@@ -3604,8 +3604,8 @@
                     for (let k = 0; k < rm.n; k++) {
                         const zc = rm.z0 + (k + 0.5) * pitch;
                         squat.push({ x: eastInt - 0.30, y: y, z: zc, ry: -HW, s: 0.6 });                   // 蹲位(放大到合适尺寸),背贴东墙,朝西
-                        const a = -0.18, len = pitch - 0.1, hingeZ = rm.z0 + k * pitch + 0.05, xF = eastInt - DCUB;
-                        doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 0.97, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(微开,基本关着→清楚成排门)
+                        const a = -0.5, len = pitch - 0.45, hingeZ = rm.z0 + k * pitch + 0.12, xF = eastInt - DCUB;  // 门比格窄(留门框),铰在低z侧前角,半开~29°
+                        doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 1.03, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(窄门+地缝)
                     }
                     const westInt = rm.xW + WT / 2;
                     [14.2, 17.6].forEach(function (zc) { sink.push({ x: westInt + 0.33, y: y, z: zc, ry: HW, sx: 1, sy: 1.18, sz: 0.62 }); });  // 洗手台(西墙,朝东;压薄进深+加高,改比例)
