@@ -3580,8 +3580,9 @@
                 const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tileMat(tiles.wall, tiles.wallBump, w, h, true));
                 g.position.set(cx, yB + h / 2 + 0.02, cz); if (alongZ) g.rotation.y = HW; g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
             }
-            const partGeo = new THREE.BoxGeometry(1.35, 1.9, 0.06);  // 隔间侧板:进深1.35×高1.9×薄
-            const partMat = tileMat(tiles.wall, tiles.wallBump, 1.35, 1.9, false);
+            const DCUB = 1.2;  // 隔间进深(缩浅,让蹲位填满,不空旷)
+            const partGeo = new THREE.BoxGeometry(DCUB, 1.9, 0.06);  // 隔间侧板:进深×高1.9×薄
+            const partMat = tileMat(tiles.wall, tiles.wallBump, DCUB, 1.9, false);
             const doorGeo = new THREE.BoxGeometry(0.05, 1.9, 1.0);   // 隔间门(基准Z=1,实例按格宽scale.z)
             const doorMat = new THREE.MeshStandardMaterial({ color: 0xaeb6bf, roughness: 0.7, metalness: 0.0 }); doorMat._noMerge = true;
             // 洁具统一改干净白瓷(去掉Meshy自带木纹/金属青贴图→与场景同一"图层",且更像真实白瓷)
@@ -3598,12 +3599,12 @@
                     wallTile(rm.eastWall - WT / 2 - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, true, y);     // 东墙(隔间背)
                     wallTile(rm.xW + WT / 2 + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, true, y);          // 西墙(洗手台背)
                     wallTile(rm.cx, zN + WT / 2 + 0.01, rm.eastWall - rm.xW, 1.25, false, y);              // 北墙裙(下1.25m,留窗)
-                    const eastInt = rm.eastWall - WT / 2, partCX = eastInt - 1.35 / 2, pitch = (rm.z1 - rm.z0) / rm.n;
+                    const eastInt = rm.eastWall - WT / 2, partCX = eastInt - DCUB / 2, pitch = (rm.z1 - rm.z0) / rm.n;
                     for (let k = 0; k <= rm.n; k++) parts.push({ x: partCX, y: y + 0.95, z: rm.z0 + k * pitch });   // n+1侧板
                     for (let k = 0; k < rm.n; k++) {
                         const zc = rm.z0 + (k + 0.5) * pitch;
-                        squat.push({ x: eastInt - 0.24, y: y, z: zc, ry: -HW, s: 0.46 });                  // 蹲位(缩到~0.9m),背贴东墙,朝西
-                        const a = -0.18, len = pitch - 0.1, hingeZ = rm.z0 + k * pitch + 0.05, xF = eastInt - 1.35;
+                        squat.push({ x: eastInt - 0.30, y: y, z: zc, ry: -HW, s: 0.6 });                   // 蹲位(放大到合适尺寸),背贴东墙,朝西
+                        const a = -0.18, len = pitch - 0.1, hingeZ = rm.z0 + k * pitch + 0.05, xF = eastInt - DCUB;
                         doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 0.97, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(微开,基本关着→清楚成排门)
                     }
                     const westInt = rm.xW + WT / 2;
