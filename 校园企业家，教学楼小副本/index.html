@@ -3196,8 +3196,8 @@
         // ══════════════════════════════════════════════════════
         // 判断 (x,z) 是否落在新教学楼 footprint 内（部署后清理"道具戳进楼里"用）
         window._inNewBldg = function(x,z){
-            if(x>-43 && x<43 && z>10  && z<37 ) return true;   // 前排教学楼 z[12,35]
-            if(x>-43 && x<43 && z>-70 && z<-43) return true;   // 后排教学楼 z[-68,-45]
+            if(x>-44 && x<44 && z>10  && z<37 ) return true;   // 前排教学楼 z[12,35](加宽后楼宽86.5)
+            if(x>-44 && x<44 && z>-70 && z<-43) return true;   // 后排教学楼 z[-68,-45]
             return false;
         };
         /** 参考图：下粗上细棱柱干 + 竖纹树皮；棕色枝条接到多颗二十面体冠（青柠绿、哑光分面）；无地面碎块 */
@@ -3559,12 +3559,11 @@
             if (window._toiletsInstanced) return; window._toiletsInstanced = true;
             if (typeof THREE.GLTFLoader === 'undefined') return;
             const loader = new THREE.GLTFLoader();
-            // 前排教学楼(zSouth=35) 服务核北段：男厕(西) | 女厕(东)，各5.3m；门在南墙(zCorrN)，窗在北墙(zN)
-            // 真实布局：洗手台贴西墙、蹲位隔间(带门)贴东墙、中间过道；小便池只在男厕北墙；整间贴瓷砖以融入写实洁具
-            const stX1 = -35.1, cMid = -29.8, xRW = -24.5, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
+            // 服务核北段(coreW=20.5加宽)：男厕(西)|女厕(东) 各≈7m宽 × 9m深；门南墙(zCorrN)中部，窗北墙(zN)
+            // 照用户俯视图：中央岛台(一面洗手台+镜子；男厕另一面挂小便池)+蹲位隔间成排；女厕双排蹲位无小便池
+            const stX1 = -36.85, cMid = -29.8, xRW = -22.75, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
             const tiles = _toiletTiles();
             const tGroup = new THREE.Group(); tGroup._noMerge = true; scene.add(tGroup);
-            // 瓷砖升级为PBR(光泽+砖缝凹凸+环境反射)→把"其他建模"拉到写实洁具的图层,而不是把洁具削平
             function tileMat(tex, bumpTex, rw, rh, dbl, rough, envI) {
                 const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rw, rh);
                 const b = bumpTex.clone(); b.needsUpdate = true; b.repeat.set(rw, rh);
@@ -3573,48 +3572,81 @@
             }
             function floorTile(x0, x1, yB) {
                 const w = x1 - x0, d = zCorrN - zN;
-                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), tileMat(tiles.floor, tiles.floorBump, w, d, false, 0.82, 0.25));  // 地砖:哑光低反射→保持深色,出对比
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), tileMat(tiles.floor, tiles.floorBump, w, d, false, 0.82, 0.25));
                 g.rotation.x = -HW; g.position.set((x0 + x1) / 2, yB + 0.04, (zN + zCorrN) / 2); g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
             }
-            function wallTile(cx, cz, w, h, alongZ, yB) {   // 白砖贴面(DoubleSide); alongZ=沿Z的长墙
+            function veneer(cx, cz, w, h, face, yB) {   // 白砖贴面; face: 'N''S'(沿X,面±Z) 'W''E'(沿Z,面±X)
                 const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tileMat(tiles.wall, tiles.wallBump, w, h, true));
-                g.position.set(cx, yB + h / 2 + 0.02, cz); if (alongZ) g.rotation.y = HW; g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
+                g.position.set(cx, yB + h / 2 + 0.02, cz);
+                if (face === 'W') g.rotation.y = -HW; else if (face === 'E') g.rotation.y = HW; else if (face === 'S') g.rotation.y = Math.PI;
+                g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
             }
-            const DCUB = 1.2;  // 隔间进深(缩浅,让蹲位填满,不空旷)
-            const partGeo = new THREE.BoxGeometry(DCUB, 1.9, 0.06);  // 隔间侧板:进深×高1.9×薄
+            const DCUB = 1.25, SQS = 0.6;
             const partMat = tileMat(tiles.wall, tiles.wallBump, DCUB, 1.9, false);
-            const doorGeo = new THREE.BoxGeometry(0.05, 1.7, 1.0);   // 隔间门(高1.7,留地缝;基准Z=1,实例按门宽scale.z)
-            const doorMat = new THREE.MeshStandardMaterial({ color: 0x5f6b75, roughness: 0.6, metalness: 0.0 }); doorMat._noMerge = true;  // 深蓝灰隔间门:和白瓷砖拉开对比
-            // 洁具统一改干净白瓷(去掉Meshy自带木纹/金属青贴图→与场景同一"图层",且更像真实白瓷)
-            const ceramic = new THREE.MeshStandardMaterial({ color: 0xf3f4f2, roughness: 0.3, metalness: 0.05 }); ceramic._noMerge = true;
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x5f6b75, roughness: 0.6, metalness: 0.0 }); doorMat._noMerge = true;
+            const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xbcccd6, roughness: 0.05, metalness: 0.7, envMapIntensity: 1.3 }); mirrorMat._noMerge = true;
+            const islandMat = new THREE.MeshStandardMaterial({ color: 0xe7ecf1, roughness: 0.5 }); islandMat._noMerge = true;
+            const capMat = new THREE.MeshStandardMaterial({ color: 0xc4ccd2, roughness: 0.4 }); capMat._noMerge = true;
             const parts = [], doors = [], urinal = [], squat = [], sink = [];
-            const rooms = [
-                { xW: stX1, eastWall: cMid, n: 5, z0: 12.4, z1: 20.0, men: true,  cx: (stX1 + cMid) / 2 },
-                { xW: cMid, eastWall: xRW,  n: 6, z0: 11.8, z1: 20.0, men: false, cx: (cMid + xRW) / 2 }
-            ];
-            for (let f = 0; f < FL; f++) {
-                const y = f * FH;
-                rooms.forEach(function (rm) {
-                    floorTile(rm.xW, rm.eastWall, y);
-                    wallTile(rm.eastWall - WT / 2 - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, true, y);     // 东墙(隔间背)
-                    wallTile(rm.xW + WT / 2 + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, true, y);          // 西墙(洗手台背)
-                    wallTile(rm.cx, zN + WT / 2 + 0.01, rm.eastWall - rm.xW, 1.25, false, y);              // 北墙裙(下1.25m,留窗)
-                    const eastInt = rm.eastWall - WT / 2, partCX = eastInt - DCUB / 2, pitch = (rm.z1 - rm.z0) / rm.n;
-                    for (let k = 0; k <= rm.n; k++) parts.push({ x: partCX, y: y + 0.95, z: rm.z0 + k * pitch });   // n+1侧板
-                    for (let k = 0; k < rm.n; k++) {
-                        const zc = rm.z0 + (k + 0.5) * pitch;
-                        squat.push({ x: eastInt - 0.30, y: y, z: zc, ry: -HW, s: 0.6 });                   // 蹲位(放大到合适尺寸),背贴东墙,朝西
-                        const a = -0.5, len = pitch - 0.45, hingeZ = rm.z0 + k * pitch + 0.12, xF = eastInt - DCUB;  // 门比格窄(留门框),铰在低z侧前角,半开~29°
-                        doors.push({ x: xF + Math.sin(a) * len / 2, y: y + 1.03, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len }); // 隔间门(窄门+地缝)
-                    }
-                    const westInt = rm.xW + WT / 2;
-                    [13.8, 17.4].forEach(function (zc) { sink.push({ x: westInt + 0.46, y: y, z: zc, ry: HW, sx: 1.18, sy: 1.32, sz: 0.82 }); });  // 洗手台(西墙,朝东;整体放大到正常尺寸)
-                    if (rm.men) [rm.xW + WT / 2 + 1.35, rm.xW + WT / 2 + 3.85].forEach(function (xu) { urinal.push({ x: xu, y: y, z: zN + WT / 2 + 0.26, ry: 0, s: 1.25 }); }); // 小便池×6(2组3连,放大1.25倍铺满北墙,仅男厕,朝南)
-                });
+
+            function island(xc, z0, z1, h, yB) {   // 中央岛台(沿Z矮墙,双面贴砖+顶盖)
+                const len = z1 - z0, zc = (z0 + z1) / 2;
+                const core = new THREE.Mesh(new THREE.BoxGeometry(0.24, h, len), islandMat); core._noMerge = true; core.castShadow = core.receiveShadow = true; core.position.set(xc, yB + h / 2, zc); tGroup.add(core);
+                veneer(xc - 0.13, zc, len, h, 'W', yB); veneer(xc + 0.13, zc, len, h, 'E', yB);
+                const cap = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, len + 0.04), capMat); cap._noMerge = true; cap.position.set(xc, yB + h + 0.035, zc); tGroup.add(cap);
             }
-            if (parts.length) { const im = new THREE.InstancedMesh(partGeo, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
-            if (doors.length) { const im = new THREE.InstancedMesh(doorGeo, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
-            // 恢复Meshy原贴图(不再削平洁具);靠上面的PBR瓷砖把环境拉到同一图层
+            function mirror(xc, z0, z1, faceW, yB) {
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, 0.85), mirrorMat);
+                g.rotation.y = faceW ? -HW : HW; g.position.set(xc, yB + 1.5, (z0 + z1) / 2); g._noMerge = true; tGroup.add(g);
+            }
+            function stallRow(xWall, faceW, z0, z1, n, yB) {   // 蹲位隔间排; xWall=背靠墙内表面x; faceW=蹲位朝西(-X)
+                const pitch = (z1 - z0) / n, dir = faceW ? -1 : 1, partCX = xWall + dir * DCUB / 2;
+                for (let k = 0; k <= n; k++) parts.push({ x: partCX, y: yB + 0.95, z: z0 + k * pitch });
+                for (let k = 0; k < n; k++) {
+                    const zc = z0 + (k + 0.5) * pitch;
+                    squat.push({ x: xWall + dir * 0.30, y: yB, z: zc, ry: faceW ? -HW : HW, s: SQS });
+                    const a = dir * 0.5, len = pitch - 0.45, hingeZ = z0 + k * pitch + 0.12, xF = xWall + dir * DCUB;
+                    doors.push({ x: xF + Math.sin(a) * len / 2, y: yB + 1.0, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len });
+                }
+            }
+            function sinkRow(xFace, faceW, z0, z1, yB) {   // 洗手台(贴岛台某面); xFace=岛台该面x
+                const ry = faceW ? -HW : HW, dir = faceW ? -1 : 1;
+                [z0 + (z1 - z0) * 0.28, z0 + (z1 - z0) * 0.72].forEach(function (zc) { sink.push({ x: xFace + dir * 0.42, y: yB, z: zc, ry: ry, sx: 1.2, sy: 1.32, sz: 0.8 }); });
+            }
+            function urinalRow(xFace, faceW, z0, z1, yB) {  // 小便池排(贴岛台某面)
+                const ry = faceW ? -HW : HW, dir = faceW ? -1 : 1;
+                for (let u = 0; u < 3; u++) urinal.push({ x: xFace + dir * 0.30, y: yB, z: z0 + (z1 - z0) * (0.18 + u * 0.32), ry: ry, s: 1.1 });
+            }
+
+            for (let f = 0; f < FL; f++) {
+                const yB = f * FH;
+                // ── 男厕(西) ──
+                { const xW = stX1, xE = cMid, eInt = xE - WT / 2, wInt = xW + WT / 2, ix = xW + 2.6;
+                  floorTile(xW, xE, yB);
+                  veneer((xW + xE) / 2, zN + WT / 2 + 0.01, xE - xW, 1.3, 'N', yB);
+                  veneer(eInt - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'W', yB);
+                  veneer(wInt + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'E', yB);
+                  island(ix, 12.2, 18.6, 2.0, yB);
+                  sinkRow(ix - 0.13, true, 12.4, 18.4, yB);
+                  mirror(ix - 0.13, 12.6, 18.2, true, yB);
+                  urinalRow(ix + 0.13, false, 12.4, 18.4, yB);
+                  stallRow(eInt, true, 12.2, 19.8, 5, yB);
+                }
+                // ── 女厕(东)：无小便池,双排蹲位 ──
+                { const xW = cMid, xE = xRW, eInt = xE - WT / 2, wInt = xW + WT / 2, ix = xW + 2.4;
+                  floorTile(xW, xE, yB);
+                  veneer((xW + xE) / 2, zN + WT / 2 + 0.01, xE - xW, 1.3, 'N', yB);
+                  veneer(eInt - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'W', yB);
+                  veneer(wInt + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'E', yB);
+                  island(ix, 12.2, 18.6, 2.0, yB);
+                  sinkRow(ix - 0.13, true, 12.4, 18.4, yB);
+                  mirror(ix - 0.13, 12.6, 18.2, true, yB);
+                  stallRow(ix + 0.13, false, 12.2, 19.8, 5, yB);   // 排B:岛台东面,朝东
+                  stallRow(eInt, true, 12.2, 19.8, 5, yB);         // 排A:东墙,朝西
+                }
+            }
+            if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
+            if (doors.length) { const dg = new THREE.BoxGeometry(0.05, 1.7, 1.0); const im = new THREE.InstancedMesh(dg, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
             _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
             _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
@@ -6429,7 +6461,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v90'; // v90：厕所重做(整间贴瓷砖+几何体隔间带门+蹲位缩放;男厕6小便池/5蹲位,女厕6蹲位无小便池);移除旧薄隔板(改合并后运行时实例化)
+        const MAP_VER = 'campus_v91'; // v91：服务核加宽(coreW17→20.5,每间厕所≈7m);厕所按用户俯视图重做(中央岛台:洗手台+镜子/男厕另面小便池;蹲位成排,女厕双排)
 
         function _dbOpen(cb) {
             try {
@@ -7412,7 +7444,7 @@
             const cx=opts.cx, zS=opts.zSouth;
             const perSide=opts.roomsPerSide||4, floors=opts.floors||5;
             const rW=opts.roomW||15, rD=opts.roomD||9, corrD=Math.max(opts.corrD||5.5,3), fh=opts.floorH||4;
-            const coreW=17, emerW=6, WT=WALL_T;
+            const coreW=20.5, emerW=6, WT=WALL_T;   // 加宽服务核→每间厕所≈7m,装得下中央岛台布局
             const totW=coreW+perSide*rW+emerW;
             const xW=cx-totW/2, xE=cx+totW/2;
             const stX1=xW+6.4;                        // 楼梯井东墙(楼梯井宽6.4m)
