@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "coordinateSystem": {
+    "engine": "threejs-y-up",
+    "unit": "meter",
+    "forward": "+z",
+    "origin": "campus-center"
+  },
+  "defaults": {
+    "enabled": false,
+    "lod": "auto",
+    "maxDesktopSplats": 1500000,
+    "maxMobileSplats": 450000,
+    "collision": "threejs-proxy",
+    "lighting": "baked"
+  },
+  "zones": [
+    {
+      "id": "front-teaching-exterior",
+      "label": "前教学楼外立面",
+      "file": "front-teaching-exterior.splat",
+      "position": [0, 0, 23.25],
+      "rotationY": 0,
+      "scale": 1,
+      "bounds": { "width": 86.5, "height": 20, "depth": 23.5 },
+      "priority": 100
+    },
+    {
+      "id": "academic-courtyard",
+      "label": "中央庭院景观",
+      "file": "academic-courtyard.splat",
+      "position": [0, 0, -16.5],
+      "rotationY": 0,
+      "scale": 1,
+      "bounds": { "width": 112, "height": 12, "depth": 53 },
+      "priority": 90
+    },
+    {
+      "id": "canteen-exterior",
+      "label": "东翼食堂",
+      "file": "canteen-exterior.splat",
+      "position": [105, 0, -24],
+      "rotationY": 0,
+      "scale": 1,
+      "bounds": { "width": 40, "height": 6, "depth": 18 },
+      "priority": 70
+    },
+    {
+      "id": "office-exterior",
+      "label": "西翼办公楼",
+      "file": "office-exterior.splat",
+      "position": [-105, 0, -24],
+      "rotationY": 0,
+      "scale": 1,
+      "bounds": { "width": 40, "height": 13, "depth": 25 },
+      "priority": 70
+    }
+  ]
+}

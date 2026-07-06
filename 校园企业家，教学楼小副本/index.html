@@ -872,6 +872,9 @@
         let _fpsHistory = [];       // 用于自动降画质
         let cameraVerticalAngle = 0;
         let cameraHorizontalAngle = 0;
+        // Pointer Lock 刚建立/恢复时，浏览器偶尔会送来带旧坐标的异常大 movement。
+        let _pointerLockWarmupMoves = 0;
+        let _lastMouseMoveTime = 0;
         let isMouseLocked = false;
         let bobTimer = 0;
         let fpArms, fpLegs;
@@ -1239,13 +1242,13 @@
         const GOTO_PRESETS = {
             spawn: [0, 0, 7], hall: [0, 0, 7], start: [0, 0, 7],
             gate: [0, 0, 112], schoolgate: [0, 0, 112], men: [0, 0, 112],
-            canteen: [0, 0, -24], cafeteria: [0, 0, -24], food: [0, 0, -24],
+            canteen: [105, 0, -13], cafeteria: [105, 0, -13], food: [105, 0, -13],
             playground: [0, 0, 85], field: [0, 0, 85], sport: [0, 0, 85],
-            office: [-72, 0, -42], teacher: [-72, 0, -42],
-            toilet: [88, 0, -12], wc: [88, 0, -12], bathroom: [88, 0, -12],
-            wcwest: [-88, 0, -12], toiletw: [-88, 0, -12], westwc: [-88, 0, -12],
-            b3: [75, 0.2, 0], east: [75, 0.2, 0],
-            b4: [-75, 0.2, 0], west: [-75, 0.2, 0],
+            office: [-105, 0, -10], teacher: [-105, 0, -10],
+            toilet: [120, 0, 50], wc: [120, 0, 50], bathroom: [120, 0, 50],
+            wcwest: [-120, 0, 50], toiletw: [-120, 0, 50], westwc: [-120, 0, 50],
+            frontschool: [0, 0.2, 40], front: [0, 0.2, 40],
+            rearschool: [0, 0.2, -40], rear: [0, 0.2, -40],
             roof: [0, 12.5, 0], top: [0, 12.5, 0],
             classroom: [15, 0.1, 0], room: [15, 0.1, 0],
             corr2f: [0, 4.1, 5], floor2: [0, 4.1, 5],
@@ -2215,25 +2218,29 @@
                         }
                     }
                     if (!doorTriggered && window._wcSwingDoors) {
-                        for (const wd of window._wcSwingDoors) {
-                            if (!wd.pivot || !wd.pivot.rotation) continue;
-                            const dcw = new THREE.Vector3(wd.cx, 1.35, wd.cz);
-                            if (soldier && soldier.position.distanceTo(dcw) < 4.2) {
-                                doorTriggered = true;
-                                wd.open = !wd.open;
-                                const tgt = wd.open ? wd.openAngle : 0;
-                                wd._doorG = (wd._doorG || 0) + 1;
-                                const gg = wd._doorG;
-                                (function animWC() {
-                                    if (gg !== wd._doorG) return;
-                                    const k = 0.2;
-                                    wd.pivot.rotation.y += (tgt - wd.pivot.rotation.y) * k;
-                                    if (Math.abs(tgt - wd.pivot.rotation.y) > 0.03) requestAnimationFrame(animWC);
-                                    else wd.pivot.rotation.y = tgt;
-                                })();
-                                showHint(wd.open ? '厕所门已打开' : '厕所门已关闭');
-                                break;
-                            }
+                        // 相邻男女厕门可能同时落入半径，必须选真正最近的一扇。
+                        let nearestWC = null, nearestWCDist = Infinity;
+                        for (const candidate of window._wcSwingDoors) {
+                            if (!candidate.pivot || !candidate.pivot.rotation || !soldier) continue;
+                            const dcw = new THREE.Vector3(candidate.cx, candidate.cy || 1.35, candidate.cz);
+                            const dd = soldier.position.distanceTo(dcw);
+                            if (dd < nearestWCDist) { nearestWCDist = dd; nearestWC = candidate; }
+                        }
+                        if (nearestWC && nearestWCDist < 4.2) {
+                            const wd = nearestWC;
+                            doorTriggered = true;
+                            wd.open = !wd.open;
+                            const tgt = wd.open ? wd.openAngle : 0;
+                            wd._doorG = (wd._doorG || 0) + 1;
+                            const gg = wd._doorG;
+                            (function animWC() {
+                                if (gg !== wd._doorG) return;
+                                const k = 0.2;
+                                wd.pivot.rotation.y += (tgt - wd.pivot.rotation.y) * k;
+                                if (Math.abs(tgt - wd.pivot.rotation.y) > 0.03) requestAnimationFrame(animWC);
+                                else wd.pivot.rotation.y = tgt;
+                            })();
+                            showHint(wd.open ? '厕所门已打开' : '厕所门已关闭');
                         }
                     }
                     if(!doorTriggered && window._bldgDoors){
@@ -3186,19 +3193,37 @@
         // 建筑：3层，每层3间教室+走廊，右侧楼梯间
         // =====================================================
         // ══════════════════════════════════════════════════════
-        // 校园布局
-        // 教学楼: X:-20~20, Z:-8~9 （40×17m）
-        // 校园总范围: X:-50~50, Z:-35~65 （100×100m，约6倍）
-        //   操场: X:-40~40, Z:18~58（南侧大操场）
-        //   办公楼: X:-50~-22, Z:-8~12（西侧）
-        //   公厕: 西 X≈-98~-78、东 X≈78~98，Z≈-27~-13（北移与教学楼错层，南向外开门）
-        //   校门: 南围墙中央 Z=65, X:-5~5
+        // 校园总平面（v92）：一条南北礼仪轴 + 东西生活服务翼
+        // 南→北：校门 / 操场 / 前教学楼 / 中央庭院 / 后教学楼
+        // 东翼：食堂；西翼：教师办公楼；公共厕所布置在操场北侧两端。
+        // 所有关键坐标集中在这里，避免建筑、道路、天气判定各用一套旧坐标。
         // ══════════════════════════════════════════════════════
+        const CAMPUS_LAYOUT = Object.freeze({
+            frontSchool: { cx: 0, zSouth: 35, x1: -49, x2: 49, z1: 11.5, z2: 35 },
+            rearSchool:  { cx: 0, zSouth: -45, x1: -49, x2: 49, z1: -68.5, z2: -45 },
+            courtyard:   { cx: 0, cz: -16.5, w: 112, d: 53 },
+            fountain:    { x: 0, z: -16.5 },
+            canteen:     { x: 105, z: -24, w: 40, d: 18 },
+            office:      { x: -105, z: -24, w: 40, d: 25 },
+            westToilet:  { x: -120, z: 42, w: 20, d: 14 },
+            eastToilet:  { x: 120, z: 42, w: 20, d: 14 },
+            field:       { cx: 0, cz: 85, w: 170, d: 60 },
+            gate:        { x: 0, z: 118 }
+        });
+        window.CAMPUS_LAYOUT = CAMPUS_LAYOUT;
+
+        function _insideFootprint(x, z, p, pad) {
+            pad = pad || 0;
+            return x > p.x - p.w / 2 - pad && x < p.x + p.w / 2 + pad &&
+                   z > p.z - p.d / 2 - pad && z < p.z + p.d / 2 + pad;
+        }
         // 判断 (x,z) 是否落在新教学楼 footprint 内（部署后清理"道具戳进楼里"用）
         window._inNewBldg = function(x,z){
-            if(x>-44 && x<44 && z>10  && z<37 ) return true;   // 前排教学楼 z[12,35](加宽后楼宽86.5)
-            if(x>-44 && x<44 && z>-70 && z<-43) return true;   // 后排教学楼 z[-68,-45]
-            return false;
+            const L = CAMPUS_LAYOUT;
+            if(x>L.frontSchool.x1-1 && x<L.frontSchool.x2+1 && z>L.frontSchool.z1-1 && z<L.frontSchool.z2+1) return true;
+            if(x>L.rearSchool.x1-1 && x<L.rearSchool.x2+1 && z>L.rearSchool.z1-1 && z<L.rearSchool.z2+1) return true;
+            return _insideFootprint(x,z,L.canteen,2) || _insideFootprint(x,z,L.office,2) ||
+                   _insideFootprint(x,z,L.westToilet,2) || _insideFootprint(x,z,L.eastToilet,2);
         };
         /** 参考图：下粗上细棱柱干 + 竖纹树皮；棕色枝条接到多颗二十面体冠（青柠绿、哑光分面）；无地面碎块 */
         function addLowPolyTree(x, z, h, cr, cc) {
@@ -3526,11 +3551,21 @@
                 // 把模型原点统一搬到「底面中心」：X/Z居中(绕Y旋转才不会偏),Y底贴地——再放哪都可预测,不悬空不偏移
                 const cX = (box.min.x + box.max.x) / 2, cZ = (box.min.z + box.max.z) / 2, minY = isFinite(box.min.y) ? box.min.y : 0;
                 parts.forEach(function (part) { part.geo.translate(-cX, -minY, -cZ); });
+                const rawW = Math.max(0.001, box.max.x - box.min.x);
+                const rawH = Math.max(0.001, box.max.y - box.min.y);
+                const rawD = Math.max(0.001, box.max.z - box.min.z);
                 const dummy = new THREE.Object3D();
                 parts.forEach(function (part) {
                     const inst = new THREE.InstancedMesh(part.geo, matOverride || part.mat, pts.length);
                     inst.castShadow = true; inst.receiveShadow = true; inst._noMerge = true;
-                    for (let i = 0; i < pts.length; i++) { const p = pts[i]; const sx = p.sx || p.s || 1, sy = p.sy || p.s || 1, sz = p.sz || p.s || 1; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); }
+                    for (let i = 0; i < pts.length; i++) {
+                        const p = pts[i];
+                        // tw/th/td 表示真实世界目标尺寸（米），避免不同AI模型原始单位不一致导致巨大或迷你洁具。
+                        const sx = p.tw ? p.tw / rawW : (p.sx || p.s || 1);
+                        const sy = p.th ? p.th / rawH : (p.sy || p.s || 1);
+                        const sz = p.td ? p.td / rawD : (p.sz || p.s || 1);
+                        dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, (p.ry || 0) + (yawOff || 0), 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix);
+                    }
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
                 });
                 console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length + ' (足迹 ' + (box.max.x - box.min.x).toFixed(2) + '×' + (box.max.z - box.min.z).toFixed(2) + 'm)');
@@ -3559,9 +3594,13 @@
             if (window._toiletsInstanced) return; window._toiletsInstanced = true;
             if (typeof THREE.GLTFLoader === 'undefined') return;
             const loader = new THREE.GLTFLoader();
-            // 服务核北段(coreW=20.5加宽)：男厕(西)|女厕(东) 各≈7m宽 × 9m深；门南墙(zCorrN)中部，窗北墙(zN)
-            // 照用户俯视图：中央岛台(一面洗手台+镜子；男厕另一面挂小便池)+蹲位隔间成排；女厕双排蹲位无小便池
-            const stX1 = -36.85, cMid = -29.8, xRW = -22.75, zN = 11.5, zCorrN = 20.5, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
+            // v93真实比例：服务核coreW=32m，扣除6.4m楼梯井后，男女厕各约12.8×9m。
+            // 平面严格按用户图：北墙洗手池+镜子；男厕中排7个小便池、南排5蹲位；女厕两排各5蹲位；门在右侧。
+            const stX1 = -42.6, cMid = -29.8, xRW = -17.0, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
+            const buildings = [
+                { zN: 11.5,  zCorrN: 20.5 },   // 前教学楼
+                { zN: -68.5, zCorrN: -59.5 }   // 后教学楼
+            ];
             const tiles = _toiletTiles();
             const tGroup = new THREE.Group(); tGroup._noMerge = true; scene.add(tGroup);
             function tileMat(tex, bumpTex, rw, rh, dbl, rough, envI) {
@@ -3570,7 +3609,7 @@
                 const m = new THREE.MeshStandardMaterial({ map: t, bumpMap: b, bumpScale: 0.04, roughness: rough !== undefined ? rough : 0.5, metalness: 0.0, side: dbl ? THREE.DoubleSide : THREE.FrontSide });
                 m.envMapIntensity = envI !== undefined ? envI : 0.7; m._noMerge = true; return m;
             }
-            function floorTile(x0, x1, yB) {
+            function floorTile(x0, x1, yB, zN, zCorrN) {
                 const w = x1 - x0, d = zCorrN - zN;
                 const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), tileMat(tiles.floor, tiles.floorBump, w, d, false, 0.82, 0.25));
                 g.rotation.x = -HW; g.position.set((x0 + x1) / 2, yB + 0.04, (zN + zCorrN) / 2); g.receiveShadow = true; g._noMerge = true; tGroup.add(g);
@@ -3587,7 +3626,7 @@
             const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xbcccd6, roughness: 0.05, metalness: 0.7, envMapIntensity: 1.3 }); mirrorMat._noMerge = true;
             const islandMat = new THREE.MeshStandardMaterial({ color: 0xe7ecf1, roughness: 0.5 }); islandMat._noMerge = true;
             const capMat = new THREE.MeshStandardMaterial({ color: 0xc4ccd2, roughness: 0.4 }); capMat._noMerge = true;
-            const parts = [], doors = [], urinal = [], squat = [], sink = [];
+            const parts = [], doors = [], squat = [], sink = [];
 
             function island(xc, z0, z1, h, yB) {   // 中央岛台(沿Z矮墙,双面贴砖+顶盖)
                 const len = z1 - z0, zc = (z0 + z1) / 2;
@@ -3599,55 +3638,63 @@
                 const g = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, 0.85), mirrorMat);
                 g.rotation.y = faceW ? -HW : HW; g.position.set(xc, yB + 1.5, (z0 + z1) / 2); g._noMerge = true; tGroup.add(g);
             }
-            function stallRow(xWall, faceW, z0, z1, n, yB) {   // 蹲位隔间排; xWall=背靠墙内表面x; faceW=蹲位朝西(-X)
-                const pitch = (z1 - z0) / n, dir = faceW ? -1 : 1, partCX = xWall + dir * DCUB / 2;
-                for (let k = 0; k <= n; k++) parts.push({ x: partCX, y: yB + 0.95, z: z0 + k * pitch });
-                for (let k = 0; k < n; k++) {
-                    const zc = z0 + (k + 0.5) * pitch;
-                    squat.push({ x: xWall + dir * 0.30, y: yB, z: zc, ry: faceW ? -HW : HW, s: SQS });
-                    const a = dir * 0.5, len = pitch - 0.45, hingeZ = z0 + k * pitch + 0.12, xF = xWall + dir * DCUB;
-                    doors.push({ x: xF + Math.sin(a) * len / 2, y: yB + 1.0, z: hingeZ + Math.cos(a) * len / 2, ry: a, len: len });
+            function mirrorNorth(x0, x1, zN, yB) {
+                const g = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 0.9), mirrorMat);
+                g.position.set((x0 + x1) / 2, yB + 1.55, zN + 0.03); g._noMerge = true; tGroup.add(g);
+            }
+            function sinkNorth(xW, xE, zN, yB) {
+                sink.push({ x:(xW+xE)/2, y:yB, z:zN+0.58, ry:0, tw:5.8, th:1.02, td:0.68 });
+                mirrorNorth((xW+xE)/2-3.1, (xW+xE)/2+3.1, zN, yB);
+            }
+            function stallRowX(zBack, faceNorth, x0, x1, n, yB) {
+                const pitch=(x1-x0)/n, dir=faceNorth?-1:1, depth=1.85, zMid=zBack+dir*depth/2, zFront=zBack+dir*depth;
+                for(let k=0;k<=n;k++) parts.push({x:x0+k*pitch,y:yB+0.95,z:zMid,ry:HW,len:depth});
+                for(let k=0;k<n;k++){
+                    const xc=x0+(k+0.5)*pitch;
+                    squat.push({x:xc,y:yB,z:zBack+dir*0.78,ry:faceNorth?Math.PI:0,tw:0.62,th:0.26,td:0.78});
+                    doors.push({x:xc,y:yB+1.0,z:zFront,ry:HW,len:pitch-0.16});
                 }
             }
-            function sinkRow(xFace, faceW, z0, z1, yB) {   // 洗手台(贴岛台某面); xFace=岛台该面x
-                const ry = faceW ? -HW : HW, dir = faceW ? -1 : 1;
-                [z0 + (z1 - z0) * 0.28, z0 + (z1 - z0) * 0.72].forEach(function (zc) { sink.push({ x: xFace + dir * 0.42, y: yB, z: zc, ry: ry, sx: 1.2, sy: 1.32, sz: 0.8 }); });
-            }
-            function urinalRow(xFace, faceW, z0, z1, yB) {  // 小便池排(贴岛台某面)
-                const ry = faceW ? -HW : HW, dir = faceW ? -1 : 1;
-                for (let u = 0; u < 3; u++) urinal.push({ x: xFace + dir * 0.30, y: yB, z: z0 + (z1 - z0) * (0.18 + u * 0.32), ry: ry, s: 1.1 });
+            function addUrinalRow(x0,x1,z,yB){
+                const ceramic=new THREE.MeshStandardMaterial({color:0xf7f7f4,roughness:0.24,metalness:0.0});
+                const metal=new THREE.MeshStandardMaterial({color:0x9aa3a8,roughness:0.2,metalness:0.72});
+                for(let i=0;i<7;i++){
+                    const x=x0+(x1-x0)*(i+0.5)/7;
+                    const back=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.66,0.13),ceramic); back.position.set(x,yB+0.82,z); back._noMerge=true; tGroup.add(back);
+                    const bowl=new THREE.Mesh(new THREE.SphereGeometry(0.25,12,8,0,Math.PI*2,0,Math.PI*0.62),ceramic);
+                    bowl.scale.set(0.92,1.0,0.72); bowl.rotation.x=Math.PI*0.08; bowl.position.set(x,yB+0.58,z+0.17); bowl._noMerge=true; tGroup.add(bowl);
+                    const flush=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.22,8),metal); flush.position.set(x,yB+1.22,z+0.01); flush._noMerge=true; tGroup.add(flush);
+                }
             }
 
-            for (let f = 0; f < FL; f++) {
-                const yB = f * FH;
-                // ── 男厕(西) ──
-                { const xW = stX1, xE = cMid, eInt = xE - WT / 2, wInt = xW + WT / 2, ix = xW + 2.6;
-                  floorTile(xW, xE, yB);
-                  veneer((xW + xE) / 2, zN + WT / 2 + 0.01, xE - xW, 1.3, 'N', yB);
-                  veneer(eInt - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'W', yB);
-                  veneer(wInt + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'E', yB);
-                  island(ix, 12.2, 18.6, 2.0, yB);
-                  sinkRow(ix - 0.13, true, 12.4, 18.4, yB);
-                  mirror(ix - 0.13, 12.6, 18.2, true, yB);
-                  urinalRow(ix + 0.13, false, 12.4, 18.4, yB);
-                  stallRow(eInt, true, 12.2, 19.8, 5, yB);
+            buildings.forEach(function(B){
+                const zN=B.zN, zCorrN=B.zCorrN;
+                for (let f = 0; f < FL; f++) {
+                    const yB = f * FH;
+                    // 男厕：北侧洗手池/镜子，中部7个独立小便池，南侧5个蹲位；东南角留入口。
+                    { const xW=stX1, xE=cMid, eInt=xE-WT/2, wInt=xW+WT/2;
+                      floorTile(xW,xE,yB,zN,zCorrN);
+                      veneer((xW+xE)/2,zN+WT/2+0.01,xE-xW,1.3,'N',yB);
+                      veneer(eInt-0.01,(zN+zCorrN)/2,zCorrN-zN,FH,'W',yB);
+                      veneer(wInt+0.01,(zN+zCorrN)/2,zCorrN-zN,FH,'E',yB);
+                      sinkNorth(xW+2.8,xE-1.0,zN,yB);
+                      addUrinalRow(xW+1.0,xE-1.0,zN+3.65,yB);
+                      stallRowX(zCorrN-0.15,true,xW+0.45,xE-2.15,5,yB);
+                    }
+                    // 女厕：北侧洗手池/镜子，两排各5个蹲位，中间保留1.9m通道，东南角留入口。
+                    { const xW=cMid, xE=xRW, eInt=xE-WT/2, wInt=xW+WT/2;
+                      floorTile(xW,xE,yB,zN,zCorrN);
+                      veneer((xW+xE)/2,zN+WT/2+0.01,xE-xW,1.3,'N',yB);
+                      veneer(eInt-0.01,(zN+zCorrN)/2,zCorrN-zN,FH,'W',yB);
+                      veneer(wInt+0.01,(zN+zCorrN)/2,zCorrN-zN,FH,'E',yB);
+                      sinkNorth(xW+2.8,xE-1.0,zN,yB);
+                      stallRowX(zN+3.15,false,xW+0.45,xE-0.45,5,yB);
+                      stallRowX(zCorrN-0.15,true,xW+0.45,xE-2.15,5,yB);
+                    }
                 }
-                // ── 女厕(东)：无小便池,双排蹲位 ──
-                { const xW = cMid, xE = xRW, eInt = xE - WT / 2, wInt = xW + WT / 2, ix = xW + 2.4;
-                  floorTile(xW, xE, yB);
-                  veneer((xW + xE) / 2, zN + WT / 2 + 0.01, xE - xW, 1.3, 'N', yB);
-                  veneer(eInt - 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'W', yB);
-                  veneer(wInt + 0.01, (zN + zCorrN) / 2, zCorrN - zN, FH, 'E', yB);
-                  island(ix, 12.2, 18.6, 2.0, yB);
-                  sinkRow(ix - 0.13, true, 12.4, 18.4, yB);
-                  mirror(ix - 0.13, 12.6, 18.2, true, yB);
-                  stallRow(ix + 0.13, false, 12.2, 19.8, 5, yB);   // 排B:岛台东面,朝东
-                  stallRow(eInt, true, 12.2, 19.8, 5, yB);         // 排A:东墙,朝西
-                }
-            }
-            if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
+            });
+            if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry||0, 0); d.scale.set((p.len||DCUB)/DCUB, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (doors.length) { const dg = new THREE.BoxGeometry(0.05, 1.7, 1.0); const im = new THREE.InstancedMesh(dg, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
-            _loadFixture(loader, '../assets/models/urinals.glb', urinal, _TOILET_YAW.urinal);
             _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
             _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
         }
@@ -3684,6 +3731,8 @@
         }
 
         function createCampus() {
+            // 每次地图生成只建立一份互动厕所门；教学楼门和室外公厕门共用此注册表。
+            window._wcSwingDoors = [];
             // ── 辅助函数 ──
             function box(x,y,z,w,h,d,col) {
                 if (window._skipVisualMesh) return {position:{set:()=>{}}};
@@ -3737,15 +3786,21 @@
                 scene.add(m);
             }
 
-            // ── 地面铺装（室外：各层 Y 错开 ≥8mm，避免 Z-fighting）──
-            // 主广场（B1南侧）
-            texPlane(0, 0.005, 15, 120, 26, 'outdoorPlaza', 5, 1.05, 0xffffff);
-            // 各教学楼间主干道（沥青，底层）
-            texPlane(0, 0.002, -32, 120, 44, 'campusAsphalt', 16, 6, 0xffffff);
-            // B1 北侧窄通道、绕食堂连廊、东西向连接道
-            texPlane(0, 0.006, 0.5, 8, 17, 'campusAsphalt', 1.4, 2.8, 0xffffff);
-            texPlane(0, 0.006, -31.5, 8, 47, 'campusAsphalt', 1.4, 8, 0xffffff);
-            texPlane(0, 0.007, 11, 44, 4, 'campusAsphalt', 6, 0.4, 0xffffff);
+            // ── 地面铺装（v92：主轴、庭院、服务翼三层级）──
+            // 操场北缘到前教学楼：开阔迎宾广场，建立校门—操场—教学楼的视觉轴线。
+            texPlane(0, 0.005, 45, 120, 18, 'outdoorPlaza', 5, 0.8, 0xffffff);
+            // 两栋教学楼之间不再塞入食堂，改为完整中央庭院。
+            texPlane(CAMPUS_LAYOUT.courtyard.cx, 0.004, CAMPUS_LAYOUT.courtyard.cz,
+                CAMPUS_LAYOUT.courtyard.w, CAMPUS_LAYOUT.courtyard.d,
+                'outdoorPlaza', 5.6, 2.65, 0xf5f2eb);
+            // 南北礼仪步道贯穿庭院；东西生活轴连接办公楼与食堂。
+            texPlane(0, 0.009, -16.5, 14, 55, 'campusAsphalt', 2, 8, 0xffffff);
+            texPlane(0, 0.008, -14, 250, 9, 'campusAsphalt', 32, 1.2, 0xffffff);
+            // 操场北侧横向步道串联两座公共厕所，不再让厕所孤零零落在草地里。
+            texPlane(0, 0.007, 42, 270, 5, 'campusAsphalt', 36, 0.7, 0xffffff);
+            // 两翼建筑前场，避免建筑直接“掉”在草地上。
+            texPlane(CAMPUS_LAYOUT.office.x, 0.010, -8.5, 50, 7, 'outdoorPlaza', 2.5, 0.5, 0xf8f5f0);
+            texPlane(CAMPUS_LAYOUT.canteen.x, 0.010, -12.5, 50, 7, 'outdoorPlaza', 2.5, 0.5, 0xf8f5f0);
             // 南侧大操场：外圈草 → 跑道 → 内场（Y 逐级抬高，禁止共面）
             plane(0, 0.001, 85, 170, 60, 0x7aaa5a);
             plane(0, 0.018, 85, 160, 52, 0xcc5022);
@@ -3753,8 +3808,9 @@
             // 足球场标线（略高于内场草坪）
             box(0, 0.042, 85, 130, 0.01, 0.2, 0xffffff);
             box(0, 0.042, 85, 0.2, 0.01, 28, 0xffffff);
-            // 食堂门前广场（压在底层沥青之上）
-            texPlane(0, 0.012, -30, 45, 22, 'outdoorPlaza', 2.2, 1.05, 0xf8f5f0);
+            // 食堂门前广场（东翼）
+            texPlane(CAMPUS_LAYOUT.canteen.x, 0.012, CAMPUS_LAYOUT.canteen.z + 5,
+                48, 24, 'outdoorPlaza', 2.4, 1.2, 0xf8f5f0);
 
             // ── 教学楼 B2（已删，改用新教学楼） ──
             if(false) (function buildB2(){
@@ -4115,12 +4171,12 @@
             })();
 
             // ── 新教学楼 ×2（替换 B1-B4）：前排退在操场/广场之后，后排在食堂北侧，均朝南 ──
-            buildModernTeachingBuilding({cx:0, zSouth:35,  roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4, furnish:true});  // 前排教学楼 z[12,35] (满铺家具)
-            buildModernTeachingBuilding({cx:0, zSouth:-45, roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4, furnish:false}); // 后排教学楼 z[-68,-45] (毛坯壳,省性能)
+            buildModernTeachingBuilding({cx:CAMPUS_LAYOUT.frontSchool.cx, zSouth:CAMPUS_LAYOUT.frontSchool.zSouth, roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4, furnish:true});
+            buildModernTeachingBuilding({cx:CAMPUS_LAYOUT.rearSchool.cx, zSouth:CAMPUS_LAYOUT.rearSchool.zSouth, roomsPerSide:4, floors:5, roomW:15, roomD:9, corrD:5.5, floorH:4, furnish:false});
 
             // ── 食堂（B1南侧，大型单层，含完整内部）──
             (function buildCanteen(){
-                const cX=0,cZ=-30,cW=40,cD=18,cH=5.5;
+                const cX=CAMPUS_LAYOUT.canteen.x,cZ=CAMPUS_LAYOUT.canteen.z,cW=CAMPUS_LAYOUT.canteen.w,cD=CAMPUS_LAYOUT.canteen.d,cH=5.5;
                 const cN=cZ-cD/2; // 北墙 z=-39
                 const cS=cZ+cD/2; // 南墙 z=-21（朝向B1北侧，学生从B1绕到后方进入）
                 const cWL=cX-cW/2; // 西墙 x=-20
@@ -4247,8 +4303,20 @@
 
             // ── 教师办公楼（西北区） ──
             (function buildOffice(){
-                const oX=-72,oZ=-42,oW=40,oD=25,oH=12;
-                wall(oX,oH/2,oZ,oW,oH,oD,0xe8e2d2);
+                const oX=CAMPUS_LAYOUT.office.x,oZ=CAMPUS_LAYOUT.office.z,oW=CAMPUS_LAYOUT.office.w,oD=CAMPUS_LAYOUT.office.d,oH=12;
+                const oWT=0.3, oN=oZ-oD/2, oS=oZ+oD/2, oL=oX-oW/2, oR=oX+oW/2;
+                wall(oX,oH/2,oN+oWT/2,oW,oH,oWT,0xe8e2d2);
+                wall(oL+oWT/2,oH/2,oZ,oWT,oH,oD,0xe8e2d2);
+                wall(oR-oWT/2,oH/2,oZ,oWT,oH,oD,0xe8e2d2);
+                // 南立面中央入口：4.5m门洞，办公楼不再是无法进入的实心方块。
+                const oDoorW=4.5, oDoorH=3.0, oSeg=(oW-oDoorW)/2;
+                wall(oX-oDoorW/2-oSeg/2,oH/2,oS-oWT/2,oSeg,oH,oWT,0xe8e2d2);
+                wall(oX+oDoorW/2+oSeg/2,oH/2,oS-oWT/2,oSeg,oH,oWT,0xe8e2d2);
+                wall(oX,oDoorH+(oH-oDoorH)/2,oS-oWT/2,oDoorW,oH-oDoorH,oWT,0xe8e2d2);
+                box(oX-oDoorW/2,1.5,oS+0.04,0.18,3.0,0.42,0x52687a);
+                box(oX+oDoorW/2,1.5,oS+0.04,0.18,3.0,0.42,0x52687a);
+                box(oX,3.05,oS+0.04,oDoorW+0.35,0.18,0.42,0x52687a);
+                box(oX,0.12,oS+0.65,7,0.24,1.2,0xb8a898);
                 const oWin=new THREE.MeshLambertMaterial({color:0xa8dcff,transparent:true,opacity:0.24,side:THREE.DoubleSide});
                 for(let f=0;f<3;f++) for(let w=0;w<5;w++){
                     const wX=oX-oW/2+2+w*8, wY=f*4+2.5;
@@ -4265,7 +4333,6 @@
 
             // ── 公共厕所 ×2（校园最东 / 最西，南向外开实木门，E 键开关；扩大内饰）──
             (function buildToilets(){
-                window._wcSwingDoors = [];
                 const tWT = 0.28;
                 const cH = 5.0;
                 const doorH = 2.38;
@@ -4378,10 +4445,31 @@
                     [fBase - 2.2, fBase, fBase + 2.2].forEach((sx) => buildSink(sx, toiS - 1.05));
                 }
 
-                // Z 北移与 B3/B4（Z≈-8~9）错开，避免与楼体盒体重叠；X 略收向校内
-                buildBlock(-88, -20);
-                buildBlock(88, -20);
-                console.log('✅ 东西端公厕（南向外开门·E 键）');
+                // 操场北侧两端：服务运动区，同时远离教学楼主立面。
+                buildBlock(CAMPUS_LAYOUT.westToilet.x, CAMPUS_LAYOUT.westToilet.z);
+                buildBlock(CAMPUS_LAYOUT.eastToilet.x, CAMPUS_LAYOUT.eastToilet.z);
+                console.log('✅ 操场北侧东西公厕（南向外开门·E 键）');
+            })();
+
+            // ── 中央庭院景观骨架：树阵、花池、坐凳（后续高斯泼溅的定位基准）──
+            (function buildAcademicCourtyard(){
+                const zRows = [-36, -26, -7, 3];
+                zRows.forEach((z) => {
+                    addLowPolyTree(-51, z, 5.8, 1.45, 0x6b9a45);
+                    addLowPolyTree( 51, z, 5.8, 1.45, 0x6b9a45);
+                });
+                // 四个低矮花池压住庭院四角，给大广场增加尺度参照，但不挡主通道。
+                [[-34,-34],[34,-34],[-34,1],[34,1]].forEach(([x,z]) => {
+                    box(x,0.22,z,10,0.42,2.2,0xb7ad9d);
+                    box(x,0.45,z,9.2,0.34,1.45,0x607d43);
+                });
+                // 喷泉两侧成组坐凳，留出中轴和消防通道。
+                [[-12,-16.5],[12,-16.5],[-12,-25],[12,-25]].forEach(([x,z]) => {
+                    box(x,0.48,z,3.4,0.16,0.75,0x9a7653);
+                    box(x-1.35,0.24,z,0.14,0.48,0.62,0x4f5962);
+                    box(x+1.35,0.24,z,0.14,0.48,0.62,0x4f5962);
+                });
+                console.log('🌿 中央庭院景观轴线完成');
             })();
 
             // ── 超大操场 ──
@@ -5258,7 +5346,7 @@
             if (!window._fountainInited) {
                 window._fountainInited = true;
                 (function initFountainWater(){
-                    const FX=0, FZ=-5; // 移到前楼与食堂之间的中庭(避开新教学楼)
+                    const FX=CAMPUS_LAYOUT.fountain.x, FZ=CAMPUS_LAYOUT.fountain.z;
                     window._fountainPos={x:FX,z:FZ};
                     const waterM=new THREE.MeshLambertMaterial({color:0x4aa8d8,transparent:true,opacity:0.62,depthWrite:false});
                     // 主水池水面（圆形）
@@ -5763,7 +5851,7 @@
 
             // ── 广场装饰喷泉（三层叠盘石质结构，移到升旗台对侧）──
             (function addFountain(){
-                const FX=0, FZ=-5; // 与 initFountainWater 一致(中庭)
+                const FX=CAMPUS_LAYOUT.fountain.x, FZ=CAMPUS_LAYOUT.fountain.z;
                 const stone =new THREE.MeshLambertMaterial({color:0xd2cabe});
                 const stoneD=new THREE.MeshLambertMaterial({color:0xb8b0a4}); // 深一档，增加层次
                 // 外围环形池壁（用圆环柱体一次成型，不再是会变成"辐条"的8段方块）
@@ -6461,7 +6549,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v91'; // v91：服务核加宽(coreW17→20.5,每间厕所≈7m);厕所按用户俯视图重做(中央岛台:洗手台+镜子/男厕另面小便池;蹲位成排,女厕双排)
+        const MAP_VER = 'campus_v93'; // v93：教学楼服务核扩大；男女厕所按用户平面图重排；洁具统一真实米制尺寸；每层厕所门可开关
 
         function _dbOpen(cb) {
             try {
@@ -7444,7 +7532,7 @@
             const cx=opts.cx, zS=opts.zSouth;
             const perSide=opts.roomsPerSide||4, floors=opts.floors||5;
             const rW=opts.roomW||15, rD=opts.roomD||9, corrD=Math.max(opts.corrD||5.5,3), fh=opts.floorH||4;
-            const coreW=20.5, emerW=6, WT=WALL_T;   // 加宽服务核→每间厕所≈7m,装得下中央岛台布局
+            const coreW=32, emerW=6, WT=WALL_T;     // v93：服务核扩大，每间厕所约12.8×9m，按用户平面图真实排布
             const totW=coreW+perSide*rW+emerW;
             const xW=cx-totW/2, xE=cx+totW/2;
             const stX1=xW+6.4;                        // 楼梯井东墙(楼梯井宽6.4m)
@@ -7476,6 +7564,25 @@
                 const sN=(zc-gap/2)-zN; if(sN>0.1) W(xx,yB+fh/2,(zN+zc-gap/2)/2,WT,fh,sN,colC);
                 const sS=zS-(zc+gap/2); if(sS>0.1) W(xx,yB+fh/2,(zc+gap/2+zS)/2,WT,fh,sS,colC);
                 W(xx,yB+DOOR_H+(fh-DOOR_H)/2,zc,WT,fh-DOOR_H,gap,colC);
+            }
+            function restroomDoor(xc, yB, zc, openAngle) {
+                // 互动对象不参与静态合并：缓存命中时也必须重建。
+                const pivot = new THREE.Group();
+                pivot.position.set(xc - DOOR_W / 2, yB + DOOR_H / 2, zc);
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(DOOR_W, DOOR_H, 0.12),
+                    new THREE.MeshLambertMaterial({ color: 0x48677c, flatShading: true })
+                );
+                mesh.position.set(DOOR_W / 2, 0, 0);
+                mesh.castShadow = true;
+                mesh._noMerge = true;
+                pivot.add(mesh);
+                scene.add(pivot);
+                window._wcSwingDoors = window._wcSwingDoors || [];
+                window._wcSwingDoors.push({
+                    pivot: pivot, cx: xc, cy: yB + 1.35, cz: zc + 0.9,
+                    open: false, openAngle: openAngle, kind: 'teaching-restroom'
+                });
             }
             function partition(zPos,yB){ // 教室门隔墙(x[xRW,xRE])
                 for(let i=0;i<perSide;i++){
@@ -7544,10 +7651,16 @@
                 // 服务核：厕所 | 电梯 | 厕所——只占【北段】，走廊带和南门厅留空通行(否则学生进不去教室)
                 const cMid=(stX1+xRW)/2, zNb=(zN+zCorrN)/2;                       // 取消狭窄电梯,男女厕各占一半(各≈5.3m,更大)
                 W(cMid,yB+fh/2,zNb,WT,fh,rD,colC);                                // 男女厕中央隔墙(北段)
-                // 两厕↔走廊 南隔墙(zCorrN)：男厕(中心xMc)/女厕(中心xWmc)各居中开一道门
-                { const xMc=(stX1+cMid)/2, xWmc=(cMid+xRW)/2, _hw=DOOR_W/2;
-                  [[stX1,xMc-_hw],[xMc+_hw,cMid],[cMid,xWmc-_hw],[xWmc+_hw,xRW]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
-                  [xMc,xWmc].forEach(function(dx){ W(dx,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC); }); }
+                // 按平面图：门位于每间厕所右侧（靠东端），而不是房间正中央。
+                { const _hw=DOOR_W/2, mDoor=cMid-1.15, wDoor=xRW-1.15;
+                  function toiletWallWithDoor(a,b,dc){
+                      [[a,dc-_hw],[dc+_hw,b]].forEach(function(s){ const w=s[1]-s[0]; if(w>0.1) W((s[0]+s[1])/2,yB+fh/2,zCorrN,w,fh,WT,colC); });
+                      W(dc,yB+DOOR_H+(fh-DOOR_H)/2,zCorrN,DOOR_W,fh-DOOR_H,WT,colC);
+                      restroomDoor(dc, yB, zCorrN, Math.PI * 0.52);
+                  }
+                  toiletWallWithDoor(stX1,cMid,mDoor);
+                  toiletWallWithDoor(cMid,xRW,wDoor);
+                }
                 // 蹲位隔间+瓷砖+洁具改由 _loadAndInstanceToilets 在合并后实例化(每次加载重建,不入缓存),此处不再放隔板
                 // 厕所洁具改用 Meshy 精模 GLB 实例化(_loadAndInstanceToilets)，此处不再放白盒子
                 // 走廊踢脚线 + 墙裙(下半墙柔和蓝灰,2-tone) + 上沿压条 —— 干净的"精致"
@@ -9123,6 +9236,24 @@
                 radius: SOLDIER_RADIUS,
                 position: position
             };
+
+            // 互动厕所门使用动态碰撞：关闭时挡人，打开后立即放行。
+            // 先用距离筛选，避免每帧为所有楼层的门计算世界包围盒。
+            if (window._wcSwingDoors) {
+                for (const wd of window._wcSwingDoors) {
+                    if (wd.open || !wd.pivot) continue;
+                    const cy = wd.cy || 1.35;
+                    if (Math.abs(position.y - cy) > 2.2 ||
+                        Math.abs(position.x - wd.cx) > 3.0 || Math.abs(position.z - wd.cz) > 3.0) continue;
+                    wd._bbox = wd._bbox || new THREE.Box3();
+                    wd._bbox.setFromObject(wd.pivot);
+                    const bx = Math.max(wd._bbox.min.x, Math.min(position.x, wd._bbox.max.x));
+                    const bz = Math.max(wd._bbox.min.z, Math.min(position.z, wd._bbox.max.z));
+                    const dx = position.x - bx, dz = position.z - bz;
+                    if (dx * dx + dz * dz < SOLDIER_RADIUS * SOLDIER_RADIUS &&
+                        position.y + 1.4 > wd._bbox.min.y && position.y - 0.1 < wd._bbox.max.y) return true;
+                }
+            }
             
             // 检查当前是否站在墙顶上
             const groundCheck = checkGroundCollision(position.y);
@@ -9205,31 +9336,48 @@
             isMouseLocked = (document.pointerLockElement === renderer.domElement || 
                             document.mozPointerLockElement === renderer.domElement || 
                             document.webkitPointerLockElement === renderer.domElement);
+            // 锁定建立/浏览器切回窗口后的头几条 movement 常含旧的屏幕坐标差。
+            _pointerLockWarmupMoves = isMouseLocked ? 3 : 0;
+            _lastMouseMoveTime = 0;
         }
         
         // 添加新的事件处理函数
         function onMouseMove(event) {
             if (!soldier || !isMouseLocked) return;
+            if (_pointerLockWarmupMoves > 0) {
+                _pointerLockWarmupMoves--;
+                return;
+            }
             
-            // 计算鼠标移动的相对位置
-            let movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-            let movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-            // 防卡顿瞬移：一帧卡住后浏览器会把积压的鼠标位移合并成一个超大值，
-            // 直接用会让视角"猛地跳一下"。单事件位移夹到合理上限（正常快速转头远小于此）。
-            const _MAX_MOVE = 170;
+            // 必须使用空值判断；movement=0 时不能回退到某些浏览器残留的旧前缀值。
+            let movementX = Number.isFinite(event.movementX) ? event.movementX :
+                (Number.isFinite(event.mozMovementX) ? event.mozMovementX :
+                (Number.isFinite(event.webkitMovementX) ? event.webkitMovementX : 0));
+            let movementY = Number.isFinite(event.movementY) ? event.movementY :
+                (Number.isFinite(event.mozMovementY) ? event.mozMovementY :
+                (Number.isFinite(event.webkitMovementY) ? event.webkitMovementY : 0));
+            _lastMouseMoveTime = Number.isFinite(event.timeStamp) ? event.timeStamp : 0;
+
+            // 卡顿后积压的超大 movement 不再“夹成一个仍然很大的值”，而是整条丢弃。
+            // 同时过滤“轻微横移却附带巨大纵向值”的典型坏事件。
+            const ax = Math.abs(movementX), ay = Math.abs(movementY);
+            if (ax > 90 || ay > 90 || (ay > 48 && ay > ax * 2.5 + 8)) return;
+            const _MAX_MOVE = 42;
             if (movementX >  _MAX_MOVE) movementX =  _MAX_MOVE; else if (movementX < -_MAX_MOVE) movementX = -_MAX_MOVE;
             if (movementY >  _MAX_MOVE) movementY =  _MAX_MOVE; else if (movementY < -_MAX_MOVE) movementY = -_MAX_MOVE;
 
             // 更新水平角度（左右旋转）
-            cameraHorizontalAngle -= movementX * MOUSE_SENSITIVITY;
+            const yawDelta = Math.max(-0.12, Math.min(0.12, movementX * MOUSE_SENSITIVITY));
+            const pitchDelta = Math.max(-0.12, Math.min(0.12, movementY * MOUSE_SENSITIVITY));
+            cameraHorizontalAngle -= yawDelta;
 
             // 在第一人称视角下才更新垂直角度
             if (isFirstPerson) {
                 // 更新垂直角度（上下旋转），将符号取反使其符合直觉
-                cameraVerticalAngle -= movementY * MOUSE_SENSITIVITY;
+                cameraVerticalAngle -= pitchDelta;
                 
                 // 限制垂直视角范围，防止过度旋转
-                cameraVerticalAngle = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, cameraVerticalAngle));
+                cameraVerticalAngle = Math.max(-Math.PI * 0.42, Math.min(Math.PI * 0.42, cameraVerticalAngle));
             }
             
             // 更新相机旋转 - 直接更新相机旋转，而不是等待下一帧
@@ -11276,16 +11424,11 @@
         function _isPlayerIndoors() {
             if (!soldier) return false;
             const px = soldier.position.x, pz = soldier.position.z;
-            // B1 教学楼
-            if (px >= BLDG_X1 - 0.5 && px <= BLDG_X2 + 0.5 && pz >= BLDG_Z1 - 0.5 && pz <= BLDG_Z2 + 0.8) return true;
-            // B2 教学楼（X: -20~20, Z: -70~-53）
-            if (px >= -21 && px <= 21 && pz >= -71 && pz <= -52) return true;
-            // B3 教学楼（X: -100~-58, Z: -70~-53）
-            if (px >= -101 && px <= -57 && pz >= -71 && pz <= -52) return true;
-            // B4 教学楼（X: 58~100, Z: -70~-53）
-            if (px >= 57 && px <= 101 && pz >= -71 && pz <= -52) return true;
-            // 食堂（X: -22~22, Z: -40~-20）
-            if (px >= -23 && px <= 23 && pz >= -41 && pz <= -19) return true;
+            const L = CAMPUS_LAYOUT;
+            if (px >= L.frontSchool.x1 - 0.5 && px <= L.frontSchool.x2 + 0.5 && pz >= L.frontSchool.z1 - 0.5 && pz <= L.frontSchool.z2 + 0.8) return true;
+            if (px >= L.rearSchool.x1 - 0.5 && px <= L.rearSchool.x2 + 0.5 && pz >= L.rearSchool.z1 - 0.5 && pz <= L.rearSchool.z2 + 0.8) return true;
+            if (_insideFootprint(px, pz, L.canteen, 1) || _insideFootprint(px, pz, L.office, 1) ||
+                _insideFootprint(px, pz, L.westToilet, 0.5) || _insideFootprint(px, pz, L.eastToilet, 0.5)) return true;
             return false;
         }
         function updateWeather(dt) {
@@ -13393,4 +13536,4 @@
     </script>
     <script src="../js/campus-3d-mobile.js"></script>
 </body>
-</html> 
+</html>
