@@ -7,8 +7,15 @@ const os    = require('os');
 let autoUpdater = null;
 try { autoUpdater = require('electron-updater').autoUpdater; } catch (e) { console.warn('electron-updater 未安装，自动更新降级为手动检查'); }
 
-// 修复 GPU 缓存路径含中文导致的黑屏问题
-app.disableHardwareAcceleration();
+// 用户数据已放到英文路径，GPU 缓存不再受中文路径影响。
+// 3D 软件版默认使用 GPU；仅在极少数显卡黑屏时允许 --safe-gpu / CAMPUS_SAFE_GPU=1 回退软件渲染。
+const safeGpuMode = process.argv.includes('--safe-gpu') || process.env.CAMPUS_SAFE_GPU === '1';
+if (safeGpuMode) {
+    app.disableHardwareAcceleration();
+} else {
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('enable-zero-copy');
+}
 // 将用户数据目录指向可写的英文路径
 app.setPath('userData', path.join(os.homedir(), 'AppData', 'Local', 'CampusSimulator'));
 
@@ -38,7 +45,8 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            webviewTag: false
+            webviewTag: false,
+            backgroundThrottling: true
         },
         show: false,
         backgroundColor: '#0f172a'
@@ -201,9 +209,9 @@ app.on('second-instance', () => {
 
 app.on('ready', () => {
     Menu.setApplicationMenu(null);
-    // 清除 Service Worker 缓存，防止 SW 拦截 Electron 文件请求导致页面全黑
+    // 只清除 Service Worker，防止其拦截 file:// 请求；保留模型和贴图缓存。
     session.defaultSession.clearStorageData({
-        storages: ['serviceworkers', 'cachestorage']
+        storages: ['serviceworkers']
     }).catch(() => {});
     createWindow();
     // 启动 5 秒后检查更新（避免影响启动速度）；仅打包后生效，开发环境跳过

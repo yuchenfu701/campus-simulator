@@ -76,6 +76,12 @@
             margin-right: 4px;
             font-family: monospace;
         }
+        #instructions h3 { cursor:pointer; }
+        #instructions h3::after { content:'  ·  点击收起'; float:right; font-size:10px; color:rgba(180,215,240,.65); }
+        #instructions.collapsed { padding:9px 13px; max-width:190px; background:rgba(10,24,42,.68); }
+        #instructions.collapsed h3 { margin:0; padding:0; border:0; }
+        #instructions.collapsed h3::after { content:'  ·  操作帮助'; }
+        #instructions.collapsed p { display:none; }
 
         /* ── 开发控制台 ── */
         #console-overlay {
@@ -690,6 +696,14 @@
         <p style="color:#ffdd77;margin-top:6px">⬆ 进楼梯间向北走至z&lt;5处即见台阶</p>
         <p style="color:#88ccff"><span class="key">`</span> 开发控制台</p>
     </div>
+    <script>
+    (function(){
+        var panel=document.getElementById('instructions'),title=panel&&panel.querySelector('h3');
+        if(!panel||!title)return;
+        title.addEventListener('click',function(){panel.classList.toggle('collapsed');});
+        setTimeout(function(){panel.classList.add('collapsed');},8000);
+    })();
+    </script>
         </div>
     </div>
 
@@ -1804,19 +1818,19 @@
             window._gfxTier = tier;
             if (tier === 'low') {
                 // 超低配：关阴影、最低分辨率、关抗锯齿效果
-                renderer.setPixelRatio(Math.min(0.78, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(Math.min(0.70, window.devicePixelRatio || 1));
                 renderer.shadowMap.enabled = false;
                 if (sunDirLight) { sunDirLight.castShadow = false; }
             } else if (tier === 'medium') {
                 // 手机/中配：降分辨率 + 小阴影贴图
-                renderer.setPixelRatio(Math.min(1.0, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(Math.min(0.90, window.devicePixelRatio || 1));
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.shadow.mapSize.width  = 512;
                     sunDirLight.shadow.mapSize.height = 512;
                 }
             } else {
                 // 高档也限制到 1.35 DPR；校园大场景在 2x DPR 下像素量会直接翻四倍。
-                renderer.setPixelRatio(Math.min(1.35, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(Math.min(1.25, window.devicePixelRatio || 1));
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.shadow.mapSize.width  = 1024;
                     sunDirLight.shadow.mapSize.height = 1024;
@@ -4776,8 +4790,10 @@
                         const lamp=new THREE.Mesh(new THREE.SphereGeometry(0.3,10,7),
                             new THREE.MeshBasicMaterial({color:0xfff6c0}));
                         lamp.position.set(px, gH+1.22, gZ); scene.add(lamp);
-                        const gPt=new THREE.PointLight(0xffeea0,1.2,20,2);
-                        gPt.position.set(px, gH+0.9, gZ); scene.add(gPt);
+                        if(window._gfxTier==='high'){
+                            const gPt=new THREE.PointLight(0xffeea0,0.8,14,2);
+                            gPt.position.set(px,gH+0.9,gZ);scene.add(gPt);
+                        }
                     }
                     // 柱身横向腰线
                     box(px, gH*0.35, gZ, pW+0.1, 0.14, pT+0.1, 0xd8cec0);
@@ -5488,26 +5504,20 @@
 
             // ── 白天云朵（昼夜系统控制显示/隐藏） ──
             _cloudGroup = new THREE.Group();
-            const cloudMat = new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.68, depthWrite:false, fog:false});
-            const clouds = [
-                [0,46,-55, 9],[35,44,-75,11],[-45,50,-65, 8],[-62,46,-82,9],
-                [-25,52,-42, 7],[110,45,-60,12],[-90,47,-70, 9],[50,43,-40, 8],
-                [-60,49,-90, 7],[20,51,-100,10],[-35,45,-50, 6],[-110,44,-50,11],
-            ];
-            clouds.forEach(([x,y,z,r], ci)=>{
-                // 每朵云一个子 Group，独立记录漂移速度
-                const cg = new THREE.Group();
-                cg.position.set(x, y, z);
-                cg.userData.vx = 1.2 + (ci % 5) * 0.45 + Math.sin(ci * 2.17) * 0.7; // m/s 偏东
-                cg.userData.vz = Math.sin(ci * 1.73) * 0.55;
-                const offsets=[[0,0,0,1],[0.9,0.1,0,0.72],[-0.75,0.05,0.3,0.65],[0.2,0.38,0.4,0.55],[-0.35,0.32,-0.25,0.5]];
-                offsets.forEach(([ox,oy,oz,sr])=>{
-                    const c=new THREE.Mesh(new THREE.SphereGeometry(1,7,5), cloudMat);
-                    c.scale.set(r*sr*1.4, r*sr*0.55, r*sr); c.position.set(ox*r, oy*r, oz*r);
-                    cg.add(c);
-                });
-                _cloudGroup.add(cg);
-            });
+            const cloudMat = new THREE.MeshLambertMaterial({color:0xd7e0e8,transparent:true,opacity:0.38,depthWrite:false,fog:true});
+            const allClouds=[[-72,55,-88,7],[-25,60,-110,8],[28,54,-92,6],[75,58,-118,8],[118,52,-82,7],[-120,57,-125,8],[5,64,-145,9]];
+            const cloudKeep=window._gfxTier==='high'?7:(window._gfxTier==='medium'?5:3);
+            const clouds=allClouds.slice(0,cloudKeep), lobes=[[-0.55,0,0,0.72],[0,0.08,0,1],[0.60,-0.02,0.1,0.68]];
+            const cloudGeo=new THREE.SphereGeometry(1,8,5);
+            const cloudInst=new THREE.InstancedMesh(cloudGeo,cloudMat,clouds.length*lobes.length);
+            const dummy=new THREE.Object3D(); let cloudIdx=0;
+            clouds.forEach(function(p){lobes.forEach(function(l){
+                dummy.position.set(p[0]+l[0]*p[3],p[1]+l[1]*p[3],p[2]+l[2]*p[3]);
+                dummy.scale.set(p[3]*l[3]*1.45,p[3]*l[3]*0.34,p[3]*l[3]*0.82);
+                dummy.updateMatrix();cloudInst.setMatrixAt(cloudIdx++,dummy.matrix);
+            });});
+            cloudInst.instanceMatrix.needsUpdate=true;cloudInst.frustumCulled=false;cloudInst._noMerge=true;
+            _cloudGroup.userData.vx=0.55;_cloudGroup.add(cloudInst);
             _cloudGroup.visible = true;
             scene.add(_cloudGroup);
 
@@ -5516,13 +5526,7 @@
             fantasyDome.name = 'FantasyHorizon';
             window._fantasyDome = fantasyDome;
             scene.add(fantasyDome);
-            const cloudSeaMat=new THREE.MeshLambertMaterial({color:0xffcc80,transparent:true,opacity:0.72,depthWrite:false});
-            const cloudSeaGeo=new THREE.PlaneGeometry(600,600);
-            const cloudSea=new THREE.Mesh(cloudSeaGeo,cloudSeaMat);
-            cloudSea.rotation.x=-Math.PI/2; cloudSea.position.set(0,18,0); fantasyDome.add(cloudSea);
-            const cloudGlowMat=new THREE.MeshBasicMaterial({color:0xffaa30,transparent:true,opacity:0.22,depthWrite:false});
-            const cloudGlow=new THREE.Mesh(new THREE.PlaneGeometry(600,600),cloudGlowMat);
-            cloudGlow.rotation.x=-Math.PI/2; cloudGlow.position.set(0,18.2,0); fantasyDome.add(cloudGlow);
+            // 删除两张600×600半透明“云海”平面：它们几乎覆盖全屏像素，既拖慢填充率又让远景发橙发白。
 
             } // 闭合 if (!_moonPhaseTex)；否则后续树木/远景整段被包进该 if，脚本大括号错位 → 末尾语法错误、初始化卡住
 
@@ -6460,7 +6464,7 @@
                 }
                 const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
                 const mat=new THREE.PointsMaterial({color:0xffffff,size:tier==='low'?0.85:0.65,sizeAttenuation:true,transparent:true,opacity:0.9,depthWrite:false,fog:false});
-                const stars=new THREE.Points(geo,mat); stars.frustumCulled=false; stars.renderOrder=2; stars._noMerge=true;
+                const stars=new THREE.Points(geo,mat); stars.visible=false; stars.frustumCulled=false; stars.renderOrder=2; stars._noMerge=true;
                 _starsInst=stars; scene.add(stars);
                 console.log('✨ 轻量细节系统：Points星光×'+count+'（已移除旧楼错位吊顶/空调/压顶砖）');
             }
@@ -6797,7 +6801,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v97'; // v97：服务建筑/操场重建；材质合批与轻量细节；空间碰撞索引、缓存透明件和动态分帧修复
+        const MAP_VER = 'campus_v99'; // v99：公共大厅联机、Presence成员管理、平滑角色同步、聊天动作与校园探索；继续削减灯光/网格开销
 
         function _dbOpen(cb) {
             try {
@@ -6848,9 +6852,12 @@
 
             const groups = new Map(); // matUUID → {mat, geos[]}
             const originals = [];
+            const collisionOnly = [];
 
             scene.traverse(obj => {
                 if (!obj.isMesh || obj.isInstancedMesh || obj._noMerge || obj._isMergedStatic) return;
+                // 隐藏碰撞盒只有 bbox 有用。旧版把它们合并成可见白色几何体，既丑又浪费GPU。
+                if (obj.visible === false || obj._collisionOnly) { if(obj.bbox) collisionOnly.push(obj); return; }
                 const mat = obj.material;
                 if (!mat || mat.transparent) return;
                 if (obj.geometry && obj.geometry.type === 'PlaneGeometry') return; // 大地面单独保留
@@ -6886,9 +6893,10 @@
                 // 释放GPU几何体内存（碰撞用bbox已在walls[].bbox中，不依赖geometry）
                 if (m.geometry) m.geometry.dispose();
             });
+            collisionOnly.forEach(m=>{scene.remove(m);if(m.geometry)m.geometry.dispose();});
             // 所有 InstancedMesh 也关闭 matrixAutoUpdate（它们是静态的）
             scene.traverse(obj => { if (obj.isInstancedMesh) { obj.matrixAutoUpdate=false; } });
-            console.log(`✅ 几何体合并: ${originals.length}个Mesh彻底移出场景 → ${result.length}个合并Mesh, draw calls: ${originals.length}→${result.length}${mergeErr?', '+mergeErr+'个合并失败':''}`);
+            console.log(`✅ 几何体合并: ${originals.length}个可视Mesh → ${result.length}批，清理隐藏碰撞盒${collisionOnly.length}个${mergeErr?', '+mergeErr+'个合并失败':''}`);
             return result;
         }
 
@@ -7864,16 +7872,18 @@
                     W((cxE+stX1)/2, (f+1)*fh-0.07, zCorrMid, (stX1-cxE)+fw+0.3, 0.14, corrD*0.6, stairC);          // 落脚平台→stX1门→楼板
                 }
             }
-            const _winMat=new THREE.MeshLambertMaterial({color:0xaadcff,transparent:true,opacity:0.32,side:THREE.DoubleSide,depthWrite:false});
-            function ribbon(zF,yB){ // 带形窗：下窗台(实心)+上窗楣(实心)+中间玻璃带(挡人,可透光)
-                W(cx,yB+0.55,zF,totW,1.1,WT);
-                W(cx,yB+fh-0.35,zF,totW,0.7,WT);
-                if(window._skipVisualMesh) return;
-                const gh=fh-1.8;
-                const g=new THREE.Mesh(new THREE.BoxGeometry(totW-0.6,gh,0.06),_winMat);
-                g.position.set(cx,yB+1.1+gh/2,zF); scene.add(g);
-                addWallBBoxOnly(cx,yB+1.1+gh/2,zF,totW-0.6,gh,0.06);
-                for(let mx=xW+4;mx<xE-1;mx+=4) F(mx,yB+1.1+gh/2,zF,0.12,gh,0.14,0x33404e); // 竖向窗梃
+            const _winMat=new THREE.MeshLambertMaterial({color:0x6f9caf,transparent:true,opacity:0.48,side:THREE.DoubleSide,depthWrite:false});
+            const _windowInstances=[];
+            function ribbon(zF,yB){ // 分段窗墙：实体窗台/窗楣+规则窗洞，避免整栋楼像透明剖面。
+                W(cx,yB+0.70,zF,totW,1.40,WT);
+                W(cx,yB+fh-0.42,zF,totW,0.84,WT);
+                const gh=fh-2.24, wy=yB+1.40+gh/2;
+                const moduleW=4.0;
+                for(let bx=xW+moduleW/2;bx<xE-0.2;bx+=moduleW){
+                    _windowInstances.push([bx,wy,zF]);
+                    F(bx-moduleW/2,wy,zF,0.55,gh,0.16,0x596875); // 实体竖向窗间墙
+                }
+                addWallBBoxOnly(cx,wy,zF,totW-0.6,gh,0.06);
             }
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
@@ -7924,6 +7934,14 @@
                     F((xRW+xRE)/2, yB+1.36, zw, xRE-xRW, 0.07, WT+0.07, 0x8a98a6); // 墙裙上沿压条
                 });
             }
+            // 每栋楼所有外窗合为一个 InstancedMesh：数百扇窗只占一次绘制。
+            if(_windowInstances.length){
+                const geo=new THREE.BoxGeometry(2.95,fh-2.24,0.06);
+                const wins=new THREE.InstancedMesh(geo,_winMat,_windowInstances.length);
+                const wm=new THREE.Matrix4();
+                _windowInstances.forEach(function(p,i){wm.makeTranslation(p[0],p[1],p[2]);wins.setMatrixAt(i,wm);});
+                wins.instanceMatrix.needsUpdate=true;wins._noMerge=true;wins.castShadow=false;wins.receiveShadow=false;scene.add(wins);
+            }
             uStairs();
             // 门牌与室内使用同一份房间表。当前已完成标准教室建模，先使用真实房号，
             // 避免门牌写“办公室/实验室”而室内仍是普通教室。
@@ -7958,6 +7976,8 @@
             // 服务核两侧竖向砖红构件，打破近100米纯白长立面。
             F(xW+1.25,floors*fh/2,zS+0.19,1.8,floors*fh-0.5,0.16,0xa7654e);
             F(xRW-1.25,floors*fh/2,zS+0.19,1.8,floors*fh-0.5,0.16,0xa7654e);
+            // 教室开间暖砖竖带：按15m教室模数形成真实立面节奏，不再是一整排白色横线。
+            for(let i=0;i<=perSide;i++) F(xRW+i*rW,floors*fh/2,zS+0.20,0.72,floors*fh-0.65,0.18,0x9b624d);
             // 入口雨棚与支柱（净高约3m，深3.4m）。
             F(entranceX,3.08,zS+1.65,9.2,0.24,3.3,0x365b78);
             F(entranceX-3.85,1.52,zS+2.70,0.22,3.04,0.22,0x4c5962);
@@ -7984,28 +8004,36 @@
             const roomCX = (roomX1+roomX2)/2;
             const roomCZ = (roomZ1+roomZ2)/2;
 
-            const legMat   = new THREE.MeshLambertMaterial({ color: 0x6e6e6e });
-            const woodT=(window._dtex&&window._dtex.wood)?window._dtex.wood.clone():null;
-            if(woodT){woodT.wrapS=woodT.wrapT=THREE.RepeatWrapping;woodT.repeat.set(2,1);}
-            const woodMat  = new THREE.MeshLambertMaterial({ color: 0xb8874a, map: woodT });
-            const bbGreen = new THREE.MeshPhongMaterial({ color: 0x1a4d2e, shininess: 6, specular: 0x0a180c });
-            const bbWood  = new THREE.MeshPhongMaterial({ color: 0x5a3d22, shininess: 22, specular: 0x221008 });
-            const bbMetal = new THREE.MeshPhongMaterial({ color: 0x4a5558, shininess: 48, specular: 0x606468 });
-            const _wT2=woodT?woodT.clone():null; if(_wT2)_wT2.repeat.set(3,1);
-            const deskMat  = new THREE.MeshLambertMaterial({ color: 0xc8883a, map: _wT2 });
-            const chairMat = new THREE.MeshLambertMaterial({ color: 0x4a8fc8 });
-            const chairBkM = new THREE.MeshLambertMaterial({ color: 0x3a80b8 });
-            const bookMat  = [
-                new THREE.MeshLambertMaterial({color:0xe74c3c}),
-                new THREE.MeshLambertMaterial({color:0x2ecc71}),
-                new THREE.MeshLambertMaterial({color:0xf39c12}),
-                new THREE.MeshLambertMaterial({color:0x9b59b6}),
-                new THREE.MeshLambertMaterial({color:0x1abc9c}),
-            ];
+            // 全校教室共享材质。旧版每间房重新 new 一套材质，导致合并后仍有数百批次。
+            const RM=window._classroomMatPool||(window._classroomMatPool={});
+            function roomMat(key,create){return RM[key]||(RM[key]=create());}
+            const legMat=roomMat('leg',()=>new THREE.MeshLambertMaterial({color:0x5c6368}));
+            const woodMat=roomMat('wood',()=>{const t=window._dtex&&window._dtex.wood?window._dtex.wood.clone():null;if(t){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,1);}const m=new THREE.MeshLambertMaterial({color:0xb8874a,map:t});m._cacheTexKey=t?'wood':null;return m;});
+            const bbGreen=roomMat('bbGreen',()=>new THREE.MeshPhongMaterial({color:0x1a4d2e,shininess:6,specular:0x0a180c}));
+            const bbWood=roomMat('bbWood',()=>new THREE.MeshPhongMaterial({color:0x5a3d22,shininess:22,specular:0x221008}));
+            const bbMetal=roomMat('bbMetal',()=>new THREE.MeshPhongMaterial({color:0x4a5558,shininess:48,specular:0x606468}));
+            const deskMat=roomMat('desk',()=>{const t=window._dtex&&window._dtex.wood?window._dtex.wood.clone():null;if(t){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,1);}const m=new THREE.MeshLambertMaterial({color:0xc8883a,map:t});m._cacheTexKey=t?'wood':null;return m;});
+            const deskEdgeMat=roomMat('deskEdge',()=>new THREE.MeshLambertMaterial({color:0x2a6090}));
+            const chairMat=roomMat('chair',()=>new THREE.MeshLambertMaterial({color:0x4a8fc8}));
+            const chairBkM=roomMat('chairBack',()=>new THREE.MeshLambertMaterial({color:0x3a80b8}));
+            const chalkMat=roomMat('chalk',()=>new THREE.MeshLambertMaterial({color:0xc8d8d0}));
+            const podiumMat=roomMat('podium',()=>new THREE.MeshLambertMaterial({color:0x9a7240}));
+            const podiumTopMat=roomMat('podiumTop',()=>new THREE.MeshLambertMaterial({color:0xc4924e}));
+            const monitorMat=roomMat('monitor',()=>new THREE.MeshLambertMaterial({color:0x222222}));
+            const screenMat=roomMat('screen',()=>new THREE.MeshLambertMaterial({color:0x1a6fbb}));
+            const tubeMat=roomMat('tube',()=>new THREE.MeshLambertMaterial({color:0xe8e8e4}));
+            const glowMat=roomMat('glow',()=>new THREE.MeshBasicMaterial({color:0xfff6d8}));
+            const shelfMat=roomMat('shelf',()=>new THREE.MeshLambertMaterial({color:0xb87c3e}));
+            const shelfPlankMat=roomMat('shelfPlank',()=>new THREE.MeshLambertMaterial({color:0x9a6830}));
+            const doorFrameM=roomMat('doorFrame',()=>new THREE.MeshLambertMaterial({color:0x8b5e3c}));
+            const bookMat=[0xe74c3c,0x2ecc71,0xf39c12,0x9b59b6,0x1abc9c].map((c,i)=>roomMat('book'+i,()=>new THREE.MeshLambertMaterial({color:c})));
+            const boardFrameMat=roomMat('boardFrame',()=>new THREE.MeshLambertMaterial({color:0x5c3820}));
+            const corkMat=roomMat('cork',()=>new THREE.MeshLambertMaterial({color:0xc49668}));
+            const noticeMat=[0xef9a9a,0x90caf9,0xa5d6a7,0xffe082,0xce93d8].map((c,i)=>roomMat('notice'+i,()=>new THREE.MeshLambertMaterial({color:c})));
 
             function shRoom(m) {
                 if (!m || !m.isMesh) return;
-                m.castShadow = true;
+                m.castShadow = false;
                 m.receiveShadow = true;
             }
 
@@ -8033,8 +8061,7 @@
             shRoom(bbMain); scene.add(bbMain);
             const chalkFaceX = bx - boardTh / 2 - 0.048;
             for (let k = 0; k < 5; k++) {
-                const mk = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.028, bbW * (0.08 + Math.random() * 0.12)),
-                    new THREE.MeshLambertMaterial({ color: 0xc8d8d0 }));
+                const mk = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.028, bbW * (0.08 + Math.random() * 0.12)),chalkMat);
                 mk.position.set(chalkFaceX, bbY + 0.42 - k * 0.28, roomCZ + (k - 2) * bbW * 0.13);
                 mk.castShadow = false; mk.receiveShadow = false;
                 scene.add(mk);
@@ -8055,23 +8082,19 @@
             const pdDepthX = 0.62;
             const pdWidthZ = 1.78;
             const pdX = bx - boardTh / 2 - 0.11 - pdDepthX / 2;
-            const pd = new THREE.Mesh(new THREE.BoxGeometry(pdDepthX, pdH, pdWidthZ),
-                new THREE.MeshLambertMaterial({ color: 0x9a7240 }));
+            const pd = new THREE.Mesh(new THREE.BoxGeometry(pdDepthX, pdH, pdWidthZ),podiumMat);
             pd.position.set(pdX, yBase + pdH / 2, roomCZ);
             pd.bbox = new THREE.Box3().setFromObject(pd); walls.push(pd);
             shRoom(pd); scene.add(pd);
-            const pdTop = new THREE.Mesh(new THREE.BoxGeometry(pdDepthX + 0.08, 0.06, pdWidthZ + 0.08),
-                new THREE.MeshLambertMaterial({ color: 0xc4924e }));
+            const pdTop = new THREE.Mesh(new THREE.BoxGeometry(pdDepthX + 0.08, 0.06, pdWidthZ + 0.08),podiumTopMat);
             pdTop.position.set(pdX, yBase + pdH + 0.03, roomCZ);
             shRoom(pdTop); scene.add(pdTop);
             // 显示器贴在朝学生一侧（讲台 -X 面），窄边朝前
             const monX = pdX - pdDepthX / 2 + 0.05;
-            const monitor = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 0.5),
-                new THREE.MeshLambertMaterial({ color: 0x222222 }));
+            const monitor = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.36,0.5),monitorMat);
             monitor.position.set(monX, yBase + pdH + 0.24, roomCZ);
             shRoom(monitor); scene.add(monitor);
-            const screen = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.42),
-                new THREE.MeshLambertMaterial({ color: 0x1a6fbb }));
+            const screen = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.28,0.42),screenMat);
             screen.position.set(monX - 0.025, yBase + pdH + 0.24, roomCZ);
             shRoom(screen); scene.add(screen);
 
@@ -8092,12 +8115,12 @@
                     top.position.set(dx, yBase + dH + 0.02, dz); // 桌面顶部
                     shRoom(top); scene.add(top);
                     // 蓝色边框下移至桌面底部，避免与桌面共面 z-fighting
-                    const tEdge = new THREE.Mesh(new THREE.BoxGeometry(dD + 0.04, 0.04, dW + 0.04),
-                        new THREE.MeshLambertMaterial({ color: 0x2a6090 }));
+                    const tEdge = new THREE.Mesh(new THREE.BoxGeometry(dD+0.04,0.04,dW+0.04),deskEdgeMat);
                     tEdge.position.set(dx, yBase + dH, dz); // 严格在 top 正下方，无重叠
                     shRoom(tEdge); scene.add(tEdge);
                     const cbox = new THREE.Mesh(new THREE.BoxGeometry(dD * 0.85, 0.1, dW * 0.85));
                     cbox.position.set(dx, yBase + dH, dz); cbox.visible = false;
+                    cbox._collisionOnly = true;
                     cbox.bbox = new THREE.Box3().setFromObject(cbox);
                     walls.push(cbox); scene.add(cbox);
                     [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => {
@@ -8125,6 +8148,7 @@
                     const _cc = new THREE.Mesh(new THREE.BoxGeometry(0.50, cH + 0.38, 0.52));
                     _cc.position.set(cx, yBase + cH * 0.44, dz);
                     _cc.visible = false;
+                    _cc._collisionOnly = true;
                     _cc.bbox = new THREE.Box3().setFromObject(_cc);
                     walls.push(_cc); scene.add(_cc);
                     [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => {
@@ -8143,8 +8167,6 @@
 
             const lgY = yBase + FLOOR_H - 0.12;
             [-1, 0, 1].forEach(i => {
-                const tubeMat = new THREE.MeshLambertMaterial({ color: 0xe8e8e4 });
-                const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff6d8 });
                 const shell = new THREE.Mesh(new THREE.BoxGeometry(roomW * 0.38, 0.08, 0.2), tubeMat);
                 shell.position.set(roomCX + i * roomW * 0.24, lgY, roomCZ);
                 shRoom(shell); scene.add(shell);
@@ -8153,26 +8175,20 @@
                 glow.castShadow = false;
                 scene.add(glow);
             });
-            // 教室顶灯光源（中央一盏 PointLight，覆盖整间教室）
-            const _roomPt = new THREE.PointLight(0xfff8e8, 1.1, 14, 2);
-            _roomPt.position.set(roomCX, lgY - 0.2, roomCZ);
-            scene.add(_roomPt);
+            // 不再为每间教室创建 PointLight：40盏逐像素灯是旧版主要卡顿源。
+            // 灯具仍用 BasicMaterial 发光面表现，由全局半球光提供稳定室内照明。
 
             // 软木公告栏改到西墙（北墙不再遮挡窗户）
             const blW = Math.min(roomW * 0.4, 4.0);
             const blD = 0.11;
-            const blFrame = new THREE.Mesh(new THREE.BoxGeometry(blD + 0.12, 2.06, blW + 0.26),
-                new THREE.MeshLambertMaterial({ color: 0x5c3820 }));
+            const blFrame=new THREE.Mesh(new THREE.BoxGeometry(blD+0.12,2.06,blW+0.26),boardFrameMat);
             blFrame.position.set(westFaceX + blD / 2 + 0.04, yBase + 2.32, roomCZ);
             shRoom(blFrame); scene.add(blFrame);
-            const bl = new THREE.Mesh(new THREE.BoxGeometry(blD, 1.86, blW),
-                new THREE.MeshLambertMaterial({ color: 0xc49668 }));
+            const bl=new THREE.Mesh(new THREE.BoxGeometry(blD,1.86,blW),corkMat);
             bl.position.set(westFaceX + blD / 2 + 0.055, yBase + 2.32, roomCZ);
             shRoom(bl); scene.add(bl);
-            const noticeColors = [0xef9a9a, 0x90caf9, 0xa5d6a7, 0xffe082, 0xce93d8];
             for (let k = 0; k < 4; k++) {
-                const nc = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.26, blW * 0.17),
-                    new THREE.MeshLambertMaterial({ color: noticeColors[k % 5] }));
+                const nc=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.26,blW*0.17),noticeMat[k%5]);
                 nc.position.set(westFaceX + blD + 0.09, yBase + 2.38 - (k % 2) * 0.2, roomCZ + (k - 1.5) * blW * 0.2);
                 nc.castShadow = false;
                 scene.add(nc);
@@ -8182,15 +8198,13 @@
             [-1, 1].forEach(side => {
                 const sz = roomCZ + side * (roomD / 2 - shelfW / 2 - 0.55);
                 if (sz < roomZ1 + 0.5 || sz > roomZ2 - 0.5) return;
-                const shelf = new THREE.Mesh(new THREE.BoxGeometry(shelfD, shelfH, shelfW),
-                    new THREE.MeshLambertMaterial({ color: 0xb87c3e }));
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(shelfD,shelfH,shelfW),shelfMat);
                 shelf.position.set(westFaceX + shelfD / 2 + 0.05, yBase + shelfH / 2, sz);
                 shelf.bbox = new THREE.Box3().setFromObject(shelf);
                 walls.push(shelf);
                 shRoom(shelf); scene.add(shelf);
                 for (let sh = 1; sh <= 3; sh++) {
-                    const sp = new THREE.Mesh(new THREE.BoxGeometry(shelfD * 0.96, 0.04, shelfW * 0.94),
-                        new THREE.MeshLambertMaterial({ color: 0x9a6830 }));
+                    const sp = new THREE.Mesh(new THREE.BoxGeometry(shelfD*0.96,0.04,shelfW*0.94),shelfPlankMat);
                     sp.position.set(westFaceX + shelfD / 2 + 0.05, yBase + shelfH * sh / 4, sz);
                     shRoom(sp); scene.add(sp);
                 }
@@ -8204,7 +8218,6 @@
             });
 
             // 门框只使用 partition() 的真实门洞坐标；删除原先画在外墙上的彩色假门牌。
-            const doorFrameM = new THREE.MeshLambertMaterial({color:0x8b5e3c});
             const corridorSide = Math.abs(corridorZ-roomZ1)<0.05 ? -1 : 1;
             const frameZ = corridorZ + corridorSide*(WALL_T/2+0.035);
             [doorX-DOOR_W/2-0.06, doorX+DOOR_W/2+0.06].forEach(fx=>{
@@ -8813,10 +8826,123 @@
 
         // 联机远程玩家数据（提升至外层作用域，供 animate() 访问）
         var _partyOtherPlayers = {};
+        var _partyChannel = null;
+        var _mpRoomId = '';
+        var _mpPeerId = '';
+        var _mpMyId = '';
+        var _mpMyName = '';
+        var _mpConnected = false;
+        var _mpSendTimer = null;
+        var _mpCleanupTimer = null;
+        var _mpLastSent = null;
+        var _mpLastPacketAt = 0;
+        var _mpSequence = 0;
+        var _mpFrame = 0;
+        var _mpHeadTmp = new THREE.Vector3();
+        var _mpAvatarGeo = null;
+        var _campusExplore = null;
+        var _exploreFrame = 0;
+        var CAMPUS_CHECKPOINTS = [
+            {id:'gate',name:'学校正门',x:0,z:112},
+            {id:'track',name:'标准操场',x:0,z:77},
+            {id:'flag',name:'升旗台',x:24,z:46},
+            {id:'garden',name:'中央庭院',x:0,z:-17},
+            {id:'canteen',name:'校园食堂',x:104,z:-15}
+        ];
+
+        function _mpSafeRoomId(v) {
+            return String(v||'campus-main').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,64)||'campus-main';
+        }
+        function _mpRemovePlayer(key) {
+            var e=_partyOtherPlayers[key]; if(!e)return;
+            if(e.mesh)scene.remove(e.mesh);
+            if(e.label&&e.label.parentNode)e.label.parentNode.removeChild(e.label);
+            if(e.materials)e.materials.forEach(function(m){m.dispose();});
+            delete _partyOtherPlayers[key];
+        }
+        function _mpSetStatus(text,online) {
+            var el=document.getElementById('mp-status'); if(el)el.textContent=text;
+            var dot=document.getElementById('mp-dot'); if(dot)dot.style.background=online?'#4ade80':'#f59e0b';
+        }
+        function _mpAddLog(name,text,kind) {
+            var log=document.getElementById('mp-chat-log'); if(!log)return;
+            var line=document.createElement('div');
+            line.style.cssText='padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.07);word-break:break-word;';
+            var who=document.createElement('b');who.style.color=kind==='system'?'#facc15':'#7dd4ff';who.textContent=name+': ';
+            line.appendChild(who);line.appendChild(document.createTextNode(String(text||'').slice(0,120)));log.appendChild(line);
+            while(log.children.length>24)log.removeChild(log.firstChild);log.scrollTop=log.scrollHeight;
+        }
+        function _ensureMultiplayerUI() {
+            if(document.getElementById('mp-hud'))return;
+            var box=document.createElement('div');box.id='mp-hud';
+            box.style.cssText='position:fixed;right:18px;bottom:18px;z-index:520;width:280px;color:#e7f3ff;font:12px/1.5 "Microsoft YaHei",sans-serif;background:rgba(8,20,36,.82);border:1px solid rgba(90,180,255,.3);border-radius:12px;box-shadow:0 10px 32px rgba(0,0,0,.35);backdrop-filter:blur(8px);overflow:hidden;';
+            box.innerHTML='<div id="mp-head" style="padding:9px 11px;display:flex;align-items:center;gap:7px;cursor:pointer;background:rgba(55,110,165,.18)"><span id="mp-dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span><b id="mp-status" style="flex:1">联机连接中…</b><span>💬</span></div>'+
+              '<div id="mp-body" style="display:none"><div id="explore-progress" style="padding:7px 10px;color:#fde68a;border-bottom:1px solid rgba(255,255,255,.08)">🧭 校园探索 0/5 · 走近地标自动打卡</div><div id="mp-chat-log" style="height:116px;overflow:auto;padding:4px 6px;background:rgba(0,0,0,.16)"></div><div style="display:flex;gap:5px;padding:7px"><input id="mp-chat-input" maxlength="80" placeholder="对同一校园的同学说话…" style="min-width:0;flex:1;border:1px solid rgba(100,180,255,.3);border-radius:7px;background:rgba(0,0,0,.28);color:white;padding:6px"><button id="mp-send" style="border:0;border-radius:7px;background:#2563a8;color:white;padding:0 10px">发送</button></div><div style="display:flex;gap:5px;padding:0 7px 8px"><button data-emote="wave" style="flex:1">👋 招手</button><button data-emote="cheer" style="flex:1">🎉 欢呼</button><button data-emote="point" style="flex:1">👉 指路</button></div></div>';
+            document.body.appendChild(box);
+            var head=document.getElementById('mp-head'),body=document.getElementById('mp-body'),input=document.getElementById('mp-chat-input');
+            box.addEventListener('mousedown',function(e){e.stopPropagation();});
+            head.addEventListener('click',function(){body.style.display=body.style.display==='none'?'block':'none';if(body.style.display!=='none'&&document.pointerLockElement)document.exitPointerLock();});
+            function send(){var t=(input.value||'').trim();if(!t)return;input.value='';window.CampusMultiplayer&&window.CampusMultiplayer.sendChat(t);}
+            document.getElementById('mp-send').addEventListener('click',send);
+            input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send();}});
+            box.querySelectorAll('[data-emote]').forEach(function(b){b.style.cssText='border:1px solid rgba(100,180,255,.22);border-radius:7px;background:rgba(55,105,155,.22);color:#e7f3ff;padding:5px;cursor:pointer;';b.addEventListener('click',function(){window.CampusMultiplayer&&window.CampusMultiplayer.emote(b.getAttribute('data-emote'));});});
+            _updateExploreUI();
+        }
+
+        function _exploreToast(text) {
+            var old=document.getElementById('explore-toast');if(old)old.remove();
+            var el=document.createElement('div');el.id='explore-toast';el.textContent=text;
+            el.style.cssText='position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:800;padding:11px 18px;border-radius:10px;background:rgba(9,28,45,.9);border:1px solid rgba(250,204,21,.55);color:#fff3b0;font:bold 15px "Microsoft YaHei";box-shadow:0 8px 30px rgba(0,0,0,.35);transition:opacity .35s;pointer-events:none;';
+            document.body.appendChild(el);setTimeout(function(){el.style.opacity='0';setTimeout(function(){el.remove();},400);},2300);
+        }
+        function _updateExploreUI() {
+            if(!_campusExplore)return;
+            var el=document.getElementById('explore-progress'),n=_campusExplore.found.size;
+            if(el)el.textContent='🧭 校园探索 '+n+'/'+CAMPUS_CHECKPOINTS.length+(n===CAMPUS_CHECKPOINTS.length?' · 校园探索家已达成':' · 走近地标自动打卡');
+        }
+        function _initCampusExploration() {
+            if(_campusExplore||!scene)return;
+            var saved=[];try{saved=JSON.parse(localStorage.getItem('campus_explore_v1')||'[]')||[];}catch(e){}
+            var found=new Set(saved),geo=new THREE.TorusGeometry(1.1,.055,6,24),mat=new THREE.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:.72,depthWrite:false});
+            var markers=new THREE.InstancedMesh(geo,mat,CAMPUS_CHECKPOINTS.length),dummy=new THREE.Object3D();markers.frustumCulled=false;markers.renderOrder=2;
+            CAMPUS_CHECKPOINTS.forEach(function(cp,i){dummy.position.set(cp.x,.12,cp.z);dummy.rotation.x=-Math.PI/2;dummy.updateMatrix();markers.setMatrixAt(i,dummy.matrix);});
+            markers.instanceMatrix.needsUpdate=true;scene.add(markers);
+            _campusExplore={found:found,markers:markers,dummy:dummy,lastCheck:0};_updateExploreUI();
+            window.CampusExploration={progress:function(){return {found:Array.from(found),total:CAMPUS_CHECKPOINTS.length};},reset:function(){found.clear();localStorage.removeItem('campus_explore_v1');_updateExploreUI();}};
+        }
+        function _tickCampusExploration(now) {
+            if(!_campusExplore||!soldier)return;
+            _exploreFrame++;
+            if((_exploreFrame%12)===0){
+                var pulse=1+Math.sin(now*.003)*.08;
+                CAMPUS_CHECKPOINTS.forEach(function(cp,i){_campusExplore.dummy.position.set(cp.x,.12,cp.z);_campusExplore.dummy.rotation.x=-Math.PI/2;_campusExplore.dummy.scale.set(pulse,pulse,pulse);_campusExplore.dummy.updateMatrix();_campusExplore.markers.setMatrixAt(i,_campusExplore.dummy.matrix);});
+                _campusExplore.markers.instanceMatrix.needsUpdate=true;
+            }
+            if(now-_campusExplore.lastCheck<450)return;_campusExplore.lastCheck=now;
+            CAMPUS_CHECKPOINTS.forEach(function(cp){
+                if(_campusExplore.found.has(cp.id))return;
+                var dx=soldier.position.x-cp.x,dz=soldier.position.z-cp.z;
+                if(dx*dx+dz*dz<=16){
+                    _campusExplore.found.add(cp.id);localStorage.setItem('campus_explore_v1',JSON.stringify(Array.from(_campusExplore.found)));_updateExploreUI();
+                    var complete=_campusExplore.found.size===CAMPUS_CHECKPOINTS.length;
+                    _exploreToast((complete?'🏆 校园探索完成！':'📍 已打卡：')+cp.name);
+                    if(window.CampusMultiplayer)window.CampusMultiplayer.broadcastCheckpoint(cp.name);
+                }
+            });
+        }
 
         // 每帧驱动远程玩家的行走动画（外层作用域，animate() 可直接调用）
         function _tickRemotePlayers(dt) {
+            _mpFrame++;
             Object.values(_partyOtherPlayers).forEach(function(entry) {
+                if(entry.targetPos&&entry.mesh){
+                    var k=1-Math.exp(-Math.min(dt,0.05)*11);
+                    entry.mesh.position.lerp(entry.targetPos,k);
+                    var angleDelta=entry.targetRy-entry.mesh.rotation.y;
+                    var d=Math.atan2(Math.sin(angleDelta),Math.cos(angleDelta));
+                    entry.mesh.rotation.y+=d*k;
+                    entry._py=entry.mesh.position.y;
+                }
                 var ws = entry.ws || 0;
                 if (ws > 0.02) {
                     entry.walkPhase += dt * ws * 2.3;
@@ -8830,6 +8956,18 @@
                 if (entry.rArmPivot) entry.rArmPivot.rotation.x =  swing * 0.55;
                 if (entry.mesh && ws > 0.02) {
                     entry.mesh.position.y = entry._py + Math.abs(Math.sin(ph * 2)) * 0.045 * spd;
+                }
+                if(entry.emoteUntil>Date.now()&&entry.rArmPivot){
+                    if(entry.emote==='wave')entry.rArmPivot.rotation.z=-1.9+Math.sin(Date.now()*0.014)*0.35;
+                    if(entry.emote==='cheer'){entry.rArmPivot.rotation.z=-2.5;if(entry.lArmPivot)entry.lArmPivot.rotation.z=2.5;}
+                    if(entry.emote==='point')entry.rArmPivot.rotation.x=-1.45;
+                }else if(entry.rArmPivot){entry.rArmPivot.rotation.z=0;if(entry.lArmPivot)entry.lArmPivot.rotation.z=0;}
+                if((_mpFrame&1)===0&&entry.label&&entry.mesh&&camera&&renderer){
+                    _mpHeadTmp.copy(entry.mesh.position);_mpHeadTmp.y+=1.95;_mpHeadTmp.project(camera);
+                    var cw=renderer.domElement.clientWidth,ch=renderer.domElement.clientHeight;
+                    if(_mpHeadTmp.z<1&&_mpHeadTmp.z>-1&&Math.abs(_mpHeadTmp.x)<1.2&&Math.abs(_mpHeadTmp.y)<1.2){
+                        entry.label.style.display='block';entry.label.style.left=((_mpHeadTmp.x*.5+.5)*cw-entry.label.offsetWidth/2)+'px';entry.label.style.top=((-_mpHeadTmp.y*.5+.5)*ch-20)+'px';
+                    }else entry.label.style.display='none';
                 }
             });
         }
@@ -8896,90 +9034,140 @@
             }
 
             // ══════════════════════════════════════════
-            //  组队实时位置同步（Supabase Realtime Broadcast）
+            //  校园公共大厅：Presence 成员管理 + Broadcast 状态同步
             // ══════════════════════════════════════════
-            var _partyChannel = null;
             // _partyOtherPlayers 已提升至外层作用域（loadSoldier 上方）
 
             function _initPartySync() {
+                if (_partyChannel) return;
+                _ensureMultiplayerUI();
                 var partyGame = null;
                 try { partyGame = JSON.parse(localStorage.getItem('campus_party_game')||'null'); } catch(e) {}
-                if (!partyGame || !partyGame.partyId) return;
-                var partyId = partyGame.partyId;
-                var myId = (JSON.parse(localStorage.getItem('campus_user')||'{}')).userId || '';
-                if (!myId) return;
-                console.log('👥 组队同步启动 partyId:', partyId);
+                var query = new URLSearchParams(location.search);
+                var ud = {};
+                try { ud=JSON.parse(localStorage.getItem('campus_user')||'{}')||{}; } catch(e) {}
+                var localTest=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+                _mpMyId=localTest&&query.get('mp_test_user')?query.get('mp_test_user'):(ud.userId||ud.id||'');
+                if(!_mpMyId){
+                    _mpMyId=sessionStorage.getItem('campus_mp_guest')||('guest_'+Math.random().toString(36).slice(2,10));
+                    sessionStorage.setItem('campus_mp_guest',_mpMyId);
+                }
+                _mpMyName=localTest&&query.get('mp_test_name')?query.get('mp_test_name'):(ud.nickname||ud.name||('同学'+_mpMyId.slice(-4)));
+                _mpPeerId=sessionStorage.getItem('campus_mp_peer')||(_mpMyId+'_'+Math.random().toString(36).slice(2,8));
+                sessionStorage.setItem('campus_mp_peer',_mpPeerId);
+                var requestedRoom=(partyGame&&partyGame.partyId)||query.get('room')||localStorage.getItem('campus_multiplayer_room')||'campus-main';
+                _mpRoomId=_mpSafeRoomId(requestedRoom);
+                if(!partyGame||!partyGame.partyId)localStorage.setItem('campus_multiplayer_room',_mpRoomId);
+                console.log('👥 校园联机启动 room:',_mpRoomId,'peer:',_mpPeerId);
+
+                function onlinePeers(state){
+                    var peers={};
+                    Object.keys(state||{}).forEach(function(k){(state[k]||[]).forEach(function(p){if(p&&p.peerId)peers[p.peerId]=true;});});
+                    return peers;
+                }
+                function updatePresence(){
+                    if(!_partyChannel)return;
+                    var peers=onlinePeers(_partyChannel.presenceState());
+                    var count=Object.keys(peers).length||1;
+                    _mpSetStatus((_mpRoomId==='campus-main'?'校园大厅':'房间 '+_mpRoomId)+' · '+count+'人',true);
+                    Object.keys(_partyOtherPlayers).forEach(function(key){if(!peers[key])_mpRemovePlayer(key);});
+                }
+                function sendState(force){
+                    if(!_mpConnected||!_partyChannel||!soldier)return;
+                    var now=Date.now(),moving=Math.abs(walkSpeed||0)>.02||isJumping||isSliding;
+                    if(!force&&!moving&&now-_mpLastPacketAt<900)return;
+                    var x=soldier.position.x,y=soldier.position.y,z=soldier.position.z,ry=soldier.rotation.y;
+                    if(![x,y,z,ry].every(Number.isFinite))return;
+                    var state=isSliding?'slide':(isJumping?'jump':(isCrouching?'crouch':(isRunning?'run':(moving?'walk':'idle'))));
+                    _mpLastPacketAt=now;
+                    _partyChannel.send({type:'broadcast',event:'state',payload:{v:2,peerId:_mpPeerId,userId:_mpMyId,userName:_mpMyName,x:+x.toFixed(3),y:+y.toFixed(3),z:+z.toFixed(3),ry:+ry.toFixed(3),ws:+Math.min(1,Math.abs(walkSpeed||0)).toFixed(3),state:state,t:now,seq:++_mpSequence}});
+                }
+                function sendChat(text){
+                    text=String(text||'').trim().slice(0,80);if(!text)return false;
+                    _mpAddLog(_mpMyName,text);
+                    if(_mpConnected)_partyChannel.send({type:'broadcast',event:'chat',payload:{peerId:_mpPeerId,userName:_mpMyName,text:text,t:Date.now()}});
+                    return true;
+                }
+                function sendEmote(kind){
+                    if(['wave','cheer','point'].indexOf(kind)<0)return;
+                    _mpAddLog('系统','你做了'+({wave:'招手',cheer:'欢呼',point:'指路'}[kind]),'system');
+                    if(_mpConnected)_partyChannel.send({type:'broadcast',event:'emote',payload:{peerId:_mpPeerId,kind:kind,t:Date.now()}});
+                }
+                window.CampusMultiplayer={sendChat:sendChat,emote:sendEmote,roomId:function(){return _mpRoomId;},status:function(){return {connected:_mpConnected,roomId:_mpRoomId,peerId:_mpPeerId,remoteCount:Object.keys(_partyOtherPlayers).length};},broadcastCheckpoint:function(name){if(_mpConnected)_partyChannel.send({type:'broadcast',event:'checkpoint',payload:{peerId:_mpPeerId,userName:_mpMyName,name:String(name||'').slice(0,30),t:Date.now()}});}};
 
                 apiClient.getDB().then(function(db) {
-                    _partyChannel = db.channel('party_pos_' + partyId);
+                    _partyChannel = db.channel('campus_world_' + _mpRoomId,{config:{broadcast:{self:false,ack:false},presence:{key:_mpPeerId}}});
                     _partyChannel
-                        .on('broadcast', {event:'pos'}, function(evt) {
+                        .on('broadcast', {event:'state'}, function(evt) {
                             var p = evt.payload;
-                            if (!p || p.userId === myId) return;
+                            if (!p || p.peerId === _mpPeerId) return;
                             _updateOtherPlayer(p);
                         })
-                        .subscribe(function(s){ console.log('👥 频道:', s); });
-
-                    setInterval(function() {
-                        if (!soldier || !_partyChannel) return;
-                        var ud = JSON.parse(localStorage.getItem('campus_user')||'{}');
-                        _partyChannel.send({type:'broadcast', event:'pos', payload:{
-                            userId: myId,
-                            userName: ud.nickname || ud.name || '玩家',
-                            x: soldier.position.x,
-                            y: soldier.position.y,
-                            z: soldier.position.z,
-                            ry: soldier.rotation.y,
-                            ws: walkSpeed          // 行走速度，供对方动画使用
-                        }});
-                    }, 250);
-
-                    setInterval(function() {
-                        var now = Date.now();
-                        Object.keys(_partyOtherPlayers).forEach(function(uid) {
-                            var e = _partyOtherPlayers[uid];
-                            if (now - e.lastSeen > 6000) {
-                                if (e.mesh) scene.remove(e.mesh);
-                                if (e.label) e.label.remove();
-                                delete _partyOtherPlayers[uid];
+                        .on('broadcast',{event:'chat'},function(evt){var p=evt.payload||{};if(p.peerId!==_mpPeerId&&p.text)_mpAddLog(String(p.userName||'同学').slice(0,24),String(p.text).slice(0,80));})
+                        .on('broadcast',{event:'emote'},function(evt){var p=evt.payload||{},e=_partyOtherPlayers[p.peerId];if(e&&['wave','cheer','point'].indexOf(p.kind)>=0){e.emote=p.kind;e.emoteUntil=Date.now()+2600;}})
+                        .on('broadcast',{event:'checkpoint'},function(evt){var p=evt.payload||{};if(p.peerId!==_mpPeerId&&p.name)_mpAddLog('校园探索',(p.userName||'同学')+'完成了「'+p.name+'」打卡','system');})
+                        .on('broadcast',{event:'bye'},function(evt){var p=evt.payload||{};if(p.peerId)_mpRemovePlayer(p.peerId);})
+                        .on('presence',{event:'sync'},updatePresence)
+                        .on('presence',{event:'join'},updatePresence)
+                        .on('presence',{event:'leave'},updatePresence)
+                        .subscribe(function(s){
+                            console.log('👥 校园频道:',s);
+                            if(s==='SUBSCRIBED'){
+                                _mpConnected=true;
+                                _partyChannel.track({peerId:_mpPeerId,userId:_mpMyId,userName:_mpMyName,map:'campus-v99',joinedAt:Date.now()});
+                                clearInterval(_mpSendTimer);_mpSendTimer=setInterval(function(){sendState(false);},100);
+                                sendState(true);updatePresence();_mpAddLog('系统','已进入同一张校园地图，可以实时看到同学了。','system');
+                            }else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){
+                                _mpConnected=false;_mpSetStatus('联机重连中…',false);
                             }
                         });
+
+                    clearInterval(_mpCleanupTimer);_mpCleanupTimer=setInterval(function() {
+                        var now = Date.now();
+                        Object.keys(_partyOtherPlayers).forEach(function(key) {
+                            if (now-_partyOtherPlayers[key].lastSeen>12000)_mpRemovePlayer(key);
+                        });
                     }, 3000);
-                }).catch(function(e){ console.warn('组队同步失败:', e); });
+                    window.addEventListener('beforeunload',function(){if(_partyChannel){try{_partyChannel.send({type:'broadcast',event:'bye',payload:{peerId:_mpPeerId}});_partyChannel.untrack();}catch(e){}}},{once:true});
+                }).catch(function(e){ _mpSetStatus('联机暂不可用',false);console.warn('校园联机失败:', e); });
             }
 
             function _updateOtherPlayer(p) {
-                if (!scene) return;
-                var entry = _partyOtherPlayers[p.userId];
+                if (!scene||!p||!p.peerId||p.peerId===_mpPeerId) return;
+                var nums=[p.x,p.y,p.z,p.ry];if(!nums.every(Number.isFinite)||Math.abs(p.x)>400||p.y< -20||p.y>100||Math.abs(p.z)>400)return;
+                var entry = _partyOtherPlayers[p.peerId];
+                if(entry&&p.seq!=null&&entry.lastSeq!=null&&p.seq<=entry.lastSeq)return;
                 if (!entry) {
+                    if(Object.keys(_partyOtherPlayers).length>=24)return;
                     // ── 颜色（根据 userId 确定性哈希）──
                     var hue = 0;
-                    for (var ci=0; ci<(p.userId||'').length; ci++) hue = (hue*31 + p.userId.charCodeAt(ci)) & 0xffffff;
+                    for (var ci=0; ci<(p.userId||p.peerId).length; ci++) hue = (hue*31 + (p.userId||p.peerId).charCodeAt(ci)) & 0xffffff;
                     var color   = (hue & 0x7f7f7f) | 0x606060;
                     var skinCol = 0xffe0b2;
                     var matBody = new THREE.MeshLambertMaterial({color: color});
                     var matSkin = new THREE.MeshLambertMaterial({color: skinCol});
 
+                    if(!_mpAvatarGeo)_mpAvatarGeo={body:new THREE.CylinderGeometry(0.18,0.20,0.72,8),head:new THREE.SphereGeometry(0.19,8,6),leg:new THREE.CylinderGeometry(0.075,0.07,0.62,6),arm:new THREE.CylinderGeometry(0.055,0.05,0.54,6)};
+
                     var grp = new THREE.Group();
 
                     // ── 躯干 ──
-                    var bodyM = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.20, 0.72, 8), matBody);
-                    bodyM.position.y = 1.06; bodyM.castShadow = true; grp.add(bodyM);
+                    var bodyM = new THREE.Mesh(_mpAvatarGeo.body, matBody);
+                    bodyM.position.y = 1.06; grp.add(bodyM);
 
                     // ── 头 ──
-                    var headM = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), matSkin);
-                    headM.position.y = 1.62; headM.castShadow = true; grp.add(headM);
+                    var headM = new THREE.Mesh(_mpAvatarGeo.head, matSkin);
+                    headM.position.y = 1.62; grp.add(headM);
 
                     // ── 腿（用 pivot group 以髋部为旋转中心）──
                     function makeLegPivot(xOff) {
                         var pivot = new THREE.Group();
                         pivot.position.set(xOff, 0.72, 0);   // 髋部高度
                         var legM = new THREE.Mesh(
-                            new THREE.CylinderGeometry(0.075, 0.07, 0.62, 6),
-                            matBody.clone()
+                            _mpAvatarGeo.leg,
+                            matBody
                         );
                         legM.position.y = -0.31;              // 向下悬挂
-                        legM.castShadow = true;
                         pivot.add(legM);
                         grp.add(pivot);
                         return pivot;
@@ -8992,11 +9180,10 @@
                         var pivot = new THREE.Group();
                         pivot.position.set(xOff, 1.35, 0);   // 肩膀高度
                         var armM = new THREE.Mesh(
-                            new THREE.CylinderGeometry(0.055, 0.05, 0.54, 6),
-                            matBody.clone()
+                            _mpAvatarGeo.arm,
+                            matBody
                         );
                         armM.position.y = -0.27;
-                        armM.castShadow = true;
                         pivot.add(armM);
                         grp.add(pivot);
                         return pivot;
@@ -9010,33 +9197,20 @@
                     lbl.style.cssText = 'position:fixed;z-index:500;pointer-events:none;color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 3px #000;background:rgba(0,0,0,.55);padding:2px 7px;border-radius:6px;display:none;white-space:nowrap;';
                     lbl.textContent = p.userName || p.userId;
                     document.body.appendChild(lbl);
-                    entry = _partyOtherPlayers[p.userId] = {
+                    grp.position.set(p.x,p.y,p.z);grp.rotation.y=p.ry||0;
+                    entry = _partyOtherPlayers[p.peerId] = {
                         mesh: grp, label: lbl, lastSeen: Date.now(),
                         lLegPivot: lLegPivot, rLegPivot: rLegPivot,
                         lArmPivot: lArmPivot, rArmPivot: rArmPivot,
-                        walkPhase: 0, ws: 0, _py: p.y
+                        walkPhase: 0, ws: 0, _py: p.y,targetPos:new THREE.Vector3(p.x,p.y,p.z),targetRy:p.ry||0,lastSeq:null,emoteUntil:0,materials:[matBody,matSkin]
                     };
                 }
-                entry.mesh.position.set(p.x, p.y, p.z);
-                entry.mesh.rotation.y = p.ry || 0;
+                entry.targetPos.set(p.x,p.y,p.z);
+                entry.targetRy=p.ry||0;
                 entry.ws = p.ws || 0;
-                entry._py = p.y;
+                entry.state=p.state||'idle';
+                entry.lastSeq=p.seq==null?entry.lastSeq:p.seq;
                 entry.lastSeen = Date.now();
-
-                // 名牌投影
-                if (camera && renderer) {
-                    var hp = new THREE.Vector3(p.x, p.y + 1.95, p.z);
-                    hp.project(camera);
-                    var cw = renderer.domElement.clientWidth, ch = renderer.domElement.clientHeight;
-                    var sx = (hp.x * 0.5 + 0.5) * cw, sy = (-hp.y * 0.5 + 0.5) * ch;
-                    if (hp.z < 1 && hp.z > -1) {
-                        entry.label.style.display = 'block';
-                        entry.label.style.left = (sx - entry.label.offsetWidth/2) + 'px';
-                        entry.label.style.top = (sy - 20) + 'px';
-                    } else {
-                        entry.label.style.display = 'none';
-                    }
-                }
             }
 
             // _tickRemotePlayers 已提升至外层作用域（loadSoldier 上方）
@@ -9161,8 +9335,9 @@
 
                 console.log('✅ 士兵已初始化，位置:', soldier.position);
 
-                // 组队位置同步（有 party_game session 才启动）
+                // 校园公共大厅与探索玩法（无需预先组队）
                 setTimeout(_initPartySync, 1000);
+                _initCampusExploration();
             }
             
             // 优先加载玩家在主菜单装备的VRM模型（使用@pixiv/three-vrm以保证骨骼坐标系一致）
@@ -9465,8 +9640,8 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             // 与自适应画质保持一致，避免 resize 后把 DPR 又升回 1.5/2.0。
-            const pr = window._gfxTier === 'low' ? Math.min(0.78,window.devicePixelRatio||1) : (window._gfxTier === 'medium'
-                ? Math.min(1.0, window.devicePixelRatio || 1) : Math.min(1.35, window.devicePixelRatio || 1));
+            const pr = window._gfxTier === 'low' ? Math.min(0.70,window.devicePixelRatio||1) : (window._gfxTier === 'medium'
+                ? Math.min(0.90, window.devicePixelRatio || 1) : Math.min(1.25, window.devicePixelRatio || 1));
             renderer.setPixelRatio(pr);
             renderer.setSize(window.innerWidth, window.innerHeight);
             // 后处理合成器也要同步更新尺寸和 FXAA 分辨率
@@ -10727,16 +10902,16 @@
                     const avg = _fpsHistory.reduce((a,b)=>a+b,0) / _fpsHistory.length;
                     if (avg < 28 && window._gfxTier === 'high') {
                         window._gfxTier = 'medium';
-                        renderer.setPixelRatio(Math.min(1.0, window.devicePixelRatio||1));
+                        renderer.setPixelRatio(Math.min(0.90, window.devicePixelRatio||1));
                         if (_sunLight && _sunLight.shadow) {
                             _sunLight.shadow.mapSize.set(512,512);
                         }
                         if (_ppComposer && _ppComposer.setSize) _ppComposer.setSize(window.innerWidth,window.innerHeight);
                         _fpsHistory = [];
-                        console.log('⚡ 性能自动降级 high→medium（关闭后处理，DPR 1.0）');
-                    } else if (avg < 22 && window._gfxTier === 'medium') {
+                        console.log('⚡ 性能自动降级 high→medium（关闭后处理，DPR 0.90）');
+                    } else if (avg < 27 && window._gfxTier === 'medium') {
                         window._gfxTier = 'low';
-                        renderer.setPixelRatio(Math.min(0.78, window.devicePixelRatio||1));
+                        renderer.setPixelRatio(Math.min(0.70, window.devicePixelRatio||1));
                         renderer.shadowMap.enabled=false;
                         if (_sunLight) { _sunLight.castShadow = false; }
                         if (window._petalInst) window._petalInst.visible=false;
@@ -10880,7 +11055,8 @@
             if (mixer) mixer.update(deltaTime);
 
             // 更新VRM物理（弹簧骨骼等）
-            if (window._gameVrm) window._gameVrm.update(deltaTime);
+            if (window._gameVrm && (window._gfxTier==='high'||_visualFrame%2===0))
+                window._gameVrm.update(window._gfxTier==='high'?deltaTime:Math.min(0.066,deltaTime*2));
 
             // 移动士兵（先算walkSpeed，再驱动骨骼）
             moveSoldier(deltaTime);
@@ -10889,10 +11065,11 @@
             updateFPLimbs(deltaTime);
 
             // 更新VRM骨骼姿势（必须在moveSoldier后，才能读到当前帧walkSpeed）
-            if (_isVrm) _updateVrmPose();
+            if (_isVrm && (window._gfxTier==='high'||_visualFrame%2===0)) _updateVrmPose();
 
             // 驱动联机远程玩家行走动画
             _tickRemotePlayers(deltaTime);
+            _tickCampusExploration(performance.now());
 
             // 自适应阴影相机：跟踪玩家位置，保留时间系统设置的光源方向
             if (_sunLight && _sunLight.castShadow && soldier && window._gfxTier !== 'low') {
@@ -11614,7 +11791,8 @@
                 window._skyDome.material.uniforms.horizonColor.value.copy(bg);
             }
             const fogHex = new THREE.Color(wx.fogR, wx.fogG, wx.fogB).getHex();
-            if (wx.useExpFog) scene.fog = new THREE.FogExp2(fogHex, 0.098);
+            // 校园尺度约300m；旧密度0.098会让80m外建筑完全漂白，像未贴材质白模。
+            if (wx.useExpFog) scene.fog = new THREE.FogExp2(fogHex, 0.0075);
             else if (wx.fogFar > wx.fogNear + 1) scene.fog = new THREE.Fog(fogHex, wx.fogNear, wx.fogFar);
             else scene.fog = null;
             // 室内时隐藏降水粒子（雨雪不应在屋内落下）
@@ -11786,7 +11964,8 @@
             if (_fillLight) _fillLight.intensity = 0.02 + (1 - dayFactor) * 0.07;
             const nightEnough = sunH < -0.22;
             const sunDiskUp = _sunVisual && _sunVisual.visible;
-            const starsOk = sunH < -0.08 && !sunDiskUp;
+            const hour=(((gameTime%1)+1)%1)*24;
+            const starsOk = (hour<5.4||hour>19.3) && sunH < -0.08 && !sunDiskUp;
             if (_starsInst) {
                 _starsInst.visible = starsOk;
                 if (_starsInst.material) {
@@ -11826,18 +12005,10 @@
             }
             if (_cloudGroup) {
                 _cloudGroup.visible = dayFactor > 0.12;
-                // 每朵云子 Group 独立漂移（dtSec 为本帧真实秒数）
+                // 单批次云层整体缓慢漂移，避免几十个独立云Mesh draw call。
                 const _cdt = (typeof dtSec === 'number' && dtSec > 0 && dtSec < 2) ? dtSec : 0.016;
-                _cloudGroup.children.forEach(function(cg) {
-                    if (!cg.userData || !cg.userData.vx) return;
-                    cg.position.x += cg.userData.vx * _cdt;
-                    cg.position.z += cg.userData.vz * _cdt;
-                    // 超出范围后从另一侧循环出现
-                    if (cg.position.x > 160) cg.position.x = -160;
-                    if (cg.position.x < -160) cg.position.x = 160;
-                    if (cg.position.z > 60) cg.position.z = -145;
-                    if (cg.position.z < -145) cg.position.z = 60;
-                });
+                _cloudGroup.position.x += (_cloudGroup.userData.vx||0.55)*_cdt;
+                if(_cloudGroup.position.x>190)_cloudGroup.position.x=-190;
             }
             if (window._fantasyDome) {
                 window._fantasyDome.visible = dayFactor > 0.14;
@@ -11887,6 +12058,11 @@
                     _u.horizonColor.value.copy(_hc);
                 }
             } else if (weatherState === 'active' && weatherType !== 'clear') {
+                // 天穹可能晚于天气系统创建；非晴天也要持续同步，避免14点仍显示初始化夜空。
+                if(window._skyDome&&scene.background&&scene.background.isColor){
+                    window._skyDome.material.uniforms.topColor.value.copy(scene.background);
+                    window._skyDome.material.uniforms.horizonColor.value.copy(scene.background);
+                }
                 _skyLerpColor = null;
             }
             updateTimeHUD();

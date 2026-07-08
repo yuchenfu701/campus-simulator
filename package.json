@@ -1,6 +1,6 @@
 {
   "name": "aizhe-campus-simulator",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "爱哲安民未来学校校园模拟器",
   "main": "electron-main.js",
   "scripts": {
