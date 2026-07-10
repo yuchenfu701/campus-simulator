@@ -934,6 +934,7 @@
         const _tmpMovePosition=new THREE.Vector3();
         const _tmpWallTopPosition=new THREE.Vector3();
         const _tmpHorizontalRotation=new THREE.Euler();
+        const _tmpMoveFullRotation=new THREE.Euler(0,0,0,'YXZ');
         const _tmpSlidePosition=new THREE.Vector3();
         const _tmpCrouchScale=new THREE.Vector3();
         let _movementHudAccum=0;
@@ -974,6 +975,12 @@
         let targetWalkSpeed = 0;
         let isRunning = false;          // Ctrl 键切换奔跑/步行模式
         const RUN_SPEED_MULT = 1.85;    // 奔跑速度倍率（是步行的1.85倍）
+        let _thirdPersonSingularMode = false;
+        let _thirdPersonSingularRunTime = 0;
+        let _thirdPersonSingularPrev = null;
+        const THIRD_PERSON_SINGULAR_BASE_MULT = RUN_SPEED_MULT * 1.5; // 隐藏第三人称：起步即为奔跑速度的1.5倍
+        const THIRD_PERSON_SINGULAR_ACCEL_PER_SEC = 0.045;            // 连续移动越久越快
+        const THIRD_PERSON_SINGULAR_MAX_BOOST = 2.15;                 // 封顶，避免速度失控导致眩晕
         let _gameIdleT = 0; // 真实累计秒数，供多骨骼待机动画使用
         // 相机抖动（存储值，在 updateCamera 里应用）
         let _camBobY    = 0;
@@ -1157,7 +1164,7 @@
             consoleOutput.appendChild(output);
             
             // 处理命令
-            const args = command.split(' ');
+            const args = command.trim().split(/\s+/);
             const cmd = args.shift().toLowerCase();
             
             switch (cmd) {
@@ -1204,6 +1211,17 @@
                     break;
                 case 'fly':
                     toggleFlyMode();
+                    break;
+                case '3person':
+                    if (args[0] && args[0].toLowerCase() === 'singular') cmdThirdPersonSingular(args.slice(1));
+                    else {
+                        const errorOutput = document.createElement('div');
+                        errorOutput.textContent = '未知命令，输入 help 查看可用命令';
+                        consoleOutput.appendChild(errorOutput);
+                    }
+                    break;
+                case '3ps':
+                    cmdThirdPersonSingular(args);
                     break;
                 case 'doublejump':
                 case 'dj':
@@ -1539,6 +1557,7 @@
                 return;
             }
             
+            setThirdPersonSingularMode(false);
             isFirstPerson = args[0] === '1';
             updateSoldierVisibility();
             
@@ -1552,6 +1571,59 @@
             isNoclipMode = !isNoclipMode;
             const output = document.createElement('div');
             output.textContent = `穿墙模式: ${isNoclipMode ? '开启' : '关闭'}`;
+            consoleOutput.appendChild(output);
+        }
+
+        function setThirdPersonSingularMode(enabled, opts) {
+            opts = opts || {};
+            enabled = !!enabled;
+            if (enabled === _thirdPersonSingularMode) return;
+
+            if (enabled) {
+                _thirdPersonSingularPrev = {
+                    isFirstPerson: isFirstPerson,
+                    isFlying: isFlying,
+                    isNoclipMode: isNoclipMode,
+                    isRunning: isRunning
+                };
+                _thirdPersonSingularMode = true;
+                _thirdPersonSingularRunTime = 0;
+                isFirstPerson = false;
+                isFlying = true;
+                isNoclipMode = true;
+                isRunning = true;
+                isJumping = false;
+                isSliding = false;
+                verticalVelocity = 0;
+                slideCooldown = 0;
+                updateSoldierVisibility();
+                if (!opts.silent) showHint('第三人称飞行已开启');
+            } else {
+                const prev = _thirdPersonSingularPrev;
+                _thirdPersonSingularMode = false;
+                _thirdPersonSingularRunTime = 0;
+                _thirdPersonSingularPrev = null;
+                if (opts.restore !== false && prev) {
+                    isFirstPerson = prev.isFirstPerson;
+                    isFlying = prev.isFlying;
+                    isNoclipMode = prev.isNoclipMode;
+                    isRunning = prev.isRunning;
+                }
+                verticalVelocity = 0;
+                updateSoldierVisibility();
+            }
+        }
+
+        function cmdThirdPersonSingular(args) {
+            const a0 = args && args[0] ? String(args[0]).toLowerCase() : '';
+            const output = document.createElement('div');
+            if (a0 === 'off' || a0 === '0' || a0 === 'false' || a0 === 'close' || a0 === 'stop') {
+                setThirdPersonSingularMode(false);
+                output.textContent = '第三人称飞行已关闭';
+            } else {
+                setThirdPersonSingularMode(true);
+                output.textContent = '第三人称飞行已开启：WASD 按完整视角方向飞行，穿墙，速度会随连续移动时间提升';
+            }
             consoleOutput.appendChild(output);
         }
         
@@ -1809,28 +1881,29 @@
                 }
                 const cores = navigator.hardwareConcurrency || 4;
                 const mem   = navigator.deviceMemory || 8;
+                const dpr   = window.devicePixelRatio || 1;
                 if (tier !== 'low') {
                     if (mem <= 2 || cores <= 2) tier = 'low';
-                    // 校园场景规模较大：普通8核/8GB与1080p窗口默认中档，只有宽屏强机才进高档。
-                    else if (mem <= 4 || cores <= 8 || window.innerWidth < 1440 || isMobileUA) tier = 'medium';
+                    // 校园场景规模较大：默认偏保守，避免大窗口/高DPR一进场就掉到20FPS。
+                    else if (mem <= 6 || cores <= 10 || window.innerWidth < 1700 || dpr > 1.25 || isMobileUA) tier = 'medium';
                 }
             } catch (e) { tier = isMobileUA ? 'medium' : 'high'; }
             window._gfxTier = tier;
             if (tier === 'low') {
                 // 超低配：关阴影、最低分辨率、关抗锯齿效果
-                renderer.setPixelRatio(Math.min(0.70, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(Math.min(0.52, window.devicePixelRatio || 1));
                 renderer.shadowMap.enabled = false;
                 if (sunDirLight) { sunDirLight.castShadow = false; }
             } else if (tier === 'medium') {
                 // 手机/中配：降分辨率 + 小阴影贴图
-                renderer.setPixelRatio(Math.min(0.90, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(Math.min(0.74, window.devicePixelRatio || 1));
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.shadow.mapSize.width  = 512;
                     sunDirLight.shadow.mapSize.height = 512;
                 }
             } else {
-                // 高档也限制到 1.35 DPR；校园大场景在 2x DPR 下像素量会直接翻四倍。
-                renderer.setPixelRatio(Math.min(1.25, window.devicePixelRatio || 1));
+                // 高档也限制到 1.0 DPR；校园大场景瓶颈通常先来自像素填充率。
+                renderer.setPixelRatio(Math.min(1.0, window.devicePixelRatio || 1));
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.shadow.mapSize.width  = 1024;
                     sunDirLight.shadow.mapSize.height = 1024;
@@ -1886,13 +1959,13 @@
             
             // 创建渲染器
             renderer = new THREE.WebGLRenderer({ 
-                antialias: true,
+                antialias: false,
                 alpha: true,
                 stencil: false,
                 powerPreference: "high-performance"
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+            renderer.setPixelRatio(Math.min(1, window.devicePixelRatio || 1));
             // 天空：CSS渐变背景（body），渲染器设为完全透明，消除靶环穹顶问题
             renderer.setClearColor(0x000000, 0);
             // 整体色调：柔和 sRGB + ACES 电影感（降低刺眼高对比）
@@ -2181,7 +2254,7 @@
                     _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     _loadAndInstanceLamps();  // 路灯用GLB精模实例化
-                    _loadAndInstanceToilets();// 厕所洁具用GLB精模实例化
+                    _loadAndInstanceToilets();// 厕所洁具用稳定程序化模型生成
                 } else {
                     // ── 缓存未命中：完整生成，合并后保存到IndexedDB ──
                     // 手机端强制低画质（跳过装饰物），大幅减少几何体生成时间
@@ -2208,7 +2281,7 @@
                         _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     _loadAndInstanceLamps();  // 路灯用GLB精模实例化
-                    _loadAndInstanceToilets();// 厕所洁具用GLB精模实例化
+                    _loadAndInstanceToilets();// 厕所洁具用稳定程序化模型生成
                     } else {
                         _setLoadHint('合并几何体（首次约3秒，之后直接读缓存）…');
                         // 使用 setTimeout 让提示文字先渲染再执行耗时合并
@@ -2223,7 +2296,7 @@
                             _loadAndInstanceTrees();  // 绿树用GLB模型实例化
                     _loadAndInstanceBenches();// 长椅用GLB精模实例化
                     _loadAndInstanceLamps();  // 路灯用GLB精模实例化
-                    _loadAndInstanceToilets();// 厕所洁具用GLB精模实例化
+                    _loadAndInstanceToilets();// 厕所洁具用稳定程序化模型生成
                             // 保存合并结果+碰撞盒到IndexedDB
                             const cacheData = {
                                 meshData:   _serializeMerged(mergedMeshes),
@@ -2394,7 +2467,7 @@
                     keyboard.lPressed = true;
                     doubleJumpEnabled = !doubleJumpEnabled;
                     maxJumps = doubleJumpEnabled ? 2 : 1;
-                    
+
                     // 显示二段跳模式状态
                     console.log("二段跳模式: " + (doubleJumpEnabled ? "开启" : "关闭"));
                     
@@ -2411,6 +2484,11 @@
                 // 按P键切换飞行模式
                 if (e.key.toLowerCase() === 'p' && !keyboard.pPressed) {
                     keyboard.pPressed = true;
+                    if (_thirdPersonSingularMode) {
+                        setThirdPersonSingularMode(false);
+                        showHint('已退出第三人称飞行');
+                        return;
+                    }
                     isFlying = !isFlying;
                     isRunning = false; // 切换飞行时重置奔跑，避免空中"奔跑加速"
 
@@ -3612,7 +3690,7 @@
             });
         }
 
-        // ── 厕所洁具(Meshy精模)实例化：小便池/蹲便隔间/洗手台 ──
+        // ── 厕所洁具：程序化小便池/蹲便/洗手台（尺寸稳定，避免GLB原点/单位导致比例怪）──
         function _loadFixture(loader, url, pts, yawOff, matOverride) {
             if (!pts.length || typeof THREE.GLTFLoader === 'undefined') return;
             loader.load(url, function (gltf) {
@@ -3664,8 +3742,6 @@
         }
         function _loadAndInstanceToilets() {
             if (window._toiletsInstanced) return; window._toiletsInstanced = true;
-            if (typeof THREE.GLTFLoader === 'undefined') return;
-            const loader = new THREE.GLTFLoader();
             // v93真实比例：服务核coreW=32m，扣除6.4m楼梯井后，男女厕各约12.8×9m。
             // 平面严格按用户图：北墙洗手池+镜子；男厕中排7个小便池、南排5蹲位；女厕两排各5蹲位；门在右侧。
             const stX1 = -42.6, cMid = -29.8, xRW = -17.0, FL = 5, FH = 4, WT = 0.25, HW = Math.PI / 2;
@@ -3728,15 +3804,82 @@
                 }
             }
             function addUrinalRow(x0,x1,z,yB){
-                const ceramic=new THREE.MeshStandardMaterial({color:0xf7f7f4,roughness:0.24,metalness:0.0});
-                const metal=new THREE.MeshStandardMaterial({color:0x9aa3a8,roughness:0.2,metalness:0.72});
+                const ceramic=new THREE.MeshStandardMaterial({color:0xf4f6f5,roughness:0.34,metalness:0.0});
+                const insetMat=new THREE.MeshStandardMaterial({color:0xe4ecec,roughness:0.46,metalness:0.0});
+                const metal=new THREE.MeshStandardMaterial({color:0x9aa3a8,roughness:0.22,metalness:0.68});
+                const dividerMat=new THREE.MeshStandardMaterial({color:0xcfd9df,roughness:0.62,metalness:0.0});
                 for(let i=0;i<7;i++){
                     const x=x0+(x1-x0)*(i+0.5)/7;
-                    const back=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.66,0.13),ceramic); back.position.set(x,yB+0.82,z); back._noMerge=true; tGroup.add(back);
-                    const bowl=new THREE.Mesh(new THREE.SphereGeometry(0.25,12,8,0,Math.PI*2,0,Math.PI*0.62),ceramic);
-                    bowl.scale.set(0.92,1.0,0.72); bowl.rotation.x=Math.PI*0.08; bowl.position.set(x,yB+0.58,z+0.17); bowl._noMerge=true; tGroup.add(bowl);
-                    const flush=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.22,8),metal); flush.position.set(x,yB+1.22,z+0.01); flush._noMerge=true; tGroup.add(flush);
+                    const back=new THREE.Mesh(new THREE.BoxGeometry(0.48,0.92,0.10),ceramic);
+                    back.position.set(x,yB+0.86,z+0.02); back._noMerge=true; back.castShadow=back.receiveShadow=true; tGroup.add(back);
+                    const lip=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.08,0.24),ceramic);
+                    lip.position.set(x,yB+0.47,z+0.16); lip._noMerge=true; lip.castShadow=lip.receiveShadow=true; tGroup.add(lip);
+                    const recess=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.34,0.045),insetMat);
+                    recess.position.set(x,yB+0.66,z+0.215); recess._noMerge=true; tGroup.add(recess);
+                    const drain=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.012,10),metal);
+                    drain.rotation.x=Math.PI/2; drain.position.set(x,yB+0.50,z+0.29); drain._noMerge=true; tGroup.add(drain);
+                    const flush=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.08,0.035),metal);
+                    flush.position.set(x,yB+1.30,z+0.075); flush._noMerge=true; tGroup.add(flush);
+                    if(i>0){
+                        const div=new THREE.Mesh(new THREE.BoxGeometry(0.045,1.18,0.82),dividerMat);
+                        div.position.set(x-(x1-x0)/7/2,yB+0.94,z+0.30); div._noMerge=true; div.castShadow=div.receiveShadow=true; tGroup.add(div);
+                    }
                 }
+            }
+
+            function addSquatFixtures(items){
+                if(!items.length) return;
+                const ceramic=new THREE.MeshStandardMaterial({color:0xf5f4ef,roughness:0.36,metalness:0});
+                const holeMat=new THREE.MeshBasicMaterial({color:0x31363a,side:THREE.DoubleSide});
+                const footMat=new THREE.MeshStandardMaterial({color:0xe0ded7,roughness:0.55,metalness:0});
+                const flushMat=new THREE.MeshStandardMaterial({color:0x9aa3a8,roughness:0.24,metalness:0.55});
+                const panGeo=new THREE.BoxGeometry(0.58,0.10,0.76);
+                const footGeo=new THREE.BoxGeometry(0.12,0.045,0.46);
+                const holeGeo=new THREE.CircleGeometry(0.16,18);
+                const pipeGeo=new THREE.CylinderGeometry(0.018,0.018,0.36,8);
+                const panInst=new THREE.InstancedMesh(panGeo,ceramic,items.length);
+                const holeInst=new THREE.InstancedMesh(holeGeo,holeMat,items.length);
+                const footInst=new THREE.InstancedMesh(footGeo,footMat,items.length*2);
+                const pipeInst=new THREE.InstancedMesh(pipeGeo,flushMat,items.length);
+                [panInst,holeInst,footInst,pipeInst].forEach(function(m){m._noMerge=true;m.castShadow=m.receiveShadow=true;scene.add(m);});
+                const base=new THREE.Object3D(), loc=new THREE.Object3D(), M=new THREE.Matrix4();
+                function setAt(inst,idx,p,local){
+                    base.position.set(p.x,p.y,p.z); base.rotation.set(0,p.ry||0,0); base.scale.set(1,1,1); base.updateMatrix();
+                    loc.position.set(local.x||0,local.y||0,local.z||0); loc.rotation.set(local.rx||0,local.ry||0,local.rz||0); loc.scale.set(local.sx||1,local.sy||1,local.sz||1); loc.updateMatrix();
+                    M.multiplyMatrices(base.matrix,loc.matrix); inst.setMatrixAt(idx,M);
+                }
+                items.forEach(function(p,i){
+                    setAt(panInst,i,p,{y:0.08});
+                    setAt(holeInst,i,p,{y:0.137,z:0.03,rx:-Math.PI/2,sx:0.82,sy:1.45});
+                    setAt(footInst,i*2,p,{x:-0.27,y:0.15,z:0.03});
+                    setAt(footInst,i*2+1,p,{x:0.27,y:0.15,z:0.03});
+                    setAt(pipeInst,i,p,{y:0.28,z:-0.36,rx:Math.PI/2});
+                });
+                [panInst,holeInst,footInst,pipeInst].forEach(function(m){m.instanceMatrix.needsUpdate=true;});
+            }
+
+            function addSinkRows(rows){
+                if(!rows.length) return;
+                const counterMat=new THREE.MeshStandardMaterial({color:0xe7ecef,roughness:0.45,metalness:0});
+                const basinMat=new THREE.MeshStandardMaterial({color:0xf8f8f4,roughness:0.25,metalness:0});
+                const metalMat=new THREE.MeshStandardMaterial({color:0x8e9aa3,roughness:0.20,metalness:0.72});
+                rows.forEach(function(p){
+                    const w=p.tw||5.8, z=p.z, yB=p.y||0, x=p.x;
+                    const top=new THREE.Mesh(new THREE.BoxGeometry(w,0.16,0.58),counterMat);
+                    top.position.set(x,yB+0.82,z); top._noMerge=true; top.castShadow=top.receiveShadow=true; tGroup.add(top);
+                    const apron=new THREE.Mesh(new THREE.BoxGeometry(w,0.34,0.16),counterMat);
+                    apron.position.set(x,yB+0.60,z+0.25); apron._noMerge=true; apron.castShadow=apron.receiveShadow=true; tGroup.add(apron);
+                    const n=Math.max(3,Math.round(w/1.45));
+                    for(let i=0;i<n;i++){
+                        const bx=x-w/2+(i+0.5)*w/n;
+                        const basin=new THREE.Mesh(new THREE.BoxGeometry(0.56,0.055,0.36),basinMat);
+                        basin.position.set(bx,yB+0.925,z+0.02); basin._noMerge=true; basin.castShadow=basin.receiveShadow=true; tGroup.add(basin);
+                        const drain=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.012,10),metalMat);
+                        drain.rotation.x=Math.PI/2; drain.position.set(bx,yB+0.958,z+0.02); drain._noMerge=true; tGroup.add(drain);
+                        const faucet=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.18,0.055),metalMat);
+                        faucet.position.set(bx,yB+1.05,z-0.18); faucet._noMerge=true; tGroup.add(faucet);
+                    }
+                });
             }
 
             buildings.forEach(function(B){
@@ -3767,8 +3910,8 @@
             });
             if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry||0, 0); d.scale.set((p.len||DCUB)/DCUB, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (doors.length) { const dg = new THREE.BoxGeometry(0.05, 1.7, 1.0); const im = new THREE.InstancedMesh(dg, doorMat, doors.length); im._noMerge = true; im.castShadow = true; const d = new THREE.Object3D(); doors.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry, 0); d.scale.set(1, 1, p.len); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
-            _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
-            _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
+            addSquatFixtures(squat);
+            addSinkRows(sink);
         }
 
         // 操场/跑道为 PlaneGeometry，不参与 mergeStaticMeshes；IndexedDB 缓存加载时 createCampus 会 skip，必须补建否则只剩一片纯色草地
@@ -6801,7 +6944,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v99'; // v99：公共大厅联机、Presence成员管理、平滑角色同步、聊天动作与校园探索；继续削减灯光/网格开销
+        const MAP_VER = 'campus_v102'; // v102：厕所洁具改为稳定程序化模型，修正小便池/蹲位/洗手台比例；保留隐藏飞行与低画质优化
 
         function _dbOpen(cb) {
             try {
@@ -6972,7 +7115,12 @@
             // 色彩管理修正：所有颜色贴图按 sRGB 解码（原来被当线性→暗部洗白、整体发灰发平）。法线/凹凸贴图保持线性不动。
             (function () { var s = THREE.sRGBEncoding; if (s === undefined) return; scene.traverse(function (o) { if (!o.isMesh || !o.material) return; var ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(function (m) { if (m.map && m.map.encoding !== s) { m.map.encoding = s; m.map.needsUpdate = true; m.needsUpdate = true; } }); }); })();
             const tier   = window._gfxTier || 'high';
-            const isLow  = (tier === 'low');   // 软件渲染：不用IBL，PBR也最省
+            const isLow  = (tier === 'low');
+            if (isLow) {
+                window._pbrMats = [];
+                console.log('⚡ 低画质：保留轻量 Lambert/Phong 材质，跳过全场 PBR 升级');
+                return;
+            }
             const useEnv = !isLow && !!scene.environment; // 有环境贴图才开IBL
             const matMap = new Map();           // Lambert uuid → Standard 实例（去重）
             const pbrMats = window._pbrMats || (window._pbrMats = []); // 供渲染循环按昼夜调 envMapIntensity
@@ -7925,8 +8073,7 @@
                   toiletWallWithDoor(stX1,cMid,mDoor,'男卫生间');
                   toiletWallWithDoor(cMid,xRW,wDoor,'女卫生间');
                 }
-                // 蹲位隔间+瓷砖+洁具改由 _loadAndInstanceToilets 在合并后实例化(每次加载重建,不入缓存),此处不再放隔板
-                // 厕所洁具改用 Meshy 精模 GLB 实例化(_loadAndInstanceToilets)，此处不再放白盒子
+                // 蹲位隔间+瓷砖+程序化洁具改由 _loadAndInstanceToilets 在合并后生成(每次加载重建,不入缓存),此处不再放白盒子
                 // 走廊踢脚线 + 墙裙(下半墙柔和蓝灰,2-tone) + 上沿压条 —— 干净的"精致"
                 [zRoomSN, zCorrN].forEach(function(zw){
                     F((xRW+xRE)/2, yB+0.12, zw, xRE-xRW, 0.24, WT+0.06, 0x5e5044); // 踢脚线(深)
@@ -9640,8 +9787,8 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             // 与自适应画质保持一致，避免 resize 后把 DPR 又升回 1.5/2.0。
-            const pr = window._gfxTier === 'low' ? Math.min(0.70,window.devicePixelRatio||1) : (window._gfxTier === 'medium'
-                ? Math.min(0.90, window.devicePixelRatio || 1) : Math.min(1.25, window.devicePixelRatio || 1));
+            const pr = window._gfxTier === 'low' ? Math.min(0.52,window.devicePixelRatio||1) : (window._gfxTier === 'medium'
+                ? Math.min(0.74, window.devicePixelRatio || 1) : Math.min(1.0, window.devicePixelRatio || 1));
             renderer.setPixelRatio(pr);
             renderer.setSize(window.innerWidth, window.innerHeight);
             // 后处理合成器也要同步更新尺寸和 FXAA 分辨率
@@ -9659,7 +9806,7 @@
         // 检测碰撞
         function checkCollision(position) {
             // 如果在穿墙模式下，直接返回false（没有碰撞）
-            if (isNoclipMode) {
+            if (isNoclipMode || _thirdPersonSingularMode) {
                 return false;
             }
             
@@ -9809,13 +9956,14 @@
             const pitchDelta = Math.max(-0.12, Math.min(0.12, movementY * MOUSE_SENSITIVITY));
             cameraHorizontalAngle -= yawDelta;
 
-            // 在第一人称视角下才更新垂直角度
-            if (isFirstPerson) {
+            // 第一人称与隐藏第三人称飞行都允许上下看；普通第三人称保留原来的水平环绕手感。
+            if (isFirstPerson || _thirdPersonSingularMode) {
                 // 更新垂直角度（上下旋转），将符号取反使其符合直觉
                 cameraVerticalAngle -= pitchDelta;
                 
                 // 限制垂直视角范围，防止过度旋转
-                cameraVerticalAngle = Math.max(-Math.PI * 0.42, Math.min(Math.PI * 0.42, cameraVerticalAngle));
+                const pitchLimit = _thirdPersonSingularMode ? Math.PI * 0.49 : Math.PI * 0.42;
+                cameraVerticalAngle = Math.max(-pitchLimit, Math.min(pitchLimit, cameraVerticalAngle));
             }
             
             // 更新相机旋转 - 直接更新相机旋转，而不是等待下一帧
@@ -9847,6 +9995,21 @@
 
                 // 确保相机旋转是最新的（含侧倾 roll）
                 updateCameraRotation();
+            } else if (_thirdPersonSingularMode) {
+                const forward = _tmpCameraOffset.set(0,0,-1);
+                forward.applyEuler(_tmpCameraEuler.set(cameraVerticalAngle,cameraHorizontalAngle,0,'YXZ'));
+                const lookAtTarget = _tmpCameraLookAt.set(
+                    soldier.position.x,
+                    soldier.position.y + 1.05,
+                    soldier.position.z
+                ).addScaledVector(forward, 1.25);
+                const targetPosition = _tmpCameraTarget.set(
+                    soldier.position.x,
+                    soldier.position.y + 1.15,
+                    soldier.position.z
+                ).addScaledVector(forward, -THIRD_PERSON_DISTANCE * 1.35);
+                camera.position.lerp(targetPosition, 0.34);
+                camera.lookAt(lookAtTarget);
             } else {
                 // 第三人称视角 - 优化的跟随逻辑
                 // 计算相机应该在的理想位置（角色后方）
@@ -9884,6 +10047,11 @@
             
             // 如果在飞行模式下，处理飞行控制
             if (isFlying) {
+                if (_thirdPersonSingularMode) {
+                    verticalVelocity = 0;
+                    isJumping = false;
+                    return;
+                }
                 // 按空格键向上飞行
                 if (keyboard[' ']) {
                     verticalVelocity = FLY_SPEED * playerMoveSpeedMul;
@@ -10377,6 +10545,10 @@
             // 检查是否在移动
             const wasWalking = isWalking;
             isWalking = moveDirection.length() > 0;
+            if (_thirdPersonSingularMode) {
+                if (isWalking) _thirdPersonSingularRunTime += deltaTime;
+                else _thirdPersonSingularRunTime = Math.max(0, _thirdPersonSingularRunTime - deltaTime * 2.5);
+            }
             
             // 如果有移动输入
             if (isWalking) {
@@ -10385,16 +10557,22 @@
                 
                 const adjustedDirection = _tmpMoveAdjusted.set(0,0,0);
                 
-                // 创建代表相机朝向的向量，但忽略垂直分量
+                // 创建代表相机朝向的向量；隐藏第三人称飞行使用完整俯仰，其它模式只用水平分量。
                 const forward = _tmpMoveForward.set(0,0,-1);
                 const right = _tmpMoveRight.set(1,0,0);
                 
-                // 创建一个只包含Y轴旋转的欧拉角
-                const horizontalRotation = _tmpHorizontalRotation.set(0,cameraHorizontalAngle,0);
-                
-                // 应用水平旋转到方向向量
-                forward.applyEuler(horizontalRotation);
-                right.applyEuler(horizontalRotation);
+                if (_thirdPersonSingularMode) {
+                    const fullRotation = _tmpMoveFullRotation.set(cameraVerticalAngle,cameraHorizontalAngle,0,'YXZ');
+                    forward.applyEuler(fullRotation);
+                    right.applyEuler(fullRotation);
+                } else {
+                    // 创建一个只包含Y轴旋转的欧拉角
+                    const horizontalRotation = _tmpHorizontalRotation.set(0,cameraHorizontalAngle,0);
+
+                    // 应用水平旋转到方向向量
+                    forward.applyEuler(horizontalRotation);
+                    right.applyEuler(horizontalRotation);
+                }
                 
                 // 计算移动方向
                 adjustedDirection.addScaledVector(forward, -moveDirection.z);
@@ -10407,7 +10585,10 @@
                     
                     // 计算移动速度（下蹲减速；奔跑加速；二者不叠加）
                     let currentSpeed = SOLDIER_SPEED * playerMoveSpeedMul;
-                    if (isCrouching) {
+                    if (_thirdPersonSingularMode) {
+                        const boost = Math.min(THIRD_PERSON_SINGULAR_MAX_BOOST, 1 + _thirdPersonSingularRunTime * THIRD_PERSON_SINGULAR_ACCEL_PER_SEC);
+                        currentSpeed *= THIRD_PERSON_SINGULAR_BASE_MULT * boost;
+                    } else if (isCrouching) {
                         currentSpeed *= CROUCH_SPEED_MODIFIER;
                     } else if (isRunning && !isJumping) {
                         currentSpeed *= RUN_SPEED_MULT;
@@ -10421,11 +10602,11 @@
                     const newPosition = _tmpMovePosition.copy(soldier.position);
                     newPosition.x += adjustedDirection.x * moveStep;
                     newPosition.z += adjustedDirection.z * moveStep;
-                    // 保持垂直位置不变（由handleJump处理）
-                    newPosition.y = soldier.position.y;
+                    if (_thirdPersonSingularMode) newPosition.y += adjustedDirection.y * moveStep;
+                    else newPosition.y = soldier.position.y; // 保持垂直位置不变（由handleJump处理）
                     
                     // 在飞行模式或穿墙模式下跳过碰撞检测
-                    let shouldMove = isFlying || isNoclipMode || !checkCollision(newPosition);
+                    let shouldMove = _thirdPersonSingularMode || isFlying || isNoclipMode || !checkCollision(newPosition);
                     
                     // 如果被阻挡，尝试在墙顶上滑动移动
                     if (!shouldMove && !isFlying && !isNoclipMode) {
@@ -10516,7 +10697,7 @@
                     soldier.rotation.x = 0; // 挺直站立
                     soldier.rotation.z = 0; // 不倾斜
                     // 确保在地面上
-                    if (soldier.position.y < GROUND_LEVEL) {
+                    if (!isFlying && !isNoclipMode && !_thirdPersonSingularMode && soldier.position.y < GROUND_LEVEL) {
                         soldier.position.y = GROUND_LEVEL;
                     }
                 }
@@ -10895,23 +11076,23 @@
                 frameCount = 0;
                 lastFpsUpdate = time;
 
-                // 自动降画质：连续3秒 FPS＜28 则降一档
+                // 自动降画质：校园大场景优先流畅，低于可玩帧率就更快降档。
                 _fpsHistory.push(fps);
-                if (_fpsHistory.length > 4) _fpsHistory.shift();
-                if (_fpsHistory.length >= 3) {
+                if (_fpsHistory.length > 3) _fpsHistory.shift();
+                if (_fpsHistory.length >= 2) {
                     const avg = _fpsHistory.reduce((a,b)=>a+b,0) / _fpsHistory.length;
-                    if (avg < 28 && window._gfxTier === 'high') {
+                    if (avg < 36 && window._gfxTier === 'high') {
                         window._gfxTier = 'medium';
-                        renderer.setPixelRatio(Math.min(0.90, window.devicePixelRatio||1));
+                        renderer.setPixelRatio(Math.min(0.74, window.devicePixelRatio||1));
                         if (_sunLight && _sunLight.shadow) {
                             _sunLight.shadow.mapSize.set(512,512);
                         }
                         if (_ppComposer && _ppComposer.setSize) _ppComposer.setSize(window.innerWidth,window.innerHeight);
                         _fpsHistory = [];
-                        console.log('⚡ 性能自动降级 high→medium（关闭后处理，DPR 0.90）');
-                    } else if (avg < 27 && window._gfxTier === 'medium') {
+                        console.log('⚡ 性能自动降级 high→medium（DPR 0.74）');
+                    } else if (avg < 31 && window._gfxTier === 'medium') {
                         window._gfxTier = 'low';
-                        renderer.setPixelRatio(Math.min(0.70, window.devicePixelRatio||1));
+                        renderer.setPixelRatio(Math.min(0.52, window.devicePixelRatio||1));
                         renderer.shadowMap.enabled=false;
                         if (_sunLight) { _sunLight.castShadow = false; }
                         if (window._petalInst) window._petalInst.visible=false;
@@ -13443,6 +13624,7 @@
 
         // 切换视角
         function toggleView() {
+            setThirdPersonSingularMode(false);
             isFirstPerson = !isFirstPerson;
             updateSoldierVisibility();
             
@@ -13583,6 +13765,7 @@
             moveDirection.set(0, 0, 0);
             isSliding = false;
             isJumping = false;
+            setThirdPersonSingularMode(false, { restore: false, silent: true });
             isFlying = false;
             isCrouching = false;
             crouchTransition = 0;
@@ -13677,6 +13860,13 @@
         
         // 新增：切换飞行模式
         function toggleFlyMode() {
+            if (_thirdPersonSingularMode) {
+                setThirdPersonSingularMode(false);
+                const output = document.createElement('div');
+                output.textContent = '已退出第三人称飞行';
+                consoleOutput.appendChild(output);
+                return;
+            }
             isFlying = !isFlying;
             if (!isFlying) {
                 verticalVelocity = -5;
