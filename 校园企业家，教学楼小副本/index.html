@@ -1869,6 +1869,41 @@
 
         // WebGL 阴影在 GPU 上计算；按硬件自适应像素比与阴影分辨率（集显/软渲染降级）
         window._gfxTier = 'high';
+        window._gpuRendererName = '';
+        window._gpuIsDiscrete = false;
+        let _gfxLastTierChange = 0;
+        let _gfxStartupGraceUntil = 0;
+        function _isDiscreteGpuName(name) {
+            return /NVIDIA|GeForce|RTX|GTX|Quadro|AMD|Radeon|\bRX\b|Intel\(R\) Arc|Intel Arc|Apple M/i.test(name || '');
+        }
+        function _tierPixelRatioCap(tier) {
+            const dpr = window.devicePixelRatio || 1;
+            const native = Math.max(1, dpr);
+            const dgpu = !!window._gpuIsDiscrete;
+            if (tier === 'low') return Math.min(dgpu ? 0.95 : 0.82, native);
+            if (tier === 'medium') return Math.min(dgpu ? 1.15 : 1.00, native);
+            return Math.min(dgpu ? 1.35 : 1.12, Math.max(native, dgpu ? 1.20 : 1.05));
+        }
+        function _applyGfxTier(tier, reason) {
+            if (!renderer) return;
+            window._gfxTier = tier;
+            renderer.setPixelRatio(_tierPixelRatioCap(tier));
+            if (tier === 'low') {
+                renderer.shadowMap.enabled = false;
+                if (_sunLight) _sunLight.castShadow = false;
+                if (window._petalInst) window._petalInst.visible = false;
+                if (window._birdInst) window._birdInst.visible = false;
+            } else {
+                renderer.shadowMap.enabled = true;
+                if (_sunLight) {
+                    _sunLight.castShadow = true;
+                    if (_sunLight.shadow) _sunLight.shadow.mapSize.set(tier === 'high' ? 1024 : 512, tier === 'high' ? 1024 : 512);
+                }
+            }
+            if (_ppComposer && _ppComposer.setSize) _ppComposer.setSize(window.innerWidth, window.innerHeight);
+            _gfxLastTierChange = performance.now();
+            if (reason) console.log('⚙️ 画质档:', tier, 'DPR:', renderer.getPixelRatio().toFixed(2), '|', reason);
+        }
         function applyAdaptiveGpuQuality(renderer, sunDirLight) {
             let tier = 'high';
             const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -1877,6 +1912,8 @@
                 const dbg = gl.getExtension('WEBGL_debug_renderer_info');
                 if (dbg) {
                     const ren = (gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') + '';
+                    window._gpuRendererName = ren;
+                    window._gpuIsDiscrete = _isDiscreteGpuName(ren);
                     if (/SwiftShader|LLVMpipe|Software|Microsoft Basic|llvmpipe/i.test(ren)) tier = 'low';
                 }
                 const cores = navigator.hardwareConcurrency || 4;
@@ -1884,32 +1921,35 @@
                 const dpr   = window.devicePixelRatio || 1;
                 if (tier !== 'low') {
                     if (mem <= 2 || cores <= 2) tier = 'low';
-                    // 校园场景规模较大：默认偏保守，避免大窗口/高DPR一进场就掉到20FPS。
-                    else if (mem <= 6 || cores <= 10 || window.innerWidth < 1700 || dpr > 1.25 || isMobileUA) tier = 'medium';
+                    // 独显电脑优先清晰度；集显/移动端才默认中档。
+                    else if (!window._gpuIsDiscrete && (mem <= 6 || cores <= 8 || window.innerWidth < 1500 || dpr > 1.5 || isMobileUA)) tier = 'medium';
                 }
             } catch (e) { tier = isMobileUA ? 'medium' : 'high'; }
             window._gfxTier = tier;
+            if (sunDirLight) _sunLight = sunDirLight;
             if (tier === 'low') {
                 // 超低配：关阴影、最低分辨率、关抗锯齿效果
-                renderer.setPixelRatio(Math.min(0.52, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(_tierPixelRatioCap('low'));
                 renderer.shadowMap.enabled = false;
                 if (sunDirLight) { sunDirLight.castShadow = false; }
             } else if (tier === 'medium') {
                 // 手机/中配：降分辨率 + 小阴影贴图
-                renderer.setPixelRatio(Math.min(0.74, window.devicePixelRatio || 1));
+                renderer.setPixelRatio(_tierPixelRatioCap('medium'));
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.shadow.mapSize.width  = 512;
                     sunDirLight.shadow.mapSize.height = 512;
                 }
             } else {
-                // 高档也限制到 1.0 DPR；校园大场景瓶颈通常先来自像素填充率。
-                renderer.setPixelRatio(Math.min(1.0, window.devicePixelRatio || 1));
+                // 独显可用更高DPR，避免高FPS时画面仍然发糊。
+                renderer.setPixelRatio(_tierPixelRatioCap('high'));
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.shadow.mapSize.width  = 1024;
                     sunDirLight.shadow.mapSize.height = 1024;
                 }
             }
-            console.log('画质档:', tier, '| 移动端:', isMobileUA);
+            _gfxStartupGraceUntil = performance.now() + 12000;
+            _gfxLastTierChange = performance.now();
+            console.log('画质档:', tier, '| DPR:', renderer.getPixelRatio().toFixed(2), '| GPU:', window._gpuRendererName || 'unknown', '| 独显:', window._gpuIsDiscrete, '| 移动端:', isMobileUA);
             return tier;
         }
 
@@ -6944,7 +6984,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v102'; // v102：厕所洁具改为稳定程序化模型，修正小便池/蹲位/洗手台比例；保留隐藏飞行与低画质优化
+        const MAP_VER = 'campus_v103'; // v103：独显/高FPS自动提高清晰度，修复低画质过糊；保留厕所与隐藏飞行优化
 
         function _dbOpen(cb) {
             try {
@@ -9786,10 +9826,8 @@
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            // 与自适应画质保持一致，避免 resize 后把 DPR 又升回 1.5/2.0。
-            const pr = window._gfxTier === 'low' ? Math.min(0.52,window.devicePixelRatio||1) : (window._gfxTier === 'medium'
-                ? Math.min(0.74, window.devicePixelRatio || 1) : Math.min(1.0, window.devicePixelRatio || 1));
-            renderer.setPixelRatio(pr);
+            // 与自适应画质保持一致，避免 resize 后回到模糊DPR或过高DPR。
+            renderer.setPixelRatio(_tierPixelRatioCap(window._gfxTier || 'high'));
             renderer.setSize(window.innerWidth, window.innerHeight);
             // 后处理合成器也要同步更新尺寸和 FXAA 分辨率
             if (_ppComposer) {
@@ -11076,29 +11114,26 @@
                 frameCount = 0;
                 lastFpsUpdate = time;
 
-                // 自动降画质：校园大场景优先流畅，低于可玩帧率就更快降档。
+                // 自动画质：加载前几秒不因瞬时低帧误降；稳定高帧时自动提清晰度。
                 _fpsHistory.push(fps);
-                if (_fpsHistory.length > 3) _fpsHistory.shift();
-                if (_fpsHistory.length >= 2) {
+                if (_fpsHistory.length > 5) _fpsHistory.shift();
+                if (_fpsHistory.length >= 3) {
                     const avg = _fpsHistory.reduce((a,b)=>a+b,0) / _fpsHistory.length;
-                    if (avg < 36 && window._gfxTier === 'high') {
-                        window._gfxTier = 'medium';
-                        renderer.setPixelRatio(Math.min(0.74, window.devicePixelRatio||1));
-                        if (_sunLight && _sunLight.shadow) {
-                            _sunLight.shadow.mapSize.set(512,512);
-                        }
-                        if (_ppComposer && _ppComposer.setSize) _ppComposer.setSize(window.innerWidth,window.innerHeight);
+                    const now = performance.now();
+                    const canChange = now - _gfxLastTierChange > 6500;
+                    const pastStartup = now > _gfxStartupGraceUntil;
+                    if (canChange && pastStartup && avg < 28 && window._gfxTier === 'high') {
+                        _applyGfxTier('medium', '性能自动降级 high→medium');
                         _fpsHistory = [];
-                        console.log('⚡ 性能自动降级 high→medium（DPR 0.74）');
-                    } else if (avg < 31 && window._gfxTier === 'medium') {
-                        window._gfxTier = 'low';
-                        renderer.setPixelRatio(Math.min(0.52, window.devicePixelRatio||1));
-                        renderer.shadowMap.enabled=false;
-                        if (_sunLight) { _sunLight.castShadow = false; }
-                        if (window._petalInst) window._petalInst.visible=false;
-                        if (window._birdInst) window._birdInst.visible=false;
+                    } else if (canChange && pastStartup && avg < 22 && window._gfxTier === 'medium') {
+                        _applyGfxTier('low', '性能自动降级 medium→low');
                         _fpsHistory = [];
-                        console.log('⚡ 性能自动降级 medium→low（关闭阴影与动态装饰）');
+                    } else if (canChange && avg > 56 && window._gfxTier === 'low') {
+                        _applyGfxTier('medium', 'FPS充足，自动提高清晰度 low→medium');
+                        _fpsHistory = [];
+                    } else if (canChange && avg > (window._gpuIsDiscrete ? 62 : 82) && window._gfxTier === 'medium') {
+                        _applyGfxTier('high', 'FPS充足，自动提高清晰度 medium→high');
+                        _fpsHistory = [];
                     }
                 }
             }

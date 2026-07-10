@@ -13,8 +13,11 @@ const safeGpuMode = process.argv.includes('--safe-gpu') || process.env.CAMPUS_SA
 if (safeGpuMode) {
     app.disableHardwareAcceleration();
 } else {
+    // 双显卡笔记本上尽量让 Chromium 选择独显；WebGL 内部也会请求 high-performance。
+    app.commandLine.appendSwitch('force_high_performance_gpu');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
     app.commandLine.appendSwitch('enable-zero-copy');
+    app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
 }
 // 将用户数据目录指向可写的英文路径
 app.setPath('userData', path.join(os.homedir(), 'AppData', 'Local', 'CampusSimulator'));
