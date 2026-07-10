@@ -10136,18 +10136,14 @@
             } else if (_thirdPersonSingularMode) {
                 const forward = _tmpCameraOffset.set(0,0,-1);
                 forward.applyEuler(_tmpCameraEuler.set(cameraVerticalAngle,cameraHorizontalAngle,0,'YXZ'));
-                const lookAtTarget = _tmpCameraLookAt.set(
-                    soldier.position.x,
-                    soldier.position.y + 1.05,
-                    soldier.position.z
-                ).addScaledVector(forward, 1.25);
                 const targetPosition = _tmpCameraTarget.set(
                     soldier.position.x,
                     soldier.position.y + 1.15,
                     soldier.position.z
                 ).addScaledVector(forward, -THIRD_PERSON_DISTANCE * 1.35);
-                camera.position.lerp(targetPosition, 0.34);
-                camera.lookAt(lookAtTarget);
+                // 3PS 自由视角：直接定位 + 欧拉角旋转，避免 lerp/lookAt 带来的滞后晃动
+                camera.position.copy(targetPosition);
+                updateCameraRotation();
             } else {
                 // 第三人称视角 - 优化的跟随逻辑
                 // 计算相机应该在的理想位置（角色后方）
@@ -10820,6 +10816,18 @@
         // 新增：更新走动动画函数
         function updateWalkAnimation(deltaTime) {
             if (!soldier) return;
+
+            // 3PS 自由飞行：跳过行走/头部晃动动画，保持视角稳定
+            if (_thirdPersonSingularMode) {
+                walkSpeed = 0;
+                walkCycle = 0;
+                targetWalkSpeed = 0;
+                resetWalkAnimation();
+                soldier.rotation.x = 0;
+                soldier.rotation.z = 0;
+                applyHeadBobToCamera(deltaTime);
+                return;
+            }
             
             // 如果不在移动，立即重置到待机姿势
             if (!isWalking) {
@@ -11124,8 +11132,8 @@
         // 计算相机抖动偏移量（结果写入 _camBobY / _camBobRoll，由 updateCamera 使用）
         function applyHeadBobToCamera(deltaTime) {
             var _dt = (deltaTime!=null && deltaTime>0 && deltaTime<0.1) ? deltaTime : 0.016;
-            if (!isFirstPerson) {
-                // 第三人称：平滑归零
+            if (!isFirstPerson || _thirdPersonSingularMode) {
+                // 第三人称 / 3PS：平滑归零
                 _camBobY    += (0 - _camBobY)    * 0.15;
                 _camBobRoll += (0 - _camBobRoll)  * 0.15;
                 return;
@@ -11708,6 +11716,46 @@
         // rz 含义（three-vrm 坐标系）：左臂 -1.0 = 自然垂下，右臂 +1.0 = 自然垂下
         function _updateVrmPose() {
             const humanoid = window._gameVrm && window._gameVrm.humanoid;
+
+            // 3PS 自由飞行：保持静止站姿，不做呼吸/行走骨骼动画
+            if (_thirdPersonSingularMode) {
+                const al = 0.40;
+                const _si = _vrmArmRzSign;
+                if (!humanoid) {
+                    if (!_vrmBonesResolved) _collectVrmBones();
+                    _animBones('j_bip_l_upperarm', -0.04, 0, _si * -1.0, al);
+                    _animBones('j_bip_r_upperarm', -0.04, 0, _si *  1.0, al);
+                    _animBones('j_bip_l_lowerarm',  0.08, 0, _si * -0.15, al);
+                    _animBones('j_bip_r_lowerarm',  0.08, 0, _si *  0.15, al);
+                    _animBones('j_bip_l_upperleg',  0, 0, 0, al);
+                    _animBones('j_bip_r_upperleg',  0, 0, 0, al);
+                    _animBones('j_bip_l_lowerleg',  0, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg',  0, 0, 0, al);
+                    _animBones('j_bip_c_head', -0.05, 0, 0, al);
+                    _animBones('j_bip_c_spine', 0.04, 0, 0, al);
+                    _animBones('j_bip_c_hips', 0, 0, 0, al);
+                    return;
+                }
+                const blStatic = (bone, tx, ty, tz) => {
+                    if (!bone) return;
+                    bone.rotation.x += (tx - bone.rotation.x) * al;
+                    bone.rotation.y += (ty - bone.rotation.y) * al;
+                    bone.rotation.z += (tz - bone.rotation.z) * al;
+                };
+                blStatic(humanoid.getRawBoneNode('leftUpperArm'),  -0.04, 0, _si * -1.0);
+                blStatic(humanoid.getRawBoneNode('rightUpperArm'), -0.04, 0, _si *  1.0);
+                blStatic(humanoid.getRawBoneNode('leftLowerArm'),   0.08, 0, _si * -0.15);
+                blStatic(humanoid.getRawBoneNode('rightLowerArm'),  0.08, 0, _si *  0.15);
+                blStatic(humanoid.getRawBoneNode('leftUpperLeg'),   0, 0, 0);
+                blStatic(humanoid.getRawBoneNode('rightUpperLeg'),  0, 0, 0);
+                blStatic(humanoid.getRawBoneNode('leftLowerLeg'),   0, 0, 0);
+                blStatic(humanoid.getRawBoneNode('rightLowerLeg'),  0, 0, 0);
+                blStatic(humanoid.getRawBoneNode('head'),          -0.05, 0, 0);
+                blStatic(humanoid.getRawBoneNode('spine'),          0.04, 0, 0);
+                blStatic(humanoid.getRawBoneNode('hips'),           0, 0, 0);
+                return;
+            }
+
             if (!humanoid) {
                 // 骨骼遍历降级路径（plain GLTF，Z轴符号与humanoid API相反）
                 if (!_vrmBonesResolved) _collectVrmBones();
