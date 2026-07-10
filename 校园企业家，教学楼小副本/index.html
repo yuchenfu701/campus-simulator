@@ -1880,9 +1880,10 @@
             const dpr = window.devicePixelRatio || 1;
             const native = Math.max(1, dpr);
             const dgpu = !!window._gpuIsDiscrete;
-            if (tier === 'low') return Math.min(dgpu ? 0.95 : 0.82, native);
-            if (tier === 'medium') return Math.min(dgpu ? 1.15 : 1.00, native);
-            return Math.min(dgpu ? 1.35 : 1.12, Math.max(native, dgpu ? 1.20 : 1.05));
+            // 桌面端不再低于原生分辨率渲染；性能优化只关特效/阴影，不牺牲清晰度。
+            if (tier === 'low') return Math.min(dgpu ? 1.10 : 1.00, native);
+            if (tier === 'medium') return Math.min(dgpu ? 1.35 : 1.18, Math.max(native, dgpu ? 1.20 : 1.08));
+            return Math.min(dgpu ? 1.75 : 1.35, Math.max(native, dgpu ? 1.50 : 1.20));
         }
         function _applyGfxTier(tier, reason) {
             if (!renderer) return;
@@ -1928,7 +1929,7 @@
             window._gfxTier = tier;
             if (sunDirLight) _sunLight = sunDirLight;
             if (tier === 'low') {
-                // 超低配：关阴影、最低分辨率、关抗锯齿效果
+                // 超低配：关阴影和动态特效，但保持桌面端原生清晰度
                 renderer.setPixelRatio(_tierPixelRatioCap('low'));
                 renderer.shadowMap.enabled = false;
                 if (sunDirLight) { sunDirLight.castShadow = false; }
@@ -1999,7 +2000,7 @@
             
             // 创建渲染器
             renderer = new THREE.WebGLRenderer({ 
-                antialias: false,
+                antialias: true,
                 alpha: true,
                 stencil: false,
                 powerPreference: "high-performance"
@@ -6984,7 +6985,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v103'; // v103：独显/高FPS自动提高清晰度，修复低画质过糊；保留厕所与隐藏飞行优化
+        const MAP_VER = 'campus_v104'; // v104：撤销低DPR糊画质策略，桌面端保持原生/超采样清晰度；优化只关特效不降清晰度
 
         function _dbOpen(cb) {
             try {
