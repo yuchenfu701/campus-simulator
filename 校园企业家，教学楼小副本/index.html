@@ -7063,7 +7063,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v106'; // v106：移走堵门服务核装饰，小便池模型等比缩放不再压矮背墙；高清策略保持不降画质
+        const MAP_VER = 'campus_v107'; // v107：修正高速视角输入、走跑步态与脚步声音效；地图几何不降画质
 
         function _dbOpen(cb) {
             try {
@@ -10088,17 +10088,16 @@
                 (Number.isFinite(event.webkitMovementY) ? event.webkitMovementY : 0));
             _lastMouseMoveTime = Number.isFinite(event.timeStamp) ? event.timeStamp : 0;
 
-            // 卡顿后积压的超大 movement 不再“夹成一个仍然很大的值”，而是整条丢弃。
-            // 同时过滤“轻微横移却附带巨大纵向值”的典型坏事件。
+            // 卡顿后积压的离谱 movement 直接丢弃；正常高速甩鼠不再丢，避免“鼠标动了视角没跟上”。
             const ax = Math.abs(movementX), ay = Math.abs(movementY);
-            if (ax > 90 || ay > 90 || (ay > 48 && ay > ax * 2.5 + 8)) return;
-            const _MAX_MOVE = 42;
+            if (ax > 360 || ay > 360 || (ay > 260 && ay > ax * 3.2 + 24)) return;
+            const _MAX_MOVE = 160;
             if (movementX >  _MAX_MOVE) movementX =  _MAX_MOVE; else if (movementX < -_MAX_MOVE) movementX = -_MAX_MOVE;
             if (movementY >  _MAX_MOVE) movementY =  _MAX_MOVE; else if (movementY < -_MAX_MOVE) movementY = -_MAX_MOVE;
 
             // 更新水平角度（左右旋转）
-            const yawDelta = Math.max(-0.12, Math.min(0.12, movementX * MOUSE_SENSITIVITY));
-            const pitchDelta = Math.max(-0.12, Math.min(0.12, movementY * MOUSE_SENSITIVITY));
+            const yawDelta = Math.max(-0.42, Math.min(0.42, movementX * MOUSE_SENSITIVITY));
+            const pitchDelta = Math.max(-0.32, Math.min(0.32, movementY * MOUSE_SENSITIVITY));
             cameraHorizontalAngle -= yawDelta;
 
             // 第一人称与隐藏第三人称飞行都允许上下看；普通第三人称保留原来的水平环绕手感。
@@ -10908,13 +10907,14 @@
                 return;
             }
 
-            // 更新走动周期
-            walkCycle += deltaTime * WALK_CYCLE_SPEED * walkSpeed;
+            // 更新走动周期：走/跑分别限速，避免奔跑时腿和脚步声像“抽帧电风扇”。
+            const gaitRate = (isRunning ? 8.2 : 6.1) * Math.min(walkSpeed, isRunning ? 1.28 : 1.0);
+            walkCycle += deltaTime * gaitRate;
             
             // 脚步声效果 - 只在地面行走时播放
             if (walkSpeed > 0.1 && !isJumping && !isFlying && !isSliding) {
                 const currentStepPhase = Math.floor(walkCycle / Math.PI);
-                const lastStepPhase = Math.floor((walkCycle - deltaTime * WALK_CYCLE_SPEED * walkSpeed) / Math.PI);
+                const lastStepPhase = Math.floor((walkCycle - deltaTime * gaitRate) / Math.PI);
                 
                 if (currentStepPhase !== lastStepPhase) {
                     playFootstepSound();
@@ -11098,10 +11098,10 @@
 
             // ── 奔跑 vs 步行 参数 ──
             const running = isRunning && walkSpeed > 0.5;
-            const armAmp  = running ? 0.90 : 0.58;  // 奔跑时手臂幅度更大
-            const legAmp  = running ? 0.72 : 0.48;  // 奔跑时腿部幅度更大
-            const armZspr = running ? 0.04 : 0.20;  // 奔跑时手臂紧贴体侧（关键修复：消除"手臂横飞"）
-            const bodyLeanX = running ? 0.07 : 0;   // 奔跑时轻微前倾
+            const armAmp  = running ? 0.46 : 0.30;  // 校园小跑：摆臂保守一点，避免像抽筋甩手
+            const legAmp  = running ? 0.42 : 0.27;  // 小步幅，减少滑步感
+            const armZspr = running ? 0.11 : 0.18;  // 手臂贴近身体
+            const bodyLeanX = running ? 0.045 : 0;  // 奔跑时轻微前倾
 
             // 身体侧倾（步行有轻微摇摆，奔跑去掉避免滑稽）
             const bodySway = running ? 0 : Math.sin(walkCycle * 0.5) * BODY_SWAY_AMPLITUDE * walkSpeed * 0.30;
@@ -11110,12 +11110,12 @@
 
             // ── 手臂前后摆动 ──
             // 手臂Z展开角度先归位，再叠加X方向前后摆
-            const armSwing = Math.sin(walkCycle) * armAmp * Math.min(walkSpeed, 1.5);
+            const armSwing = Math.sin(walkCycle) * armAmp * Math.min(walkSpeed, 1.15);
             if (lArm) { lArm.rotation.z =  armZspr; lArm.rotation.x =  armSwing; }
             if (rArm) { rArm.rotation.z = -armZspr; rArm.rotation.x = -armSwing; }
 
             // ── 腿部摆动 ──
-            const legSwing = Math.sin(walkCycle) * legAmp * Math.min(walkSpeed, 1.5);
+            const legSwing = Math.sin(walkCycle) * legAmp * Math.min(walkSpeed, 1.15);
             if (lLeg) {
                 lLeg.rotation.x = -legSwing;
                 lLeg.position.y = -0.30 + Math.max(0, legSwing) * (running ? 0.10 : 0.07);
@@ -11809,6 +11809,37 @@
                 }
 
                 if (spd > 0.04) {
+                    const spd01Simple = Math.min(spd, 1.15);
+                    const runMixSimple = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
+                    const phaseSimple = cycle;
+                    const sSimple = Math.sin(phaseSimple);
+                    const sideSimple = Math.sin(phaseSimple * 0.5) * (0.012 + 0.010 * runMixSimple);
+                    const leanSimple = 0.025 + 0.055 * runMixSimple;
+                    const legAmpSimple = 0.24 + 0.14 * runMixSimple;
+                    const kneeAmpSimple = 0.12 + 0.16 * runMixSimple;
+                    const armAmpSimple = 0.20 + 0.14 * runMixSimple;
+                    const _s2Simple = _vrmArmRzSign, _s3Simple = _vrmArmRxSign, _sLSimple = _vrmLegRxSign;
+                    _animBones('j_bip_c_hips', leanSimple, 0, sideSimple, al);
+                    _animBones('j_bip_c_spine', -leanSimple * 0.25, 0, -sideSimple * 0.65, al);
+                    _animBones('j_bip_c_chest', -leanSimple * 0.15, 0, -sideSimple * 0.35, al);
+                    _animBones('j_bip_c_neck', -0.035, 0, 0, al);
+                    _animBones('j_bip_c_head', -0.025, 0, 0, al);
+                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple, 0, _s2Simple * -0.92, al);
+                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple, 0, _s2Simple * 0.92, al);
+                    _animBones('j_bip_l_lowerarm', 0.04, 0, _s2Simple * -0.22, al);
+                    _animBones('j_bip_r_lowerarm', 0.04, 0, _s2Simple * 0.22, al);
+                    _animBones('j_bip_l_upperleg', _sLSimple * -sSimple * legAmpSimple * spd01Simple, 0, 0, al);
+                    _animBones('j_bip_r_upperleg', _sLSimple * sSimple * legAmpSimple * spd01Simple, 0, 0, al);
+                    _animBones('j_bip_l_lowerleg', _sLSimple * Math.max(0, sSimple) * kneeAmpSimple, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', _sLSimple * Math.max(0, -sSimple) * kneeAmpSimple, 0, 0, al);
+                    _animBones('j_bip_l_foot', _sLSimple * Math.max(0, -sSimple) * -0.08, 0, 0, al);
+                    _animBones('j_bip_r_foot', _sLSimple * Math.max(0, sSimple) * -0.08, 0, 0, al);
+                    const earBSimple = Math.sin(phaseSimple * 2) * 0.045 * spd01Simple;
+                    _animEar('j_opt_l_catear1_01',  earBSimple,       0.16);
+                    _animEar('j_opt_l_catear2_01',  earBSimple * 0.6, 0.16);
+                    _animEar('j_opt_r_catear1_01', -earBSimple,       0.16);
+                    _animEar('j_opt_r_catear2_01', -earBSimple * 0.6, 0.16);
+                    return;
                     // ══ 跑步骨骼动画 v9（6帧生物力学关键帧）══
                     const spd01 = Math.min(spd, 1.0);
                     // 归一化相位 [0,1)：walkCycle为弧度，除以2π转换
@@ -11960,6 +11991,36 @@
             }
 
             if (spd > 0.04) {
+                const spd01SimpleH = Math.min(spd, 1.15);
+                const runMixSimpleH = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
+                const phaseSimpleH = cycle;
+                const sSimpleH = Math.sin(phaseSimpleH);
+                const sideSimpleH = Math.sin(phaseSimpleH * 0.5) * (0.012 + 0.010 * runMixSimpleH);
+                const leanSimpleH = 0.025 + 0.055 * runMixSimpleH;
+                const legAmpSimpleH = 0.24 + 0.14 * runMixSimpleH;
+                const kneeAmpSimpleH = 0.12 + 0.16 * runMixSimpleH;
+                const armAmpSimpleH = 0.20 + 0.14 * runMixSimpleH;
+                const _s4SimpleH = _vrmArmRxSign, _sRzSimpleH = _vrmArmRzSign, _sL2SimpleH = _vrmLegRxSign;
+                bl(hips, leanSimpleH, 0, sideSimpleH);
+                bl(spine, -leanSimpleH * 0.25, 0, -sideSimpleH * 0.65);
+                bl(spine2, -leanSimpleH * 0.18, 0, -sideSimpleH * 0.45);
+                bl(spine3, -leanSimpleH * 0.12, 0, -sideSimpleH * 0.25);
+                bl(neck, -0.035, 0, 0);
+                bl(head, -0.025, 0, 0);
+                bl(lSho, 0, 0, 0);
+                bl(rSho, 0, 0, 0);
+                bl(lArm, _s4SimpleH * sSimpleH * armAmpSimpleH * spd01SimpleH, 0, _sRzSimpleH * -0.92);
+                bl(rArm, _s4SimpleH * -sSimpleH * armAmpSimpleH * spd01SimpleH, 0, _sRzSimpleH * 0.92);
+                bl(lFa, 0.04, 0, _sRzSimpleH * -0.22);
+                bl(rFa, 0.04, 0, _sRzSimpleH * 0.22);
+                bl(lLeg, _sL2SimpleH * -sSimpleH * legAmpSimpleH * spd01SimpleH, 0, 0);
+                bl(rLeg, _sL2SimpleH * sSimpleH * legAmpSimpleH * spd01SimpleH, 0, 0);
+                bl(lKnee, _sL2SimpleH * Math.max(0, sSimpleH) * kneeAmpSimpleH, 0, 0);
+                bl(rKnee, _sL2SimpleH * Math.max(0, -sSimpleH) * kneeAmpSimpleH, 0, 0);
+                bl(lFoot, _sL2SimpleH * Math.max(0, -sSimpleH) * -0.08, 0, 0);
+                bl(rFoot, _sL2SimpleH * Math.max(0, sSimpleH) * -0.08, 0, 0);
+                return;
+                // old v9 code remains unreachable
                 // ══ 奔跑动画 v9（6帧生物力学关键帧）══
                 const spd01 = Math.min(spd, 1.0);
                 const t = (((cycle / (Math.PI * 2)) % 1) + 1) % 1;
@@ -13336,46 +13397,53 @@
         // 新增：生成脚步声音效
         function generateFootstepSound() {
             if (!audioContext) return;
-            
+
             // 解锁音频上下文（某些浏览器需要用户交互）
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
-            
-            // 创建音频节点
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            const filterNode = audioContext.createBiquadFilter();
-            
-            // 连接音频节点
-            oscillator.connect(filterNode);
-            filterNode.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            // 设置脚步声参数
-            oscillator.type = 'brown'; // 使用棕色噪声，如果不支持则降级到其他类型
-            if (!oscillator.type || oscillator.type !== 'brown') {
-                oscillator.type = 'square';
+
+            const now = audioContext.currentTime;
+            const running = isRunning && walkSpeed > 1.05;
+            const dur = running ? 0.105 : 0.085;
+            const vol = masterVolume * (running ? 0.26 : 0.16);
+
+            // 短促摩擦噪声：比方波更像鞋底接触草地/地面的瞬间
+            const buffer = audioContext.createBuffer(1, Math.max(1, Math.floor(audioContext.sampleRate * dur)), audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) {
+                const t = i / data.length;
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.2);
             }
-            
-            // 设置频率（模拟脚步的低频声音）
-            oscillator.frequency.setValueAtTime(60 + Math.random() * 40, audioContext.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.1);
-            
-            // 设置滤波器
-            filterNode.type = 'lowpass';
-            filterNode.frequency.setValueAtTime(200, audioContext.currentTime);
-            filterNode.Q.setValueAtTime(1, audioContext.currentTime);
-            
-            // 设置音量包络
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(masterVolume * 0.5, audioContext.currentTime + 0.01);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
-            
-            // 播放音效
-            const startTime = audioContext.currentTime;
-            oscillator.start(startTime);
-            oscillator.stop(startTime + 0.15);
+            const noise = audioContext.createBufferSource();
+            noise.buffer = buffer;
+            const noiseFilter = audioContext.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(running ? 780 : 560, now);
+            noiseFilter.Q.setValueAtTime(0.8, now);
+            const noiseGain = audioContext.createGain();
+            noiseGain.gain.setValueAtTime(0, now);
+            noiseGain.gain.linearRampToValueAtTime(vol, now + 0.006);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(audioContext.destination);
+            noise.start(now);
+            noise.stop(now + dur);
+
+            // 低频落脚感：只保留很短的“咚”，避免跑步像机关枪
+            const thump = audioContext.createOscillator();
+            const thumpGain = audioContext.createGain();
+            thump.type = 'sine';
+            thump.frequency.setValueAtTime(running ? 95 : 72, now);
+            thump.frequency.exponentialRampToValueAtTime(running ? 48 : 38, now + dur);
+            thumpGain.gain.setValueAtTime(0, now);
+            thumpGain.gain.linearRampToValueAtTime(vol * 0.55, now + 0.004);
+            thumpGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            thump.connect(thumpGain);
+            thumpGain.connect(audioContext.destination);
+            thump.start(now);
+            thump.stop(now + dur);
         }
 
         // 新增：重置走动动画
