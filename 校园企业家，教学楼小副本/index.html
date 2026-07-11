@@ -3842,6 +3842,8 @@
             const capMat = new THREE.MeshStandardMaterial({ color: 0xc4ccd2, roughness: 0.4 }); capMat._noMerge = true;
             const knobGeo = new THREE.SphereGeometry(0.055, 10, 8);
             const knobMat = new THREE.MeshStandardMaterial({color:0xd5c37a,roughness:0.35,metalness:0.5});
+            const doorTrimMat = new THREE.MeshStandardMaterial({color:0x46525a,roughness:0.62,metalness:0.0}); doorTrimMat._noMerge = true;
+            const doorLockMat = new THREE.MeshStandardMaterial({color:0x49a867,roughness:0.36,metalness:0.15}); doorLockMat._noMerge = true;
             const parts = [], squat = [], sink = [], urinals = [];
 
             function island(xc, z0, z1, h, yB) {   // 中央岛台(沿Z矮墙,双面贴砖+顶盖)
@@ -3882,6 +3884,15 @@
                 panel.position.set(doorW / 2, 0, 0); panel.castShadow = panel.receiveShadow = true; panel._noMerge = true; pivot.add(panel);
                 const knob = new THREE.Mesh(knobGeo, knobMat);
                 knob.position.set(doorW - 0.18, 0.02, faceNorth ? -0.045 : 0.045); knob._noMerge = true; pivot.add(knob);
+                const topTrim = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.045, 0.065), doorTrimMat);
+                topTrim.position.set(doorW / 2, 0.84, faceNorth ? -0.004 : 0.004); topTrim._noMerge = true; pivot.add(topTrim);
+                for (let v=0; v<3; v++) {
+                    const vent = new THREE.Mesh(new THREE.BoxGeometry(doorW*0.44, 0.018, 0.068), doorTrimMat);
+                    vent.position.set(doorW*0.34, 0.55-v*0.105, faceNorth ? -0.006 : 0.006);
+                    vent._noMerge = true; pivot.add(vent);
+                }
+                const lock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.075), doorLockMat);
+                lock.position.set(doorW - 0.34, 0.13, faceNorth ? -0.052 : 0.052); lock._noMerge = true; pivot.add(lock);
                 window._wcSwingDoors = window._wcSwingDoors || [];
                 window._wcSwingDoors.push({
                     pivot: pivot,
@@ -7084,7 +7095,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v111'; // v111：清理教学楼入口堵路装饰，优化玻璃/窗光贴墙与大厅细节
+        const MAP_VER = 'campus_v112'; // v112：细化教学楼楼梯扶手与厕所隔间门细节，继续清理穿帮感
 
         function _dbOpen(cb) {
             try {
@@ -8147,6 +8158,23 @@
                 const shW=stX1-xW, sCX=xW+shW/2, hw=(shW-WT*2)/2, cxW=sCX-hw/2, cxE=sCX+hw/2, fw=hw-0.08;
                 const S=11, rise=(fh/2)/S, run=0.42;
                 const zEnter=zCorrMid, zNorth=zEnter-S*run;
+                const railMat = new THREE.MeshLambertMaterial({color:0x4d5963});
+                const railGeo = new THREE.CylinderGeometry(0.035,0.035,1,8);
+                const postMat = new THREE.MeshLambertMaterial({color:0x65727a});
+                function rail(x1,y1,z1,x2,y2,z2){
+                    if(window._skipVisualMesh) return;
+                    const a=new THREE.Vector3(x1,y1,z1), b=new THREE.Vector3(x2,y2,z2);
+                    const mid=a.clone().add(b).multiplyScalar(0.5), dir=b.clone().sub(a), len=dir.length();
+                    if(len<0.05) return;
+                    const m=new THREE.Mesh(railGeo,railMat);
+                    m.position.copy(mid);
+                    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
+                    m.scale.set(1,len,1);
+                    m._noMerge=true; m.castShadow=false; m.receiveShadow=true; scene.add(m);
+                }
+                function post(x,y,z,h){
+                    F(x,y+h/2,z,0.07,h,0.07,0x65727a);
+                }
                 // 楼梯井四面封墙(全高)：北/南封墙 + 西墙(外墙已有) + 东墙(stX1,落脚处有门)→ 封闭楼梯间，学生掉不出去
                 const _shz0=zCorrMid-5.8, _shz1=zCorrMid+1.0;
                 W(sCX, floors*fh/2, _shz0, shW, floors*fh, WT, colC);   // 北封墙
@@ -8158,6 +8186,19 @@
                     W(sCX, fB+fh/2-0.07, zNorth-0.7, shW-WT, 0.14, 1.4, stairC);                                  // 中转平台
                     for(let s=0;s<S;s++) W(cxE, fB+fh/2+(s+0.7)*rise, zNorth+(s+0.5)*run, fw, 0.14, run+0.05, stairC); // 上行(东) 北→南
                     W((cxE+stX1)/2, (f+1)*fh-0.07, zCorrMid, (stX1-cxE)+fw+0.3, 0.14, corrD*0.6, stairC);          // 落脚平台→stX1门→楼板
+                    // 轻量扶手/边线：只作视觉，不进碰撞，避免楼梯像一片悬空薄板。
+                    const wL=cxW-fw/2+0.12, wR=cxW+fw/2-0.12, eL=cxE-fw/2+0.12, eR=cxE+fw/2-0.12;
+                    rail(wL,fB+0.86,zEnter-0.15,wL,fB+fh/2+0.86,zNorth+0.10);
+                    rail(wR,fB+0.86,zEnter-0.15,wR,fB+fh/2+0.86,zNorth+0.10);
+                    rail(eL,fB+fh/2+0.86,zNorth-0.10,eL,fB+fh+0.86,zEnter-0.15);
+                    rail(eR,fB+fh/2+0.86,zNorth-0.10,eR,fB+fh+0.86,zEnter-0.15);
+                    rail(xW+0.45,fB+fh/2+0.78,zNorth-1.38,stX1-0.45,fB+fh/2+0.78,zNorth-1.38);
+                    rail(cxE-0.05,fB+fh+0.78,zCorrMid-1.20,stX1-0.36,fB+fh+0.78,zCorrMid-1.20);
+                    for(let p=0;p<3;p++){
+                        const t=p/2;
+                        post(wL,fB+0.42+t*fh/2,zEnter-0.25-t*(S*run-0.35),0.72);
+                        post(eR,fB+fh/2+0.42+t*fh/2,zNorth+0.12+t*(S*run-0.38),0.72);
+                    }
                 }
             }
             const _winMat=new THREE.MeshPhongMaterial({color:0x4f7683,transparent:true,opacity:0.42,shininess:105,specular:0xe6fbff,side:THREE.DoubleSide,depthWrite:false});
