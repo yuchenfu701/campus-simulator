@@ -505,13 +505,27 @@
             cv.id = 'load-aurora-cv';
             var wrap = document.getElementById('map-loading');
             wrap.insertBefore(cv, wrap.firstChild);
-            var W, H, ctx, t=0, stars=[], raf;
-            function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+            var W, H, ctx, t=0, stars=[], raf, lastDraw=0, stopped=false;
+            function resize(){
+                var dpr = Math.min(1, window.devicePixelRatio || 1);
+                W=cv.width=Math.max(1, Math.floor(innerWidth*dpr));
+                H=cv.height=Math.max(1, Math.floor(innerHeight*dpr));
+                cv.style.width='100%'; cv.style.height='100%';
+            }
             resize(); window.addEventListener('resize',resize);
             ctx = cv.getContext('2d');
-            for(var i=0;i<180;i++) stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.4,p:Math.random()*Math.PI*2});
-            function frame(){
-                raf=requestAnimationFrame(frame); t+=0.003;
+            for(var i=0;i<55;i++) stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.3,p:Math.random()*Math.PI*2});
+            window._stopLoadAurora = function(){
+                stopped = true;
+                if(raf) cancelAnimationFrame(raf);
+                raf = null;
+            };
+            function frame(now){
+                if(stopped) return;
+                raf=requestAnimationFrame(frame);
+                if(now && now-lastDraw<100) return; // 10fps 足够当加载背景，避免和建图抢主线程
+                lastDraw = now || 0;
+                t+=0.018;
                 var bg=ctx.createLinearGradient(0,0,W,H);
                 bg.addColorStop(0,'#020810'); bg.addColorStop(.45,'#05102c'); bg.addColorStop(.7,'#071a3e'); bg.addColorStop(1,'#020810');
                 ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
@@ -532,7 +546,7 @@
                     ctx.fillStyle=ag; ctx.fillRect(0,py-ph,W,ph*2);
                 }
                 // 浮动粒子
-                for(var k=0;k<6;k++){
+                for(var k=0;k<3;k++){
                     var px=((t*28*(1+k*.25)+k*W/6)%W+W)%W;
                     var py2=H*.5+Math.sin(t*.9+k*1.1)*H*.26;
                     ctx.beginPath(); ctx.arc(px,py2,1.2,0,Math.PI*2);
@@ -544,7 +558,7 @@
             if(bgv){
                 var _hideAurora=function(){
                     cv.style.display='none';
-                    if(raf) cancelAnimationFrame(raf);
+                    if(window._stopLoadAurora) window._stopLoadAurora();
                 };
                 bgv.addEventListener('loadeddata',_hideAurora);
                 bgv.addEventListener('canplay',_hideAurora);
@@ -552,7 +566,7 @@
                 var _p=bgv.play&&bgv.play();
                 if(_p&&_p.catch) _p.catch(function(){});
             }
-            frame();
+            frame(0);
         })();
 
         /* ─── 1. 台词 ─── */
@@ -568,7 +582,7 @@
             { chapter:'你的故事',      body:'从今天，正式开始' },
         ];
 
-        var storyIdx = 0, _storyTimer=null;
+        var storyIdx = 0, _storyTimer=null, _storyLoopTimer=null;
         var mask    = document.getElementById('load-loop-mask');
         var chapter = document.getElementById('load-story-chapter');
         var body    = document.getElementById('load-story-body');
@@ -601,7 +615,7 @@
         // 第一次：加载进来2秒后开始第一段台词；之后每隔 STORY_INTERVAL 循环
         _storyTimer = setTimeout(function(){
             doTransition();
-            setInterval(doTransition, STORY_INTERVAL);
+            _storyLoopTimer = setInterval(doTransition, STORY_INTERVAL);
         }, 2000);
 
         setTimeout(function(){ setStory(0); }, 800);
@@ -618,6 +632,9 @@
             if(_entered) return;
             if(!(_animPlayedOnce && _gameLoaded)) return;
             _entered = true;
+            if(window._stopLoadAurora) window._stopLoadAurora();
+            if(_storyTimer) clearTimeout(_storyTimer);
+            if(_storyLoopTimer) clearInterval(_storyLoopTimer);
             var sab=document.getElementById('skip-anim-btn'); if(sab) sab.style.display='none';
             wrap.style.transition='opacity .8s ease';
             wrap.style.opacity='0';
@@ -646,6 +663,7 @@
         // 游戏加载完成回调
         window._onGameLoadComplete = function(){
             _gameLoaded = true;
+            _animPlayedOnce = true; // 地图完成就进入，不再硬等22秒“剧情动画”，避免误以为卡死
             var bar = document.getElementById('load-bar');
             var pctEl = document.getElementById('load-pct');
             if(bar) bar.style.width='100%';
@@ -5870,7 +5888,7 @@
             }
 
             // ── 夜间窗户发光（教学楼各楼层窗户入夜发出暖黄光）──
-            if (!window._winGlowInited) {
+            if (!window._winGlowInited && !(window._winGlowMeshes && window._winGlowMeshes.length)) {
                 window._winGlowInited = true;
                 const _WW=2.2, _WH=1.8, _WS=0.9;
                 const _wGeo=new THREE.PlaneGeometry(_WW*0.82,_WH*0.82);
@@ -7063,7 +7081,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v109'; // v109：修正走跑步态僵硬和平移感，修复时间指令即时刷新昼夜天空
+        const MAP_VER = 'campus_v110'; // v110：优化加载动画卡顿，移除旧楼浮空窗光并改为新版教学楼贴墙夜光
 
         function _dbOpen(cb) {
             try {
@@ -8249,6 +8267,25 @@
                 const wm=new THREE.Matrix4();
                 _windowInstances.forEach(function(p,i){wm.makeTranslation(p[0],p[1],p[2]);wins.setMatrixAt(i,wm);});
                 wins.instanceMatrix.needsUpdate=true;wins._noMerge=true;wins.castShadow=false;wins.receiveShadow=false;scene.add(wins);
+
+                // 夜间窗户发光必须跟随新版教学楼窗户本身；旧版按 BLDG_Z1/Z2 生成的光片会悬空。
+                const glowGeo=new THREE.PlaneGeometry(2.30,Math.max(0.95,fh-2.72));
+                const glowMat=new THREE.MeshBasicMaterial({
+                    color:0xffe0a0,transparent:true,opacity:0,
+                    blending:THREE.AdditiveBlending,depthWrite:false,fog:false,side:THREE.DoubleSide
+                });
+                const glows=new THREE.InstancedMesh(glowGeo,glowMat,_windowInstances.length);
+                const gm=new THREE.Matrix4(), gp=new THREE.Vector3(), gq=new THREE.Quaternion(), gs=new THREE.Vector3(1,1,1);
+                _windowInstances.forEach(function(p,i){
+                    const side = p[2] > zMid ? 1 : -1;
+                    gp.set(p[0],p[1],p[2]+side*0.032);
+                    gm.compose(gp,gq,gs);
+                    glows.setMatrixAt(i,gm);
+                });
+                glows.instanceMatrix.needsUpdate=true;glows._noMerge=true;glows.castShadow=false;glows.receiveShadow=false;glows.renderOrder=2;scene.add(glows);
+                window._winGlowMeshes = window._winGlowMeshes || [];
+                window._winGlowMeshes.push(glows);
+                window._winGlowInited = true;
             }
             if(_windowFrameInstances.length){
                 const fgeo=new THREE.BoxGeometry(1,1,1);
