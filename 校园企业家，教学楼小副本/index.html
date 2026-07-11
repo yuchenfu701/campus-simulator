@@ -2066,12 +2066,12 @@
             document.body.appendChild(renderer.domElement);
             
             // 半球光：柔和天青 + 暖土色地面反射（整体更温润、少荧光感）
-            const hemisphereLight = new THREE.HemisphereLight(0x9eb8e0, 0xb8a080, 0.48);
+            const hemisphereLight = new THREE.HemisphereLight(0x9eb8e0, 0xb8a080, 0.58);
             _hemiLight = hemisphereLight;
             scene.add(hemisphereLight);
 
             // 环境光（略提高，减少过暗阴影）
-            const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.12);
+            const ambientLight = new THREE.AmbientLight(0xd8e2f0, 0.18);
             _ambientLight = ambientLight;
             scene.add(ambientLight);
 
@@ -7221,7 +7221,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v116'; // v116：复查教学楼/厕所边角，修正外部观察点并优化中低档性能减负
+        const MAP_VER = 'campus_v120'; // v120：优化人物待机/行走骨骼、室内补光，并修正服务核导视可见性
 
         function _dbOpen(cb) {
             try {
@@ -8382,17 +8382,47 @@
                     m.rotation.y = faceEast ? Math.PI/2 : -Math.PI/2;
                     m._noMerge=true; m.renderOrder=2; scene.add(m); return m;
                 }
+                function wallPanelZ(x, y, z, w, h, col, faceSouth){
+                    const mat=new THREE.MeshLambertMaterial({color:col, side:THREE.DoubleSide});
+                    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), mat);
+                    m.position.set(x,y,z);
+                    m.rotation.y = faceSouth ? 0 : Math.PI;
+                    m._noMerge=true; m.renderOrder=2; scene.add(m); return m;
+                }
                 wallPanelX(stX1+0.025, yB+1.55, zGuide, 1.95, 1.05, 0x234762, true);  // 左侧导视牌
                 wallPanelX(stX1+0.035, yB+1.55, zGuide, 1.70, 0.82, 0xe9ddb8, true);
                 for(let k=0;k<3;k++) wallPanelX(stX1+0.045, yB+1.48, zGuide-0.52+k*0.52, 0.34, 0.46, [0xd86b7a,0x6ba6d8,0x75b778][k], true);
                 wallPanelX(xRW-0.025, yB+1.48, zGuide, 1.75, 0.92, 0x4c7086, false);  // 右侧信息栏
                 for(let k=0;k<4;k++) wallPanelX(xRW-0.035, yB+1.40, zGuide-0.58+k*0.38, 0.22, 0.38, 0xdbe3e7, false);
                 // 靠南墙的低矮长椅和绿植，避开中线通道和厕所门洞。
-                F(midX-2.25, yB+0.52, zBench, 3.20, 0.14, 0.34, 0xb88750);
-                F(midX-2.25, yB+0.28, zBench-0.08, 2.85, 0.40, 0.14, 0x5c4c42);
-                F(midX+2.85, yB+0.34, zBench, 0.32, 0.68, 0.32, 0x5ba66c);
-                F(midX+2.85, yB+0.82, zBench, 0.58, 0.30, 0.58, 0x4d9960);
+                F(midX+5.80, yB+0.50, zBench, 2.10, 0.12, 0.30, 0xb88750);
+                F(midX+5.80, yB+0.25, zBench-0.08, 1.82, 0.32, 0.10, 0x5c4c42);
+                F(midX+3.10, yB+0.34, zBench, 0.32, 0.68, 0.32, 0x5ba66c);
+                F(midX+3.10, yB+0.82, zBench, 0.58, 0.30, 0.58, 0x4d9960);
                 F(midX, yB+0.086, zLobby, 4.60, 0.022, 2.35, 0x8ea0ad);        // 大厅地毯/地面色块，缩小后不压到门口
+                // v117：把厕所/楼梯口前的空白大厅做成真实的等候区，但全部贴边布置，不挡中线通行。
+                F(midX+4.65, yB+0.48, zLobby+0.30, 1.85, 0.16, 0.50, 0x8d6a46); // 短沙发/等候椅，挪到侧边避免顶住玩家视角
+                F(midX+4.65, yB+0.78, zLobby+0.58, 1.85, 0.56, 0.10, 0x5c4c42);
+                F(midX+2.55, yB+0.33, zLobby+0.36, 0.95, 0.10, 0.62, 0xc4a36e); // 小茶几/临时放书
+                F(midX+2.55, yB+0.42, zLobby+0.36, 0.62, 0.045, 0.42, 0xf4ead5);
+                for(let k=0;k<4;k++){
+                    F(xRW-0.46, yB+0.72, zLobby-1.05+k*0.62, 0.36, 1.28, 0.46, k%2?0x6e8798:0x7890a2); // 储物柜
+                    F(xRW-0.66, yB+1.00, zLobby-1.05+k*0.62, 0.035, 0.18, 0.22, 0xf1e8c8);
+                }
+                F(stX1+0.72, yB+0.70, zLobby-0.95, 0.46, 1.40, 0.42, 0xe7eef4); // 饮水机
+                F(stX1+0.72, yB+1.42, zLobby-0.95, 0.36, 0.32, 0.34, 0x79b9df);
+                F(stX1+0.72, yB+0.30, zLobby-0.58, 0.32, 0.12, 0.12, 0x4a5560);
+                wallPanelX(xRW-0.025, yB+2.32, zLobby+1.05, 1.65, 0.68, 0x26394d, false); // 班级公告
+                for(let k=0;k<3;k++) wallPanelX(xRW-0.035, yB+2.26, zLobby+0.62+k*0.32, 0.18, 0.28, [0xf2d36b,0xa7d8f0,0xf0a7a7][k], false);
+                // 正面墙导视：解决服务核从玩家视角看过去仍然“一整面空墙”的问题。
+                wallPanelZ(midX-3.85, yB+2.18, zCorrN+0.14, 2.55, 1.12, 0x1f4464, true);
+                wallPanelZ(midX-3.85, yB+2.18, zCorrN+0.15, 2.05, 0.76, 0xf2ead1, true);
+                for(let k=0;k<3;k++) wallPanelZ(midX-4.58+k*0.70, yB+2.15, zCorrN+0.16, 0.34, 0.48, [0x76a9d8,0xf0c066,0x8bc68b][k], true);
+                wallPanelZ(midX+0.85, yB+2.14, zCorrN+0.14, 2.55, 0.96, 0x315b78, true);
+                wallPanelZ(midX+0.85, yB+2.14, zCorrN+0.15, 2.02, 0.62, 0xdde8ee, true);
+                F(midX-0.72, yB+0.045, zCorrN+1.85, 0.46, 0.028, 1.25, 0xf2d36b); // 地面导向色条
+                F(midX-3.6, yB+fh-0.16, zLobby, 2.0, 0.045, 0.42, 0xfff1c4);  // 顶部暖色灯片，配合室内补光
+                F(midX+1.8, yB+fh-0.16, zLobby, 2.0, 0.045, 0.42, 0xfff1c4);
             }
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
@@ -11335,56 +11365,67 @@
             const lBoot = soldier.children[6];
             const rBoot = soldier.children[7];
 
-            // ── 静止姿势：重置所有 ──
+            // ── 静止姿势：自然呼吸 + 轻微重心转移，避免像木偶站军姿 ──
             if (walkSpeed <= 0.01) {
-                soldier.rotation.x = 0;
-                soldier.rotation.z = 0;
-                if (lArm)  { lArm.rotation.x = 0;  lArm.rotation.z  =  0.20; }
-                if (rArm)  { rArm.rotation.x = 0;  rArm.rotation.z  = -0.20; }
-                if (lLeg)  { lLeg.rotation.x  = 0; lLeg.position.y  = -0.30; }
-                if (rLeg)  { rLeg.rotation.x  = 0; rLeg.position.y  = -0.30; }
-                if (lBoot) { lBoot.rotation.x = 0; lBoot.position.y = -0.62; }
-                if (rBoot) { rBoot.rotation.x = 0; rBoot.position.y = -0.62; }
+                const t = _gameIdleT || 0;
+                const breath = Math.sin(t * 1.65) * 0.018;
+                const sway = Math.sin(t * 0.72) * 0.018;
+                soldier.rotation.x = breath * 0.35;
+                soldier.rotation.z = sway;
+                if (lArm)  { lArm.rotation.x = -0.035 + breath; lArm.rotation.z =  0.145 + sway * 0.35; }
+                if (rArm)  { rArm.rotation.x = -0.030 + breath * 0.8; rArm.rotation.z = -0.145 + sway * 0.35; }
+                if (lLeg)  { lLeg.rotation.x = 0.012; lLeg.rotation.z =  sway * 0.20; lLeg.position.y = -0.30; }
+                if (rLeg)  { rLeg.rotation.x = -0.010; rLeg.rotation.z = -sway * 0.20; rLeg.position.y = -0.30; }
+                if (lBoot) { lBoot.rotation.x = -0.015; lBoot.position.y = -0.62; }
+                if (rBoot) { rBoot.rotation.x =  0.010; rBoot.position.y = -0.62; }
                 return;
             }
 
             // ── 奔跑 vs 步行 参数 ──
             const running = isRunning && walkSpeed > 0.5;
-            const armAmp  = running ? 0.58 : 0.36;  // 比上一版更有摆臂，但仍低于旧版抽搐幅度
-            const legAmp  = running ? 0.54 : 0.34;  // 增加步幅，减少“平移拖着走”的感觉
-            const armZspr = running ? 0.12 : 0.18;  // 手臂贴近身体
-            const bodyLeanX = running ? 0.065 : 0.018;  // 行走也有一点前倾，跑步更明显
+            const armAmp  = running ? 0.48 : 0.28;
+            const legAmp  = running ? 0.46 : 0.29;
+            const armZspr = running ? 0.13 : 0.15;
+            const bodyLeanX = running ? 0.072 : 0.025;
 
             // 身体侧倾（步行有轻微摇摆，奔跑去掉避免滑稽）
-            const bodySway = Math.sin(walkCycle) * BODY_SWAY_AMPLITUDE * walkSpeed * (running ? 0.16 : 0.34);
+            const phase = walkCycle;
+            const s = Math.sin(phase);
+            const c = Math.cos(phase);
+            const speed01 = Math.min(1.15, Math.max(0.15, walkSpeed));
+            const footLiftL = Math.max(0, s) * (running ? 0.15 : 0.08) * speed01;
+            const footLiftR = Math.max(0, -s) * (running ? 0.15 : 0.08) * speed01;
+            const bodySway = s * BODY_SWAY_AMPLITUDE * walkSpeed * (running ? 0.13 : 0.26);
             soldier.rotation.z = bodySway;
-            soldier.rotation.x = bodyLeanX + Math.abs(Math.sin(walkCycle)) * (running ? 0.022 : 0.010);
+            soldier.rotation.x = bodyLeanX + Math.abs(s) * (running ? 0.018 : 0.008);
 
             // ── 手臂前后摆动 ──
             // 手臂Z展开角度先归位，再叠加X方向前后摆
-            const armSwing = Math.sin(walkCycle) * armAmp * Math.min(walkSpeed, 1.15);
-            if (lArm) { lArm.rotation.z =  armZspr + Math.sin(walkCycle + Math.PI * 0.5) * 0.025; lArm.rotation.x =  armSwing; }
-            if (rArm) { rArm.rotation.z = -armZspr + Math.sin(walkCycle + Math.PI * 0.5) * 0.025; rArm.rotation.x = -armSwing; }
+            const armSwing = s * armAmp * speed01;
+            if (lArm) { lArm.rotation.z =  armZspr + c * 0.018; lArm.rotation.x =  armSwing - 0.035; }
+            if (rArm) { rArm.rotation.z = -armZspr + c * 0.018; rArm.rotation.x = -armSwing - 0.030; }
 
             // ── 腿部摆动 ──
-            const legSwing = Math.sin(walkCycle) * legAmp * Math.min(walkSpeed, 1.15);
+            const legSwing = s * legAmp * speed01;
             if (lLeg) {
                 lLeg.rotation.x = -legSwing;
-                lLeg.position.y = -0.30 + Math.max(0, legSwing) * (running ? 0.14 : 0.09);
+                lLeg.rotation.z = c * (running ? 0.020 : 0.012);
+                lLeg.position.y = -0.30 + footLiftL;
             }
             if (rLeg) {
                 rLeg.rotation.x =  legSwing;
-                rLeg.position.y = -0.30 + Math.max(0, -legSwing) * (running ? 0.14 : 0.09);
+                rLeg.rotation.z = c * (running ? 0.020 : 0.012);
+                rLeg.position.y = -0.30 + footLiftR;
             }
             // 靴子跟随腿部（奔跑时抬脚更明显）
             const bootFactor = running ? 0.60 : 0.42;
             if (lBoot) {
                 lBoot.rotation.x = -legSwing * bootFactor;
-                lBoot.position.y = -0.62 + Math.max(0, legSwing) * (running ? 0.11 : 0.065);
+                lBoot.position.y = -0.62 + footLiftL * 0.70;
             }
             if (rBoot) {
                 rBoot.rotation.x =  legSwing * bootFactor;
-                rBoot.position.y = -0.62 + Math.max(0, -legSwing) * (running ? 0.11 : 0.065);
+                rBoot.position.y = -0.62 + footLiftR * 0.70;
             }
         }
         
@@ -12061,28 +12102,28 @@
                 }
 
                 if (spd > 0.04) {
-                    const spd01Simple = Math.min(spd, 1.22);
+                    const spd01Simple = Math.min(spd, 1.15);
                     const runMixSimple = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
                     const phaseSimple = cycle;
                     const sSimple = Math.sin(phaseSimple);
                     const cSimple = Math.cos(phaseSimple);
                     const stepLiftSimple = Math.abs(sSimple);
-                    const sideSimple = sSimple * (0.020 + 0.016 * runMixSimple);
-                    const twistSimple = cSimple * (0.018 + 0.018 * runMixSimple);
-                    const leanSimple = 0.032 + 0.072 * runMixSimple + stepLiftSimple * (0.010 + 0.010 * runMixSimple);
-                    const legAmpSimple = 0.31 + 0.18 * runMixSimple;
-                    const kneeAmpSimple = 0.18 + 0.22 * runMixSimple;
-                    const armAmpSimple = 0.27 + 0.18 * runMixSimple;
+                    const sideSimple = sSimple * (0.014 + 0.012 * runMixSimple);
+                    const twistSimple = cSimple * (0.014 + 0.016 * runMixSimple);
+                    const leanSimple = 0.026 + 0.060 * runMixSimple + stepLiftSimple * (0.006 + 0.008 * runMixSimple);
+                    const legAmpSimple = 0.24 + 0.14 * runMixSimple;
+                    const kneeAmpSimple = 0.13 + 0.15 * runMixSimple;
+                    const armAmpSimple = 0.19 + 0.13 * runMixSimple;
                     const _s2Simple = _vrmArmRzSign, _s3Simple = _vrmArmRxSign, _sLSimple = _vrmLegRxSign;
                     _animBones('j_bip_c_hips', leanSimple, twistSimple, sideSimple, al);
                     _animBones('j_bip_c_spine', -leanSimple * 0.28, -twistSimple * 0.65, -sideSimple * 0.70, al);
                     _animBones('j_bip_c_chest', -leanSimple * 0.18, -twistSimple * 0.55, -sideSimple * 0.42, al);
                     _animBones('j_bip_c_neck', -0.035, 0, 0, al);
                     _animBones('j_bip_c_head', -0.025, 0, 0, al);
-                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple, 0, _s2Simple * -0.92, al);
-                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple, 0, _s2Simple * 0.92, al);
-                    _animBones('j_bip_l_lowerarm', 0.04, 0, _s2Simple * -0.22, al);
-                    _animBones('j_bip_r_lowerarm', 0.04, 0, _s2Simple * 0.22, al);
+                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple - 0.025, 0, _s2Simple * -0.82, al);
+                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple - 0.025, 0, _s2Simple * 0.82, al);
+                    _animBones('j_bip_l_lowerarm', 0.06, 0, _s2Simple * -0.18, al);
+                    _animBones('j_bip_r_lowerarm', 0.06, 0, _s2Simple * 0.18, al);
                     _animBones('j_bip_l_upperleg', _sLSimple * -sSimple * legAmpSimple * spd01Simple, 0, 0, al);
                     _animBones('j_bip_r_upperleg', _sLSimple * sSimple * legAmpSimple * spd01Simple, 0, 0, al);
                     _animBones('j_bip_l_lowerleg', _sLSimple * Math.max(0, sSimple) * kneeAmpSimple, 0, 0, al);
@@ -12159,19 +12200,19 @@
                     _animEar('j_opt_r_catear2_01', -earB * 0.6, 0.20);
                 } else {
                     // 待机：与humanoid API坐标系相同
-                    const breath    = Math.sin(it * 2.1) * 0.055;
-                    const weight    = Math.sin(it * 1.05) * 0.048;
-                    const headTurn  = Math.sin(it * 0.7) * 0.18;
-                    const headNod   = Math.sin(it * 0.57 + 1.2) * 0.04;
-                    const armDL     = Math.sin(it * 0.45 + 0.8) * 0.07;
-                    const armDR     = Math.sin(it * 0.38) * 0.07;
-                    const spineLean = 0.04 + Math.sin(it * 0.44 + 0.3) * 0.015;
+                    const breath    = Math.sin(it * 1.7) * 0.035;
+                    const weight    = Math.sin(it * 0.82) * 0.030;
+                    const headTurn  = Math.sin(it * 0.55) * 0.075;
+                    const headNod   = Math.sin(it * 0.48 + 1.2) * 0.025;
+                    const armDL     = Math.sin(it * 0.45 + 0.8) * 0.035;
+                    const armDR     = Math.sin(it * 0.38) * 0.035;
+                    const spineLean = 0.030 + Math.sin(it * 0.44 + 0.3) * 0.010;
                     // 手臂向下（rz符号随VRM版本自适应）
                     const _si = _vrmArmRzSign;
-                    _animBones('j_bip_l_upperarm', -0.04 + breath * 0.3, 0, _si * -(1.0 - armDL), al);
-                    _animBones('j_bip_r_upperarm', -0.04 + breath * 0.3, 0, _si * +(1.0 - armDR), al);
-                    _animBones('j_bip_l_lowerarm',  0.08, 0, _si * (-0.15 + armDL * 0.25), al);
-                    _animBones('j_bip_r_lowerarm',  0.08, 0, _si * (+0.15 - armDR * 0.25), al);
+                    _animBones('j_bip_l_upperarm', -0.055 + breath * 0.25, 0, _si * -(0.84 - armDL), al);
+                    _animBones('j_bip_r_upperarm', -0.055 + breath * 0.25, 0, _si * +(0.84 - armDR), al);
+                    _animBones('j_bip_l_lowerarm',  0.06, 0, _si * (-0.18 + armDL * 0.20), al);
+                    _animBones('j_bip_r_lowerarm',  0.06, 0, _si * (+0.18 - armDR * 0.20), al);
                     _animBones('j_bip_l_upperleg',  0, 0, +weight * 0.04, al);
                     _animBones('j_bip_r_upperleg',  0, 0, -weight * 0.04, al);
                     _animBones('j_bip_l_lowerleg',  0, 0, 0, al);
@@ -12246,18 +12287,18 @@
             }
 
             if (spd > 0.04) {
-                const spd01SimpleH = Math.min(spd, 1.22);
+                const spd01SimpleH = Math.min(spd, 1.15);
                 const runMixSimpleH = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
                 const phaseSimpleH = cycle;
                 const sSimpleH = Math.sin(phaseSimpleH);
                 const cSimpleH = Math.cos(phaseSimpleH);
                 const stepLiftSimpleH = Math.abs(sSimpleH);
-                const sideSimpleH = sSimpleH * (0.020 + 0.016 * runMixSimpleH);
-                const twistSimpleH = cSimpleH * (0.018 + 0.018 * runMixSimpleH);
-                const leanSimpleH = 0.032 + 0.072 * runMixSimpleH + stepLiftSimpleH * (0.010 + 0.010 * runMixSimpleH);
-                const legAmpSimpleH = 0.31 + 0.18 * runMixSimpleH;
-                const kneeAmpSimpleH = 0.18 + 0.22 * runMixSimpleH;
-                const armAmpSimpleH = 0.27 + 0.18 * runMixSimpleH;
+                const sideSimpleH = sSimpleH * (0.014 + 0.012 * runMixSimpleH);
+                const twistSimpleH = cSimpleH * (0.014 + 0.016 * runMixSimpleH);
+                const leanSimpleH = 0.026 + 0.060 * runMixSimpleH + stepLiftSimpleH * (0.006 + 0.008 * runMixSimpleH);
+                const legAmpSimpleH = 0.24 + 0.14 * runMixSimpleH;
+                const kneeAmpSimpleH = 0.13 + 0.15 * runMixSimpleH;
+                const armAmpSimpleH = 0.19 + 0.13 * runMixSimpleH;
                 const _s4SimpleH = _vrmArmRxSign, _sRzSimpleH = _vrmArmRzSign, _sL2SimpleH = _vrmLegRxSign;
                 bl(hips, leanSimpleH, twistSimpleH, sideSimpleH);
                 bl(spine, -leanSimpleH * 0.28, -twistSimpleH * 0.65, -sideSimpleH * 0.70);
@@ -12267,10 +12308,10 @@
                 bl(head, -0.025, 0, 0);
                 bl(lSho, 0, 0, 0);
                 bl(rSho, 0, 0, 0);
-                bl(lArm, _s4SimpleH * sSimpleH * armAmpSimpleH * spd01SimpleH, 0, _sRzSimpleH * -0.92);
-                bl(rArm, _s4SimpleH * -sSimpleH * armAmpSimpleH * spd01SimpleH, 0, _sRzSimpleH * 0.92);
-                bl(lFa, 0.04, 0, _sRzSimpleH * -0.22);
-                bl(rFa, 0.04, 0, _sRzSimpleH * 0.22);
+                bl(lArm, _s4SimpleH * sSimpleH * armAmpSimpleH * spd01SimpleH - 0.025, 0, _sRzSimpleH * -0.82);
+                bl(rArm, _s4SimpleH * -sSimpleH * armAmpSimpleH * spd01SimpleH - 0.025, 0, _sRzSimpleH * 0.82);
+                bl(lFa, 0.06, 0, _sRzSimpleH * -0.18);
+                bl(rFa, 0.06, 0, _sRzSimpleH * 0.18);
                 bl(lLeg, _sL2SimpleH * -sSimpleH * legAmpSimpleH * spd01SimpleH, 0, 0);
                 bl(rLeg, _sL2SimpleH * sSimpleH * legAmpSimpleH * spd01SimpleH, 0, 0);
                 bl(lKnee, _sL2SimpleH * Math.max(0, sSimpleH) * kneeAmpSimpleH, 0, 0);
@@ -12329,26 +12370,26 @@
             } else {
                 // ══ 待机动画（与主菜单完全相同的多骨骼富动画）══
                 // 呼吸：~3秒周期
-                const breath   = Math.sin(it * 2.1) * 0.055;
+                const breath   = Math.sin(it * 1.7) * 0.035;
                 // 重心转移：~6秒周期
-                const weight   = Math.sin(it * 1.05) * 0.048;
+                const weight   = Math.sin(it * 0.82) * 0.030;
                 // 头部张望：~9秒周期
-                const headTurn = Math.sin(it * 0.7) * 0.18;
+                const headTurn = Math.sin(it * 0.55) * 0.075;
                 // 头部点头：~11秒周期
-                const headNod  = Math.sin(it * 0.57 + 1.2) * 0.04;
+                const headNod  = Math.sin(it * 0.48 + 1.2) * 0.025;
                 // 手臂微漂：L/R各自不同频率
-                const armDL    = Math.sin(it * 0.45 + 0.8) * 0.07;
-                const armDR    = Math.sin(it * 0.38) * 0.07;
+                const armDL    = Math.sin(it * 0.45 + 0.8) * 0.035;
+                const armDR    = Math.sin(it * 0.38) * 0.035;
                 // 脊柱前后晃动
-                const spineLean = 0.04 + Math.sin(it * 0.44 + 0.3) * 0.015;
+                const spineLean = 0.030 + Math.sin(it * 0.44 + 0.3) * 0.010;
 
                 // 手臂：自然垂下 + 微漂 + 呼吸起伏
                 const _sIRz = _vrmArmRzSign;
-                bl(lArm, -0.04 + breath * 0.3, 0, _sIRz * (-1.0 + armDL));
-                bl(rArm, -0.04 + breath * 0.3, 0, _sIRz * (+1.0 - armDR));
+                bl(lArm, -0.055 + breath * 0.25, 0, _sIRz * (-0.84 + armDL));
+                bl(rArm, -0.055 + breath * 0.25, 0, _sIRz * (+0.84 - armDR));
                 // 小臂：自然弯曲，跟随手臂漂移
-                bl(lFa,  0.08, 0, _sIRz * (-0.15 + armDL * 0.25));
-                bl(rFa,  0.08, 0, _sIRz * (+0.15 - armDR * 0.25));
+                bl(lFa,  0.06, 0, _sIRz * (-0.18 + armDL * 0.20));
+                bl(rFa,  0.06, 0, _sIRz * (+0.18 - armDR * 0.20));
                 // 腿自然站立
                 bl(lLeg,  0, 0,  weight * 0.04);
                 bl(rLeg,  0, 0, -weight * 0.04);
@@ -12656,13 +12697,14 @@
                     if (cr.material) cr.material.opacity = baseOps[i] * (0.6 + horizonGlow * 0.6) * dayFactor;
                 });
             }
+            const indoorBoost = _isPlayerIndoors() ? 1 : 0;
             if (_hemiLight) {
-                _hemiLight.intensity = 0.06 + 0.30 * dayFactor;  // 收一点天光,恢复对比/体积
+                _hemiLight.intensity = 0.08 + 0.34 * dayFactor + indoorBoost * (0.20 + (1 - dayFactor) * 0.18);
                 _hemiLight.color.setHex(0x9eb8e0);
-                _hemiLight.groundColor.setHex(dayFactor > 0.08 ? 0xb8a080 : 0x1a2838);
+                _hemiLight.groundColor.setHex(indoorBoost ? 0xc8bca6 : (dayFactor > 0.08 ? 0xb8a080 : 0x1a2838));
             }
-            if (_ambientLight) _ambientLight.intensity = 0.02 + 0.08 * dayFactor;  // 收环境光,减"洗白"
-            if (_fillLight) _fillLight.intensity = 0.02 + (1 - dayFactor) * 0.07;
+            if (_ambientLight) _ambientLight.intensity = 0.035 + 0.10 * dayFactor + indoorBoost * (0.12 + (1 - dayFactor) * 0.12);
+            if (_fillLight) _fillLight.intensity = 0.04 + (1 - dayFactor) * 0.10 + indoorBoost * 0.12;
             const nightEnough = sunH < -0.22;
             const sunDiskUp = _sunVisual && _sunVisual.visible;
             const hour=(((gameTime%1)+1)%1)*24;
