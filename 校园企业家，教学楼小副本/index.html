@@ -1357,11 +1357,12 @@
         const GOTO_PRESETS = {
             spawn: [0, 0, 23], hall: [0, 0, 23], start: [0, 0, 23],
             gate: [0, 0, 112], schoolgate: [0, 0, 112], men: [0, 0, 112],
-            canteen: [105, 0, -13], cafeteria: [105, 0, -13], food: [105, 0, -13],
+            canteen: [105, 0, -10], cafeteria: [105, 0, -10], food: [105, 0, -10],
             playground: [0, 0, 85], field: [0, 0, 85], sport: [0, 0, 85],
-            office: [-105, 0, -10], teacher: [-105, 0, -10],
-            toilet: [120, 0, 50], wc: [120, 0, 50], bathroom: [120, 0, 50],
-            wcwest: [-120, 0, 50], toiletw: [-120, 0, 50], westwc: [-120, 0, 50],
+            office: [-105, 0, -7], teacher: [-105, 0, -7],
+            garden: [18, 0, -16.5], courtyard: [18, 0, -16.5], fountain: [0, 0, -10],
+            toilet: [115, 0, 56], wc: [115, 0, 56], bathroom: [115, 0, 56],
+            wcwest: [-125, 0, 56], toiletw: [-125, 0, 56], westwc: [-125, 0, 56],
             frontschool: [-33, 0.2, 39], front: [-33, 0.2, 39],
             rearschool: [-33, 0.2, -41], rear: [-33, 0.2, -41],
             roof: [0, 20.5, 23], top: [0, 20.5, 23],
@@ -1410,6 +1411,7 @@
                     + '<li><code>gate schoolgate men</code> — 校门附近</li>'
                     + '<li><code>canteen cafeteria food</code> — 食堂门前</li>'
                     + '<li><code>playground field sport</code> — 操场</li>'
+                    + '<li><code>garden courtyard fountain</code> — 中央庭院 / 喷泉</li>'
                     + '<li><code>office teacher</code> — 教师办公楼</li>'
                     + '<li><code>toilet wc bathroom</code> — 东侧公厕；<code>wcwest toiletw</code> — 西侧公厕</li>'
                     + '<li><code>frontschool front</code> — 第一教学楼门前；<code>rearschool rear</code> — 第二教学楼门前</li>'
@@ -7205,7 +7207,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v113'; // v113：补齐庭院/操场/食堂办公楼周边生活化细节，改善空旷感
+        const MAP_VER = 'campus_v114'; // v114：修复实测传送点，补齐庭院/喷泉跳转并避开厕所贴墙落点
 
         function _dbOpen(cb) {
             try {
