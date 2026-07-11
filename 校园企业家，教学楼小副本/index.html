@@ -7063,7 +7063,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v107'; // v107：修正高速视角输入、走跑步态与脚步声音效；地图几何不降画质
+        const MAP_VER = 'campus_v108'; // v108：修正教学楼外窗贴墙位置与入口玻璃门，去掉浮空玻璃感
 
         function _dbOpen(cb) {
             try {
@@ -8139,15 +8139,29 @@
                     W((cxE+stX1)/2, (f+1)*fh-0.07, zCorrMid, (stX1-cxE)+fw+0.3, 0.14, corrD*0.6, stairC);          // 落脚平台→stX1门→楼板
                 }
             }
-            const _winMat=new THREE.MeshLambertMaterial({color:0x6f9caf,transparent:true,opacity:0.48,side:THREE.DoubleSide,depthWrite:false});
+            const _winMat=new THREE.MeshPhongMaterial({color:0x86b8c7,transparent:true,opacity:0.34,shininess:85,specular:0xd7f7ff,side:THREE.DoubleSide,depthWrite:false});
+            const _winFrameMat=new THREE.MeshLambertMaterial({color:0x44515c});
             const _windowInstances=[];
+            const _windowFrameInstances=[];
             function ribbon(zF,yB){ // 分段窗墙：实体窗台/窗楣+规则窗洞，避免整栋楼像透明剖面。
                 W(cx,yB+0.70,zF,totW,1.40,WT);
                 W(cx,yB+fh-0.42,zF,totW,0.84,WT);
                 const gh=fh-2.24, wy=yB+1.40+gh/2;
                 const moduleW=4.0;
+                const side = zF > zMid ? 1 : -1;
+                const paneZ = zF + side * (WT / 2 + 0.028);
+                const frameZ = zF + side * (WT / 2 + 0.056);
+                const paneW = 2.72;
+                const paneH = Math.max(1.12, gh - 0.18);
                 for(let bx=xW+moduleW/2;bx<xE-0.2;bx+=moduleW){
-                    _windowInstances.push([bx,wy,zF]);
+                    _windowInstances.push([bx,wy,paneZ]);
+                    _windowFrameInstances.push(
+                        [bx, wy + paneH/2 + 0.07, frameZ, paneW + 0.22, 0.10, 0.07],
+                        [bx, wy - paneH/2 - 0.07, frameZ, paneW + 0.22, 0.10, 0.07],
+                        [bx - paneW/2 - 0.06, wy, frameZ, 0.10, paneH + 0.22, 0.07],
+                        [bx + paneW/2 + 0.06, wy, frameZ, 0.10, paneH + 0.22, 0.07],
+                        [bx, wy, frameZ, 0.07, paneH + 0.08, 0.075]
+                    );
                     F(bx-moduleW/2,wy,zF,0.55,gh,0.16,0x596875); // 实体竖向窗间墙
                 }
                 addWallBBoxOnly(cx,wy,zF,totW-0.6,gh,0.06);
@@ -8230,11 +8244,18 @@
             }
             // 每栋楼所有外窗合为一个 InstancedMesh：数百扇窗只占一次绘制。
             if(_windowInstances.length){
-                const geo=new THREE.BoxGeometry(2.95,fh-2.24,0.06);
+                const geo=new THREE.BoxGeometry(2.72,Math.max(1.12,fh-2.42),0.035);
                 const wins=new THREE.InstancedMesh(geo,_winMat,_windowInstances.length);
                 const wm=new THREE.Matrix4();
                 _windowInstances.forEach(function(p,i){wm.makeTranslation(p[0],p[1],p[2]);wins.setMatrixAt(i,wm);});
                 wins.instanceMatrix.needsUpdate=true;wins._noMerge=true;wins.castShadow=false;wins.receiveShadow=false;scene.add(wins);
+            }
+            if(_windowFrameInstances.length){
+                const fgeo=new THREE.BoxGeometry(1,1,1);
+                const frames=new THREE.InstancedMesh(fgeo,_winFrameMat,_windowFrameInstances.length);
+                const fm=new THREE.Matrix4(), fp=new THREE.Vector3(), fq=new THREE.Quaternion(), fs=new THREE.Vector3();
+                _windowFrameInstances.forEach(function(p,i){fp.set(p[0],p[1],p[2]);fs.set(p[3],p[4],p[5]);fm.compose(fp,fq,fs);frames.setMatrixAt(i,fm);});
+                frames.instanceMatrix.needsUpdate=true;frames._noMerge=true;frames.castShadow=false;frames.receiveShadow=true;scene.add(frames);
             }
             uStairs();
             // 门牌与室内使用同一份房间表。当前已完成标准教室建模，先使用真实房号，
@@ -8277,8 +8298,22 @@
             F(entranceX-3.85,1.52,zS+2.70,0.22,3.04,0.22,0x4c5962);
             F(entranceX+3.85,1.52,zS+2.70,0.22,3.04,0.22,0x4c5962);
             if(!window._skipVisualMesh){
-                const glass=new THREE.Mesh(new THREE.PlaneGeometry(6.7,2.65),new THREE.MeshPhongMaterial({color:0x8fc7dc,transparent:true,opacity:0.42,shininess:90,side:THREE.DoubleSide}));
-                glass.position.set(entranceX,1.45,zS+0.23);glass._noMerge=true;scene.add(glass);
+                const zDoor = zS + WT / 2 + 0.05;
+                const doorGlassMat = new THREE.MeshPhongMaterial({color:0x8fc7dc,transparent:true,opacity:0.30,shininess:95,specular:0xe7fbff,side:THREE.DoubleSide,depthWrite:false});
+                const doorFrameMat = new THREE.MeshLambertMaterial({color:0x33485a});
+                function entBox(x,y,z,w,h,d,mat){
+                    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+                    m.position.set(x,y,z);m._noMerge=true;m.castShadow=false;m.receiveShadow=true;scene.add(m);return m;
+                }
+                entBox(entranceX-1.35,1.42,zDoor,2.42,2.55,0.045,doorGlassMat);
+                entBox(entranceX+1.35,1.42,zDoor,2.42,2.55,0.045,doorGlassMat);
+                entBox(entranceX,2.78,zDoor+0.025,5.35,0.13,0.08,doorFrameMat);
+                entBox(entranceX,0.08,zDoor+0.025,5.35,0.16,0.08,doorFrameMat);
+                entBox(entranceX-2.70,1.42,zDoor+0.025,0.14,2.70,0.08,doorFrameMat);
+                entBox(entranceX,1.42,zDoor+0.03,0.12,2.70,0.09,doorFrameMat);
+                entBox(entranceX+2.70,1.42,zDoor+0.025,0.14,2.70,0.08,doorFrameMat);
+                entBox(entranceX-0.10,1.36,zDoor+0.07,0.05,0.42,0.08,doorFrameMat);
+                entBox(entranceX+0.10,1.36,zDoor+0.07,0.05,0.42,0.08,doorFrameMat);
             }
             (function addBuildingTitle(){
                 const cv=document.createElement('canvas');cv.width=1024;cv.height=160;const g=cv.getContext('2d');
