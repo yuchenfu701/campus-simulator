@@ -3750,7 +3750,7 @@
         }
 
         // ── 厕所洁具：程序化小便池/蹲便/洗手台（尺寸稳定，避免GLB原点/单位导致比例怪）──
-        function _loadFixture(loader, url, pts, yawOff, matOverride) {
+        function _loadFixture(loader, url, pts, yawOff, matOverride, fallback) {
             if (!pts.length || typeof THREE.GLTFLoader === 'undefined') return;
             loader.load(url, function (gltf) {
                 const parts = []; gltf.scene.updateMatrixWorld(true);
@@ -3784,7 +3784,7 @@
                     inst.instanceMatrix.needsUpdate = true; scene.add(inst);
                 });
                 console.log('🚽 洁具实例化 ' + url.split('/').pop() + ' × ' + pts.length + ' (足迹 ' + (box.max.x - box.min.x).toFixed(2) + '×' + (box.max.z - box.min.z).toFixed(2) + 'm)');
-            }, undefined, function (err) { console.warn('⚠️ 洁具加载失败 ' + url, err && err.message); });
+            }, undefined, function (err) { console.warn('⚠️ 洁具加载失败 ' + url, err && err.message); if (typeof fallback === 'function') fallback(pts); });
         }
         // 各洁具朝向偏移(若装反了改这里)：urinals/squat/sink
         const _TOILET_YAW = { urinal: 0, squat: 0, sink: 0 };
@@ -3904,8 +3904,10 @@
             function addUrinalRow(x0,x1,z,yB){
                 const w = (x1 - x0 - 0.45) / 2;
                 if (w > 0.5) {
-                    urinals.push({x:x0+w/2, y:yB, z:z+0.18, ry:0, th:2.2, keepAspect:true});
-                    urinals.push({x:x1-w/2, y:yB, z:z+0.18, ry:0, th:2.2, keepAspect:true});
+                    // urinals.glb 原始包围盒约 2.0×1.57×0.38m，作为“一组小便池”使用。
+                    // 旧版只按高度等比放大，容易显得又高又窄；这里按真实墙挂高度和行宽分别钳制。
+                    urinals.push({x:x0+w/2, y:yB, z:z+0.18, ry:0, tw:w, th:1.36, td:0.72});
+                    urinals.push({x:x1-w/2, y:yB, z:z+0.18, ry:0, tw:w, th:1.36, td:0.72});
                     return;
                 }
                 const ceramic=new THREE.MeshStandardMaterial({color:0xf4f6f5,roughness:0.34,metalness:0.0});
@@ -4041,8 +4043,9 @@
             });
             if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry||0, 0); d.scale.set((p.len||DCUB)/DCUB, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (loader) {
-                _loadFixture(loader, '../assets/models/urinals.glb', urinals, _TOILET_YAW.urinal);
-                _loadFixture(loader, '../assets/models/squat_toilet.glb', squat, _TOILET_YAW.squat);
+                _loadFixture(loader, '../assets/models/urinals.glb', urinals, _TOILET_YAW.urinal, null, addUrinalRowFallback);
+                // squat_toilet.glb 原始高度约1.9m，直接压成蹲坑会变成白色薄块；先使用稳定程序化蹲坑。
+                addSquatFixtures(squat);
                 _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
             } else {
                 addUrinalRowFallback(urinals);
@@ -7081,7 +7084,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v110'; // v110：优化加载动画卡顿，移除旧楼浮空窗光并改为新版教学楼贴墙夜光
+        const MAP_VER = 'campus_v111'; // v111：清理教学楼入口堵路装饰，优化玻璃/窗光贴墙与大厅细节
 
         function _dbOpen(cb) {
             try {
@@ -8157,8 +8160,8 @@
                     W((cxE+stX1)/2, (f+1)*fh-0.07, zCorrMid, (stX1-cxE)+fw+0.3, 0.14, corrD*0.6, stairC);          // 落脚平台→stX1门→楼板
                 }
             }
-            const _winMat=new THREE.MeshPhongMaterial({color:0x86b8c7,transparent:true,opacity:0.34,shininess:85,specular:0xd7f7ff,side:THREE.DoubleSide,depthWrite:false});
-            const _winFrameMat=new THREE.MeshLambertMaterial({color:0x44515c});
+            const _winMat=new THREE.MeshPhongMaterial({color:0x4f7683,transparent:true,opacity:0.42,shininess:105,specular:0xe6fbff,side:THREE.DoubleSide,depthWrite:false});
+            const _winFrameMat=new THREE.MeshLambertMaterial({color:0x263541});
             const _windowInstances=[];
             const _windowFrameInstances=[];
             function ribbon(zF,yB){ // 分段窗墙：实体窗台/窗楣+规则窗洞，避免整栋楼像透明剖面。
@@ -8202,17 +8205,27 @@
             }
             function serviceCoreAmenities(yB){
                 if(window._skipVisualMesh || window._gfxTier === 'low') return;
-                const midX=(stX1+xRW)/2, zLobby=zRoomSN+2.35, zBench=zRoomSN+0.45;
-                // 门洞附近只放贴墙薄装饰，避免再次把走道视觉上堵住。
-                F(stX1+0.16, yB+1.45, zLobby, 0.08, 1.45, 3.10, 0x284767);  // 左墙公告板
-                F(stX1+0.22, yB+1.45, zLobby, 0.09, 1.12, 2.55, 0xe7d8a5);
-                for(let k=0;k<4;k++) F(stX1+0.28, yB+1.45, zLobby-0.92+k*0.62, 0.06, 0.72, 0.28, 0xd86b7a);
-                F(xRW-0.18, yB+1.35, zLobby, 0.08, 1.35, 3.00, 0x5f7f94);   // 右墙储物/展示墙
-                for(let k=0;k<5;k++) F(xRW-0.24, yB+0.95, zLobby-1.12+k*0.56, 0.06, 1.05, 0.035, 0xd6dde2);
-                F(midX-1.2, yB+0.55, zBench, 4.2, 0.16, 0.38, 0xb88750);     // 靠墙长椅，不挡中线
-                F(midX-1.2, yB+0.30, zBench, 3.7, 0.44, 0.16, 0x5c4c42);
-                F(midX+2.4, yB+0.36, zBench, 0.34, 0.72, 0.34, 0x4ba46a);
-                F(midX, yB+0.085, zLobby, 5.8, 0.025, 3.4, 0x8ea0ad);        // 地面色块让空区不再像毛坯房
+                const midX=(stX1+xRW)/2;
+                const zLobby=zRoomSN+2.10, zBench=zRoomSN+0.38, zGuide=zRoomSN+3.35;
+                // 入口服务核只做“贴墙薄装饰”。上一版用 3m 深厚盒子，看起来像两个框把走道堵住。
+                function wallPanelX(x, y, z, w, h, col, faceEast){
+                    const mat=new THREE.MeshLambertMaterial({color:col, side:THREE.DoubleSide});
+                    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), mat);
+                    m.position.set(x,y,z);
+                    m.rotation.y = faceEast ? Math.PI/2 : -Math.PI/2;
+                    m._noMerge=true; m.renderOrder=2; scene.add(m); return m;
+                }
+                wallPanelX(stX1+0.025, yB+1.55, zGuide, 1.95, 1.05, 0x234762, true);  // 左侧导视牌
+                wallPanelX(stX1+0.035, yB+1.55, zGuide, 1.70, 0.82, 0xe9ddb8, true);
+                for(let k=0;k<3;k++) wallPanelX(stX1+0.045, yB+1.48, zGuide-0.52+k*0.52, 0.34, 0.46, [0xd86b7a,0x6ba6d8,0x75b778][k], true);
+                wallPanelX(xRW-0.025, yB+1.48, zGuide, 1.75, 0.92, 0x4c7086, false);  // 右侧信息栏
+                for(let k=0;k<4;k++) wallPanelX(xRW-0.035, yB+1.40, zGuide-0.58+k*0.38, 0.22, 0.38, 0xdbe3e7, false);
+                // 靠南墙的低矮长椅和绿植，避开中线通道和厕所门洞。
+                F(midX-2.25, yB+0.52, zBench, 3.20, 0.14, 0.34, 0xb88750);
+                F(midX-2.25, yB+0.28, zBench-0.08, 2.85, 0.40, 0.14, 0x5c4c42);
+                F(midX+2.85, yB+0.34, zBench, 0.32, 0.68, 0.32, 0x5ba66c);
+                F(midX+2.85, yB+0.82, zBench, 0.58, 0.30, 0.58, 0x4d9960);
+                F(midX, yB+0.086, zLobby, 4.60, 0.022, 2.35, 0x8ea0ad);        // 大厅地毯/地面色块，缩小后不压到门口
             }
             for(let f=0;f<floors;f++){
                 const yB=f*fh;
@@ -8269,7 +8282,7 @@
                 wins.instanceMatrix.needsUpdate=true;wins._noMerge=true;wins.castShadow=false;wins.receiveShadow=false;scene.add(wins);
 
                 // 夜间窗户发光必须跟随新版教学楼窗户本身；旧版按 BLDG_Z1/Z2 生成的光片会悬空。
-                const glowGeo=new THREE.PlaneGeometry(2.30,Math.max(0.95,fh-2.72));
+                const glowGeo=new THREE.PlaneGeometry(2.06,Math.max(0.82,fh-2.92));
                 const glowMat=new THREE.MeshBasicMaterial({
                     color:0xffe0a0,transparent:true,opacity:0,
                     blending:THREE.AdditiveBlending,depthWrite:false,fog:false,side:THREE.DoubleSide
@@ -8278,7 +8291,7 @@
                 const gm=new THREE.Matrix4(), gp=new THREE.Vector3(), gq=new THREE.Quaternion(), gs=new THREE.Vector3(1,1,1);
                 _windowInstances.forEach(function(p,i){
                     const side = p[2] > zMid ? 1 : -1;
-                    gp.set(p[0],p[1],p[2]+side*0.032);
+                    gp.set(p[0],p[1],p[2]+side*0.018);
                     gm.compose(gp,gq,gs);
                     glows.setMatrixAt(i,gm);
                 });
