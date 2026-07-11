@@ -4160,6 +4160,44 @@
                 m.position.set(x,y,z); m.rotation.y=rotationY||0; m._noMerge=true; m.renderOrder=4; scene.add(m);
                 return m;
             }
+            function addTrashCan(x,z,col){
+                box(x,0.42,z,0.42,0.74,0.42,col||0x3d8b4f);
+                box(x,0.83,z,0.48,0.08,0.48,0x2f3a3f);
+                box(x,0.48,z-0.225,0.24,0.26,0.025,0xf2f2e8);
+            }
+            function addBikeRack(cx,cz,rot,count){
+                const c=Math.cos(rot||0), s=Math.sin(rot||0), n=count||5;
+                function p(ox,oz){return [cx+ox*c-oz*s, cz+ox*s+oz*c];}
+                for(let i=0;i<n;i++){
+                    const ox=(i-(n-1)/2)*0.78;
+                    const a=p(ox,-0.33), b=p(ox,0.33);
+                    box(a[0],0.36,a[1],0.08,0.72,0.08,0x6f7f89);
+                    box(b[0],0.36,b[1],0.08,0.72,0.08,0x6f7f89);
+                    const m=p(ox,0);
+                    box(m[0],0.72,m[1],0.08,0.08,0.72,0x6f7f89);
+                }
+            }
+            function addQueueRail(cx,cz,w,d,rot){
+                const c=Math.cos(rot||0), s=Math.sin(rot||0);
+                function p(ox,oz){return [cx+ox*c-oz*s, cz+ox*s+oz*c];}
+                [-w/2,w/2].forEach(function(ox){
+                    [-d/2,d/2].forEach(function(oz){
+                        const q=p(ox,oz); box(q[0],0.45,q[1],0.06,0.90,0.06,0x6b7780);
+                    });
+                });
+                [[0,-d/2],[0,d/2]].forEach(function(row){
+                    const q=p(row[0],row[1]); box(q[0],0.88,q[1],w,0.06,0.06,0x6b7780);
+                });
+            }
+            function addGroundArrow(x,z,rot,col){
+                const c=col||0xf4f1dc;
+                const stem=box(x,0.031,z,0.22,0.012,2.1,c);
+                if(stem.rotation) stem.rotation.y=rot||0;
+                const head=box(x,0.033,z-1.15,0.95,0.012,0.32,c);
+                if(head.rotation) head.rotation.y=(rot||0)+Math.PI/4;
+                const head2=box(x,0.033,z-1.15,0.95,0.012,0.32,c);
+                if(head2.rotation) head2.rotation.y=(rot||0)-Math.PI/4;
+            }
 
             // ══════════════════════════════════════════════════════
             // 校园布局（4倍扩大，200×200m）
@@ -4976,6 +5014,78 @@
                     box(x+1.35,0.24,z,0.14,0.48,0.62,0x4f5962);
                 });
                 console.log('🌿 中央庭院景观轴线完成');
+            })();
+
+            // ── 校园生活细节：把空广场变成能读出功能的真实校园空间 ──
+            (function addCampusLifeDetails(){
+                // 中央庭院：导视、地面方向箭头、垃圾桶和公告牌，避开南北主轴。
+                addCampusLabel('校园导览', -45, 2.15, -16.5, 4.0, 0.86, '#244d70', '#ffffff', Math.PI/2);
+                box(-45,1.05,-17.95,0.10,2.10,0.10,0x586a78);
+                box(-45,1.05,-15.05,0.10,2.10,0.10,0x586a78);
+                addCampusLabel('食堂 →', 42, 1.95, -12.8, 3.8, 0.78, '#8e342b', '#fff8e8', -Math.PI/2);
+                box(42,0.95,-11.55,0.10,1.9,0.10,0x59636c);
+                addCampusLabel('← 办公楼', -42, 1.95, -12.8, 3.8, 0.78, '#315b78', '#ffffff', Math.PI/2);
+                box(-42,0.95,-11.55,0.10,1.9,0.10,0x59636c);
+                [-22,22].forEach(function(x){
+                    addGroundArrow(x,-16.5,0,0xf8f0d0);
+                    addTrashCan(x,-5.5,0x3d8b4f);
+                    addTrashCan(x,-30.5,0x3d8b4f);
+                });
+                [[-6,-34],[6,-34],[-6,1],[6,1]].forEach(function(p){
+                    box(p[0],0.46,p[1],2.8,0.14,0.72,0x9a7653);
+                    box(p[0]-1.08,0.23,p[1],0.12,0.46,0.56,0x4f5962);
+                    box(p[0]+1.08,0.23,p[1],0.12,0.46,0.56,0x4f5962);
+                });
+
+                // 食堂外：排队动线、餐车和垃圾分类点，门口不再空荡。
+                addQueueRail(95.0,-12.4,7.0,2.8,0);
+                addQueueRail(115.0,-12.4,7.0,2.8,0);
+                addCampusLabel('排队取餐',105,1.78,-10.2,4.3,0.72,'#8e342b','#fff8e8',0);
+                [99.4,102.2,108.0,110.8].forEach(function(x){
+                    box(x,0.48,-8.4,1.25,0.82,0.68,0xd6dde2);
+                    box(x,0.93,-8.4,1.10,0.08,0.55,0xf6f2e9);
+                    box(x-0.42,0.26,-8.78,0.16,0.16,0.08,0x333333);
+                    box(x+0.42,0.26,-8.78,0.16,0.16,0.08,0x333333);
+                });
+                addTrashCan(91.8,-12.0,0x2f8c58);
+                addTrashCan(92.4,-12.0,0x356db4);
+                addTrashCan(93.0,-12.0,0xb44b35);
+
+                // 办公楼外：单车架、来访等待点和快递/资料箱。
+                addBikeRack(-126.5,-9.2,0,6);
+                addBikeRack(-83.5,-9.2,0,6);
+                addCampusLabel('来访登记',-105,1.82,-7.0,4.0,0.76,'#315b78','#ffffff',0);
+                [-111,-99].forEach(function(x){
+                    box(x,0.46,-7.9,3.2,0.14,0.72,0x9a7653);
+                    box(x-1.25,0.23,-7.9,0.12,0.46,0.56,0x4f5962);
+                    box(x+1.25,0.23,-7.9,0.12,0.46,0.56,0x4f5962);
+                });
+                [-120,-117.8,-115.6].forEach(function(x){
+                    box(x,0.55,-6.6,0.82,1.10,0.46,0x6f8494);
+                    box(x,1.14,-6.6,0.90,0.08,0.52,0x394a58);
+                    box(x,0.70,-6.86,0.46,0.20,0.035,0xf2f2e8);
+                });
+
+                // 操场边：器材箱、饮水补给、休息遮阳棚，增加运动区真实感。
+                addCampusLabel('运动器材',-65,1.75,48.6,4.0,0.72,'#287357','#ffffff',0);
+                [-68,-64,-60].forEach(function(x){
+                    box(x,0.48,48.8,2.2,0.88,0.82,0x496a50);
+                    box(x,0.94,48.8,2.05,0.08,0.72,0x2f4636);
+                });
+                addTrashCan(-72,48.5,0x3d8b4f);
+                addTrashCan(72,48.5,0x3d8b4f);
+                [-42,42].forEach(function(x){
+                    box(x,2.55,48.5,8.0,0.12,3.2,0x315b78);
+                    [-3.7,3.7].forEach(function(dx){
+                        [-1.35,1.35].forEach(function(dz){
+                            box(x+dx,1.25,48.5+dz,0.10,2.50,0.10,0x59636c);
+                        });
+                    });
+                    box(x,0.48,48.2,3.8,0.14,0.72,0x9a7653);
+                    box(x-1.5,0.23,48.2,0.12,0.46,0.56,0x4f5962);
+                    box(x+1.5,0.23,48.2,0.12,0.46,0.56,0x4f5962);
+                });
+                console.log('🧭 校园生活细节：导视/排队/单车架/操场休息点完成');
             })();
 
             // ── 超大操场 ──
@@ -7095,7 +7205,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v112'; // v112：细化教学楼楼梯扶手与厕所隔间门细节，继续清理穿帮感
+        const MAP_VER = 'campus_v113'; // v113：补齐庭院/操场/食堂办公楼周边生活化细节，改善空旷感
 
         function _dbOpen(cb) {
             try {
