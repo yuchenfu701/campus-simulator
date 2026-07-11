@@ -7063,7 +7063,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v108'; // v108：修正教学楼外窗贴墙位置与入口玻璃门，去掉浮空玻璃感
+        const MAP_VER = 'campus_v109'; // v109：修正走跑步态僵硬和平移感，修复时间指令即时刷新昼夜天空
 
         function _dbOpen(cb) {
             try {
@@ -11133,41 +11133,41 @@
 
             // ── 奔跑 vs 步行 参数 ──
             const running = isRunning && walkSpeed > 0.5;
-            const armAmp  = running ? 0.46 : 0.30;  // 校园小跑：摆臂保守一点，避免像抽筋甩手
-            const legAmp  = running ? 0.42 : 0.27;  // 小步幅，减少滑步感
-            const armZspr = running ? 0.11 : 0.18;  // 手臂贴近身体
-            const bodyLeanX = running ? 0.045 : 0;  // 奔跑时轻微前倾
+            const armAmp  = running ? 0.58 : 0.36;  // 比上一版更有摆臂，但仍低于旧版抽搐幅度
+            const legAmp  = running ? 0.54 : 0.34;  // 增加步幅，减少“平移拖着走”的感觉
+            const armZspr = running ? 0.12 : 0.18;  // 手臂贴近身体
+            const bodyLeanX = running ? 0.065 : 0.018;  // 行走也有一点前倾，跑步更明显
 
             // 身体侧倾（步行有轻微摇摆，奔跑去掉避免滑稽）
-            const bodySway = running ? 0 : Math.sin(walkCycle * 0.5) * BODY_SWAY_AMPLITUDE * walkSpeed * 0.30;
+            const bodySway = Math.sin(walkCycle) * BODY_SWAY_AMPLITUDE * walkSpeed * (running ? 0.16 : 0.34);
             soldier.rotation.z = bodySway;
-            soldier.rotation.x = bodyLeanX;
+            soldier.rotation.x = bodyLeanX + Math.abs(Math.sin(walkCycle)) * (running ? 0.022 : 0.010);
 
             // ── 手臂前后摆动 ──
             // 手臂Z展开角度先归位，再叠加X方向前后摆
             const armSwing = Math.sin(walkCycle) * armAmp * Math.min(walkSpeed, 1.15);
-            if (lArm) { lArm.rotation.z =  armZspr; lArm.rotation.x =  armSwing; }
-            if (rArm) { rArm.rotation.z = -armZspr; rArm.rotation.x = -armSwing; }
+            if (lArm) { lArm.rotation.z =  armZspr + Math.sin(walkCycle + Math.PI * 0.5) * 0.025; lArm.rotation.x =  armSwing; }
+            if (rArm) { rArm.rotation.z = -armZspr + Math.sin(walkCycle + Math.PI * 0.5) * 0.025; rArm.rotation.x = -armSwing; }
 
             // ── 腿部摆动 ──
             const legSwing = Math.sin(walkCycle) * legAmp * Math.min(walkSpeed, 1.15);
             if (lLeg) {
                 lLeg.rotation.x = -legSwing;
-                lLeg.position.y = -0.30 + Math.max(0, legSwing) * (running ? 0.10 : 0.07);
+                lLeg.position.y = -0.30 + Math.max(0, legSwing) * (running ? 0.14 : 0.09);
             }
             if (rLeg) {
                 rLeg.rotation.x =  legSwing;
-                rLeg.position.y = -0.30 + Math.max(0, -legSwing) * (running ? 0.10 : 0.07);
+                rLeg.position.y = -0.30 + Math.max(0, -legSwing) * (running ? 0.14 : 0.09);
             }
             // 靴子跟随腿部（奔跑时抬脚更明显）
             const bootFactor = running ? 0.60 : 0.42;
             if (lBoot) {
                 lBoot.rotation.x = -legSwing * bootFactor;
-                lBoot.position.y = -0.62 + Math.max(0, legSwing) * (running ? 0.08 : 0.05);
+                lBoot.position.y = -0.62 + Math.max(0, legSwing) * (running ? 0.11 : 0.065);
             }
             if (rBoot) {
                 rBoot.rotation.x =  legSwing * bootFactor;
-                rBoot.position.y = -0.62 + Math.max(0, -legSwing) * (running ? 0.08 : 0.05);
+                rBoot.position.y = -0.62 + Math.max(0, -legSwing) * (running ? 0.11 : 0.065);
             }
         }
         
@@ -11844,19 +11844,22 @@
                 }
 
                 if (spd > 0.04) {
-                    const spd01Simple = Math.min(spd, 1.15);
+                    const spd01Simple = Math.min(spd, 1.22);
                     const runMixSimple = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
                     const phaseSimple = cycle;
                     const sSimple = Math.sin(phaseSimple);
-                    const sideSimple = Math.sin(phaseSimple * 0.5) * (0.012 + 0.010 * runMixSimple);
-                    const leanSimple = 0.025 + 0.055 * runMixSimple;
-                    const legAmpSimple = 0.24 + 0.14 * runMixSimple;
-                    const kneeAmpSimple = 0.12 + 0.16 * runMixSimple;
-                    const armAmpSimple = 0.20 + 0.14 * runMixSimple;
+                    const cSimple = Math.cos(phaseSimple);
+                    const stepLiftSimple = Math.abs(sSimple);
+                    const sideSimple = sSimple * (0.020 + 0.016 * runMixSimple);
+                    const twistSimple = cSimple * (0.018 + 0.018 * runMixSimple);
+                    const leanSimple = 0.032 + 0.072 * runMixSimple + stepLiftSimple * (0.010 + 0.010 * runMixSimple);
+                    const legAmpSimple = 0.31 + 0.18 * runMixSimple;
+                    const kneeAmpSimple = 0.18 + 0.22 * runMixSimple;
+                    const armAmpSimple = 0.27 + 0.18 * runMixSimple;
                     const _s2Simple = _vrmArmRzSign, _s3Simple = _vrmArmRxSign, _sLSimple = _vrmLegRxSign;
-                    _animBones('j_bip_c_hips', leanSimple, 0, sideSimple, al);
-                    _animBones('j_bip_c_spine', -leanSimple * 0.25, 0, -sideSimple * 0.65, al);
-                    _animBones('j_bip_c_chest', -leanSimple * 0.15, 0, -sideSimple * 0.35, al);
+                    _animBones('j_bip_c_hips', leanSimple, twistSimple, sideSimple, al);
+                    _animBones('j_bip_c_spine', -leanSimple * 0.28, -twistSimple * 0.65, -sideSimple * 0.70, al);
+                    _animBones('j_bip_c_chest', -leanSimple * 0.18, -twistSimple * 0.55, -sideSimple * 0.42, al);
                     _animBones('j_bip_c_neck', -0.035, 0, 0, al);
                     _animBones('j_bip_c_head', -0.025, 0, 0, al);
                     _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple, 0, _s2Simple * -0.92, al);
@@ -12026,20 +12029,23 @@
             }
 
             if (spd > 0.04) {
-                const spd01SimpleH = Math.min(spd, 1.15);
+                const spd01SimpleH = Math.min(spd, 1.22);
                 const runMixSimpleH = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
                 const phaseSimpleH = cycle;
                 const sSimpleH = Math.sin(phaseSimpleH);
-                const sideSimpleH = Math.sin(phaseSimpleH * 0.5) * (0.012 + 0.010 * runMixSimpleH);
-                const leanSimpleH = 0.025 + 0.055 * runMixSimpleH;
-                const legAmpSimpleH = 0.24 + 0.14 * runMixSimpleH;
-                const kneeAmpSimpleH = 0.12 + 0.16 * runMixSimpleH;
-                const armAmpSimpleH = 0.20 + 0.14 * runMixSimpleH;
+                const cSimpleH = Math.cos(phaseSimpleH);
+                const stepLiftSimpleH = Math.abs(sSimpleH);
+                const sideSimpleH = sSimpleH * (0.020 + 0.016 * runMixSimpleH);
+                const twistSimpleH = cSimpleH * (0.018 + 0.018 * runMixSimpleH);
+                const leanSimpleH = 0.032 + 0.072 * runMixSimpleH + stepLiftSimpleH * (0.010 + 0.010 * runMixSimpleH);
+                const legAmpSimpleH = 0.31 + 0.18 * runMixSimpleH;
+                const kneeAmpSimpleH = 0.18 + 0.22 * runMixSimpleH;
+                const armAmpSimpleH = 0.27 + 0.18 * runMixSimpleH;
                 const _s4SimpleH = _vrmArmRxSign, _sRzSimpleH = _vrmArmRzSign, _sL2SimpleH = _vrmLegRxSign;
-                bl(hips, leanSimpleH, 0, sideSimpleH);
-                bl(spine, -leanSimpleH * 0.25, 0, -sideSimpleH * 0.65);
-                bl(spine2, -leanSimpleH * 0.18, 0, -sideSimpleH * 0.45);
-                bl(spine3, -leanSimpleH * 0.12, 0, -sideSimpleH * 0.25);
+                bl(hips, leanSimpleH, twistSimpleH, sideSimpleH);
+                bl(spine, -leanSimpleH * 0.28, -twistSimpleH * 0.65, -sideSimpleH * 0.70);
+                bl(spine2, -leanSimpleH * 0.18, -twistSimpleH * 0.55, -sideSimpleH * 0.45);
+                bl(spine3, -leanSimpleH * 0.12, -twistSimpleH * 0.35, -sideSimpleH * 0.25);
                 bl(neck, -0.035, 0, 0);
                 bl(head, -0.025, 0, 0);
                 bl(lSho, 0, 0, 0);
@@ -12156,6 +12162,17 @@
         }
         function getDayFactor(gt) {
             return Math.max(0, Math.sin(getSunAngle(gt)));
+        }
+        function clockToGameTime(hour, minute) {
+            const h = Math.min(23, Math.max(0, Number(hour) || 0));
+            const m = Math.min(59, Math.max(0, Number(minute) || 0));
+            return ((h + m / 60) / 24 + 1) % 1;
+        }
+        function gameTimeToClock(gt) {
+            const hours = (((gt % 1) + 1) % 1) * 24;
+            const h = Math.floor(hours) % 24;
+            const m = Math.floor((hours - Math.floor(hours)) * 60) % 60;
+            return { h, m, text: h.toString().padStart(2, '0') + ':' + m.toString().padStart(2, '0') };
         }
         function getSkyColor(gt) {
             const g = ((gt % 1) + 1) % 1;
@@ -12482,10 +12499,7 @@
             }
         }
         function updateTimeHUD() {
-            const hours = ((gameTime % 1) + 1) % 1 * 24;
-            const h = Math.floor(hours) % 24;
-            const m = Math.floor((hours - Math.floor(hours)) * 60);
-            const timeStr = h.toString().padStart(2, '0') + ':' + m.toString().padStart(2, '0');
+            const timeStr = gameTimeToClock(gameTime).text;
             const wtZh = { clear: '晴天', rain: '雨天', snow: '雪天', fog: '雾天' };
             const timeEl = document.getElementById('game-time-display');
             if (timeEl) timeEl.textContent = timeStr + '（' + (wtZh[weatherType] || weatherType) + '）';
@@ -12534,6 +12548,40 @@
             }
             updateTimeHUD();
         }
+        function forceTimeVisualRefresh() {
+            updateSunLightFromTime(0.016);
+            // 控制台改时间时必须立即刷新天空；否则晴天颜色会按 6 秒过渡，看起来像“时间没生效”。
+            if (weatherState !== 'active') {
+                weatherType = toWeather || weatherType || 'clear';
+                weatherState = 'active';
+                transitionTimer = 0;
+            }
+            if (weatherType === 'clear') {
+                _skyLerpColor = getSkyColor(gameTime);
+                if (scene.background && scene.background.isColor) scene.background.copy(_skyLerpColor);
+                else scene.background = _skyLerpColor.clone();
+                const hx = '#' + ('000000' + _skyLerpColor.getHex().toString(16)).slice(-6);
+                document.body.style.background = 'linear-gradient(to bottom,' + hx + ' 0%,' + hx + ' 100%)';
+                const df = getDayFactor(gameTime);
+                scene.fog = df < 0.05 ? new THREE.Fog(_skyLerpColor.getHex(), 400, 1200) : null;
+                if (window._skyDome) {
+                    const _u = window._skyDome.material.uniforms;
+                    _u.topColor.value.copy(_skyLerpColor);
+                    const _hc = _skyHorizonColor.copy(_skyLerpColor);
+                    _hc.lerp(_skyDayHorizonColor, df * 0.50);
+                    const _g = ((gameTime % 1) + 1) % 1;
+                    const _wb = Math.max(
+                        Math.max(0, 1 - Math.abs(_g - 0.73) / 0.07),
+                        Math.max(0, 1 - Math.abs(_g - 0.246) / 0.075)
+                    );
+                    _hc.lerp(_skySunsetColor, _wb * 0.65 * Math.min(1, df * 5));
+                    _u.horizonColor.value.copy(_hc);
+                }
+            } else {
+                applyWeatherInstant(weatherType);
+            }
+            updateTimeHUD();
+        }
         function initTimeWeatherSystems() {
             if (_twInited || !scene) return;
             _twInited = true;
@@ -12576,34 +12624,39 @@
         function cmdTime(args) {
             const output = document.createElement('div');
             if (!args || args.length === 0) {
-                const hours = ((gameTime % 1) + 1) % 1 * 24;
-                const h = Math.floor(hours) % 24;
-                const m = Math.floor((hours - Math.floor(hours)) * 60);
-                output.textContent = '游戏时间 ' + h.toString().padStart(2, '0') + ':' + m.toString().padStart(2, '0') + '  gameTime=' + gameTime.toFixed(4);
+                const ck = gameTimeToClock(gameTime);
+                output.textContent = '游戏时间 ' + ck.text + '  gameTime=' + gameTime.toFixed(4);
                 consoleOutput.appendChild(output);
                 return;
             }
-            const a0 = String(args[0]).toLowerCase();
-            if (a0 === 'dawn' || a0 === '日出') gameTime = 0.26;
-            else if (a0 === 'noon' || a0 === '正午') gameTime = 0.5;
-            else if (a0 === 'dusk' || a0 === '日落') gameTime = 0.76;
-            else if (a0 === 'midnight' || a0 === '午夜' || a0 === 'night') gameTime = 0;
-            else if (/^\d{1,2}:\d{2}$/.test(args[0])) {
-                const parts = args[0].split(':');
-                const hh = Math.min(23, Math.max(0, parseInt(parts[0], 10)));
-                const mm = Math.min(59, Math.max(0, parseInt(parts[1], 10)));
-                gameTime = (hh + mm / 60) / 24;
+            const raw = String(args.join(' ')).trim();
+            const a0 = raw.toLowerCase().replace('：', ':').replace(/点/g, ':00').replace(/时/g, ':00');
+            let ok = true;
+            if (a0 === 'dawn' || a0 === '日出' || a0 === '早上') gameTime = clockToGameTime(6, 0);
+            else if (a0 === 'noon' || a0 === '正午' || a0 === '中午') gameTime = clockToGameTime(12, 0);
+            else if (a0 === 'dusk' || a0 === '日落' || a0 === '傍晚') gameTime = clockToGameTime(18, 0);
+            else if (a0 === 'midnight' || a0 === '午夜' || a0 === 'night' || a0 === '夜晚') gameTime = clockToGameTime(0, 0);
+            else if (/^\d{1,2}:\d{1,2}$/.test(a0)) {
+                const parts = a0.split(':');
+                gameTime = clockToGameTime(parseInt(parts[0], 10), parseInt(parts[1], 10));
             } else {
-                const n = parseFloat(args[0]);
+                const n = parseFloat(a0);
                 if (!isNaN(n)) {
-                    if (n >= 0 && n <= 1) gameTime = n;
-                    else gameTime = (((n % 24) + 24) % 24) / 24;
-                }
+                    // 0~1 仍保留为内部归一化调试值；大于 1 的数字按真实钟表小时处理。
+                    if (n >= 0 && n <= 1 && !/^\d{1,2}$/.test(a0)) gameTime = n;
+                    else gameTime = clockToGameTime(((n % 24) + 24) % 24, 0);
+                } else ok = false;
             }
             gameTime = ((gameTime % 1) + 1) % 1;
-            output.textContent = '已设置时间 gameTime=' + gameTime.toFixed(4);
+            if (!ok) {
+                output.textContent = '时间格式无效：可输入 time 12、time 12:00、time noon、time 正午';
+                consoleOutput.appendChild(output);
+                return;
+            }
+            const ck = gameTimeToClock(gameTime);
+            output.textContent = '已设置时间 ' + ck.text + '  gameTime=' + gameTime.toFixed(4);
             consoleOutput.appendChild(output);
-            updateSunLightFromTime();
+            forceTimeVisualRefresh();
         }
         function cmdWeather(args) {
             const output = document.createElement('div');
