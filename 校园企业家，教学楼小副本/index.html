@@ -1357,7 +1357,7 @@
         const GOTO_PRESETS = {
             spawn: [0, 0, 23], hall: [0, 0, 23], start: [0, 0, 23],
             gate: [0, 0, 112], schoolgate: [0, 0, 112], men: [0, 0, 112],
-            canteen: [105, 0, -10], cafeteria: [105, 0, -10], food: [105, 0, -10],
+            canteen: [105, 0, -5], cafeteria: [105, 0, -5], food: [105, 0, -5],
             playground: [0, 0, 85], field: [0, 0, 85], sport: [0, 0, 85],
             office: [-105, 0, -7], teacher: [-105, 0, -7],
             garden: [18, 0, -16.5], courtyard: [18, 0, -16.5], fountain: [0, 0, -10],
@@ -1909,6 +1909,14 @@
             if (!renderer) return;
             window._gfxTier = tier;
             renderer.setPixelRatio(_tierPixelRatioCap(tier));
+            const dynamicLightsOn = tier === 'high';
+            [window._lampPointLights, window._fieldFloodlights].forEach(function(arr){
+                if (!arr) return;
+                arr.forEach(function(light){
+                    light.visible = dynamicLightsOn;
+                    if (!dynamicLightsOn) light.intensity = 0;
+                });
+            });
             if (tier === 'low') {
                 renderer.shadowMap.enabled = false;
                 if (_sunLight) _sunLight.castShadow = false;
@@ -1968,7 +1976,7 @@
                     sunDirLight.shadow.mapSize.height = 1024;
                 }
             }
-            _gfxStartupGraceUntil = performance.now() + 12000;
+            _gfxStartupGraceUntil = performance.now() + 7000;
             _gfxLastTierChange = performance.now();
             console.log('画质档:', tier, '| DPR:', renderer.getPixelRatio().toFixed(2), '| GPU:', window._gpuRendererName || 'unknown', '| 独显:', window._gpuIsDiscrete, '| 移动端:', isMobileUA);
             return tier;
@@ -4651,8 +4659,9 @@
                 const wR=new THREE.Mesh(new THREE.BoxGeometry(canSeg-2,2.4,0.08),winG); wR.position.set(cX+canDW/2+canSeg/2,2.2,cS+0.18); scene.add(wR);
                 addWallBBoxOnly(cX + canDW / 2 + canSeg / 2, 2.2, cS + 0.18, canSeg - 2, 2.4, 0.08);
                 box(cX,cH,cZ,cW+0.5,0.35,cD+0.4,0xd8cfa8); // 屋顶
-                box(cX,3.15,cS+1.45,8.5,0.22,2.8,0x9a5e3b); // 入口雨棚
-                (function addCanteenSign(){const cv=document.createElement('canvas');cv.width=768;cv.height=150;const g=cv.getContext('2d');g.fillStyle='#8e342b';g.fillRect(0,0,768,150);g.strokeStyle='#e5c56a';g.lineWidth=9;g.strokeRect(7,7,754,136);g.fillStyle='#fff8e8';g.font='bold 86px "Microsoft YaHei",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('学生食堂',384,80);const tx=new THREE.CanvasTexture(cv);const m=new THREE.Mesh(new THREE.PlaneGeometry(7.8,1.5),new THREE.MeshBasicMaterial({map:tx}));m.position.set(cX,4.42,cS+0.22);m._noMerge=true;m.renderOrder=4;scene.add(m);})();
+                box(cX,3.42,cS+1.12,8.2,0.12,2.0,0xb48963); // 入口雨棚：抬高并变薄，避免近距离像一整块红墙
+                box(cX,3.34,cS+2.16,8.3,0.08,0.10,0x7d3b2e); // 雨棚前缘压线
+                (function addCanteenSign(){const cv=document.createElement('canvas');cv.width=768;cv.height=150;const g=cv.getContext('2d');g.fillStyle='#8e342b';g.fillRect(0,0,768,150);g.strokeStyle='#e5c56a';g.lineWidth=9;g.strokeRect(7,7,754,136);g.fillStyle='#fff8e8';g.font='bold 82px "Microsoft YaHei",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('学生食堂',384,80);const tx=new THREE.CanvasTexture(cv);const m=new THREE.Mesh(new THREE.PlaneGeometry(6.9,1.28),new THREE.MeshBasicMaterial({map:tx}));m.position.set(cX,4.44,cS+0.22);m._noMerge=true;m.renderOrder=4;scene.add(m);})();
                 [0.15,0.3].forEach((sh,i)=>{ const step=new THREE.Mesh(new THREE.BoxGeometry(8,sh,0.6),
                     new THREE.MeshLambertMaterial({color:0xb8a898}));
                     step.position.set(cX,sh/2,cS+(0.3+i*0.6));
@@ -5042,7 +5051,7 @@
                 // 食堂外：排队动线、餐车和垃圾分类点，门口不再空荡。
                 addQueueRail(95.0,-12.4,7.0,2.8,0);
                 addQueueRail(115.0,-12.4,7.0,2.8,0);
-                addCampusLabel('排队取餐',105,1.78,-10.2,4.3,0.72,'#8e342b','#fff8e8',0);
+                addCampusLabel('排队取餐',94.5,1.62,-8.8,3.2,0.58,'#8e342b','#fff8e8',0);
                 [99.4,102.2,108.0,110.8].forEach(function(x){
                     box(x,0.48,-8.4,1.25,0.82,0.68,0xd6dde2);
                     box(x,0.93,-8.4,1.10,0.08,0.55,0xf6f2e9);
@@ -5052,6 +5061,10 @@
                 addTrashCan(91.8,-12.0,0x2f8c58);
                 addTrashCan(92.4,-12.0,0x356db4);
                 addTrashCan(93.0,-12.0,0xb44b35);
+                [[97.0,-5.9],[113.0,-5.9]].forEach(function(p){
+                    box(p[0],0.34,p[1],0.58,0.68,0.58,0x6d4f3b);
+                    box(p[0],0.92,p[1],1.15,0.72,1.15,0x4f9c55);
+                });
 
                 // 办公楼外：单车架、来访等待点和快递/资料箱。
                 addBikeRack(-126.5,-9.2,0,6);
@@ -5066,6 +5079,10 @@
                     box(x,0.55,-6.6,0.82,1.10,0.46,0x6f8494);
                     box(x,1.14,-6.6,0.90,0.08,0.52,0x394a58);
                     box(x,0.70,-6.86,0.46,0.20,0.035,0xf2f2e8);
+                });
+                [[-113.6,-5.8],[-96.4,-5.8]].forEach(function(p){
+                    box(p[0],0.36,p[1],0.62,0.72,0.62,0x6d4f3b);
+                    box(p[0],1.02,p[1],1.05,0.86,1.05,0x3f8d58);
                 });
 
                 // 操场边：器材箱、饮水补给、休息遮阳棚，增加运动区真实感。
@@ -7207,7 +7224,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v114'; // v114：修复实测传送点，补齐庭院/喷泉跳转并避开厕所贴墙落点
+        const MAP_VER = 'campus_v115'; // v115：实测修正食堂入口比例，并让降档真正关闭动态灯光减负
 
         function _dbOpen(cb) {
             try {
@@ -11473,12 +11490,12 @@
                 if (_fpsHistory.length >= 3) {
                     const avg = _fpsHistory.reduce((a,b)=>a+b,0) / _fpsHistory.length;
                     const now = performance.now();
-                    const canChange = now - _gfxLastTierChange > 6500;
+                    const canChange = now - _gfxLastTierChange > 5000;
                     const pastStartup = now > _gfxStartupGraceUntil;
-                    if (canChange && pastStartup && avg < 28 && window._gfxTier === 'high') {
+                    if (canChange && pastStartup && avg < 38 && window._gfxTier === 'high') {
                         _applyGfxTier('medium', '性能自动降级 high→medium');
                         _fpsHistory = [];
-                    } else if (canChange && pastStartup && avg < 22 && window._gfxTier === 'medium') {
+                    } else if (canChange && pastStartup && avg < 26 && window._gfxTier === 'medium') {
                         _applyGfxTier('low', '性能自动降级 medium→low');
                         _fpsHistory = [];
                     } else if (canChange && avg > 56 && window._gfxTier === 'low') {
