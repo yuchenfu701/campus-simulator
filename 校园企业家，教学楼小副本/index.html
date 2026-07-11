@@ -1363,8 +1363,8 @@
             garden: [18, 0, -16.5], courtyard: [18, 0, -16.5], fountain: [0, 0, -10],
             toilet: [115, 0, 56], wc: [115, 0, 56], bathroom: [115, 0, 56],
             wcwest: [-125, 0, 56], toiletw: [-125, 0, 56], westwc: [-125, 0, 56],
-            frontschool: [-33, 0.2, 39], front: [-33, 0.2, 39],
-            rearschool: [-33, 0.2, -41], rear: [-33, 0.2, -41],
+            frontschool: [0, 0, 50], front: [0, 0, 50],
+            rearschool: [0, 0, -31], rear: [0, 0, -31],
             roof: [0, 20.5, 23], top: [0, 20.5, 23],
             classroom: [0, 0.1, 30], room: [0, 0.1, 30],
             corr2f: [0, 4.1, 23], floor2: [0, 4.1, 23],
@@ -1917,10 +1917,10 @@
                     if (!dynamicLightsOn) light.intensity = 0;
                 });
             });
-            if (tier === 'low') {
+            if (tier !== 'high') {
                 renderer.shadowMap.enabled = false;
                 if (_sunLight) _sunLight.castShadow = false;
-                if (window._petalInst) window._petalInst.visible = false;
+                if (window._petalInst) window._petalInst.visible = tier === 'medium';
                 if (window._birdInst) window._birdInst.visible = false;
             } else {
                 renderer.shadowMap.enabled = true;
@@ -1956,25 +1956,20 @@
             } catch (e) { tier = isMobileUA ? 'medium' : 'high'; }
             window._gfxTier = tier;
             if (sunDirLight) _sunLight = sunDirLight;
-            if (tier === 'low') {
-                // 超低配：关阴影和动态特效，但保持桌面端原生清晰度
-                renderer.setPixelRatio(_tierPixelRatioCap('low'));
-                renderer.shadowMap.enabled = false;
-                if (sunDirLight) { sunDirLight.castShadow = false; }
-            } else if (tier === 'medium') {
-                // 手机/中配：降分辨率 + 小阴影贴图
-                renderer.setPixelRatio(_tierPixelRatioCap('medium'));
-                if (sunDirLight && sunDirLight.shadow) {
-                    sunDirLight.shadow.mapSize.width  = 512;
-                    sunDirLight.shadow.mapSize.height = 512;
-                }
-            } else {
+            if (tier === 'high') {
                 // 独显可用更高DPR，避免高FPS时画面仍然发糊。
                 renderer.setPixelRatio(_tierPixelRatioCap('high'));
+                renderer.shadowMap.enabled = true;
                 if (sunDirLight && sunDirLight.shadow) {
+                    sunDirLight.castShadow = true;
                     sunDirLight.shadow.mapSize.width  = 1024;
                     sunDirLight.shadow.mapSize.height = 1024;
                 }
+            } else {
+                // 中低配：保持本档清晰度，只关闭实时阴影这种高耗特效。
+                renderer.setPixelRatio(_tierPixelRatioCap(tier));
+                renderer.shadowMap.enabled = false;
+                if (sunDirLight) { sunDirLight.castShadow = false; }
             }
             _gfxStartupGraceUntil = performance.now() + 7000;
             _gfxLastTierChange = performance.now();
@@ -4986,6 +4981,8 @@
                     box(cx, 0.22, toiS - 0.38, toiW - 0.7, 0.38, 0.14, 0xa89888);
                     box(mCx, 3.6, toiS - 0.34, 1.05, 0.5, 0.08, 0x1a5a96);
                     box(fCx, 3.6, toiS - 0.34, 1.05, 0.5, 0.08, 0xc43e6b);
+                    addCampusLabel('男', mCx, 3.58, toiS + 0.04, 0.88, 0.48, '#1a5a96', '#ffffff', 0);
+                    addCampusLabel('女', fCx, 3.58, toiS + 0.04, 0.88, 0.48, '#c43e6b', '#ffffff', 0);
                     const zPv = toiS - tWT * 0.5 - 0.03;
                     const outZ = toiS + 0.65;
                     addSouthSwingDoor(mCx - g, gap, zPv, -Math.PI * 0.52, mCx, outZ);
@@ -7224,7 +7221,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v115'; // v115：实测修正食堂入口比例，并让降档真正关闭动态灯光减负
+        const MAP_VER = 'campus_v116'; // v116：复查教学楼/厕所边角，修正外部观察点并优化中低档性能减负
 
         function _dbOpen(cb) {
             try {
