@@ -1106,31 +1106,40 @@
             if (!_moonPhaseCanvas || !_moonPhaseTex) return;
             const ctx = _moonPhaseCanvas.getContext('2d');
             const w = _moonPhaseCanvas.width, h = _moonPhaseCanvas.height;
-            const cx = w * 0.5, cy = h * 0.5, R = w * 0.42;
+            const cx = w * 0.5, cy = h * 0.5, R = w * 0.40;
             const ang = ((phase % 1) + 1) % 1 * Math.PI * 2;
             // 不要用整幅深蓝底：CircleGeometry 外缘 UV 会采到画布四角，游戏里会看到一圈「蓝边」
             ctx.clearRect(0, 0, w, h);
             ctx.globalCompositeOperation = 'source-over';
-            const grd = ctx.createRadialGradient(cx - R * 0.22, cy - R * 0.18, R * 0.06, cx, cy, R);
-            grd.addColorStop(0, '#f2f0ea');
-            grd.addColorStop(0.35, '#c9ccd6');
-            grd.addColorStop(0.72, '#9aa0ae');
-            grd.addColorStop(1, '#6a7080');
+            const grd = ctx.createRadialGradient(cx - R * 0.26, cy - R * 0.22, R * 0.05, cx, cy, R);
+            grd.addColorStop(0, '#fffaf0');
+            grd.addColorStop(0.34, '#d8d6cf');
+            grd.addColorStop(0.74, '#9da3af');
+            grd.addColorStop(1, '#5e6675');
             ctx.fillStyle = grd;
             ctx.beginPath();
             ctx.arc(cx, cy, R, 0, Math.PI * 2);
             ctx.fill();
-            for (let i = 0; i < 48; i++) {
-                const rr = 1.1 + Math.random() * 4.8;
-                const a = Math.random() * Math.PI * 2;
-                const dist = R * (0.1 + Math.random() * 0.82);
+            for (let i = 0; i < 58; i++) {
+                const rnd = (n) => {
+                    const v = Math.sin((i + 1) * 41.731 + n * 19.137) * 43758.5453123;
+                    return v - Math.floor(v);
+                };
+                const rr = R * (0.010 + rnd(1) * 0.030);
+                const a = rnd(2) * Math.PI * 2;
+                const dist = R * (0.10 + rnd(3) * 0.82);
                 const sx = cx + Math.cos(a) * dist;
                 const sy = cy + Math.sin(a) * dist;
-                ctx.fillStyle = `rgba(38,42,54,${0.14 + Math.random() * 0.32})`;
+                ctx.fillStyle = `rgba(38,42,54,${0.10 + rnd(4) * 0.26})`;
                 ctx.beginPath();
                 ctx.arc(sx, sy, rr, 0, Math.PI * 2);
                 ctx.fill();
             }
+            ctx.strokeStyle = 'rgba(255,255,245,0.34)';
+            ctx.lineWidth = Math.max(1.2, R * 0.018);
+            ctx.beginPath();
+            ctx.arc(cx, cy, R - ctx.lineWidth * 0.6, -Math.PI * 0.78, Math.PI * 0.16);
+            ctx.stroke();
             ctx.fillStyle = 'rgba(55,62,78,0.2)';
             ctx.beginPath();
             ctx.ellipse(cx - R * 0.24, cy + R * 0.12, R * 0.36, R * 0.26, 0.35, 0, Math.PI * 2);
@@ -1145,6 +1154,36 @@
             ctx.fill();
             ctx.globalCompositeOperation = 'source-over';
             _moonPhaseTex.needsUpdate = true;
+        }
+
+        function makeSunBillboardTexture() {
+            const c = document.createElement('canvas');
+            c.width = c.height = 256;
+            const ctx = c.getContext('2d');
+            const cx = 128, cy = 128;
+            const corona = ctx.createRadialGradient(cx, cy, 10, cx, cy, 126);
+            corona.addColorStop(0.00, 'rgba(255,255,245,1.00)');
+            corona.addColorStop(0.13, 'rgba(255,232,116,0.96)');
+            corona.addColorStop(0.28, 'rgba(255,160,44,0.56)');
+            corona.addColorStop(0.56, 'rgba(255,112,26,0.18)');
+            corona.addColorStop(1.00, 'rgba(255,112,26,0.00)');
+            ctx.fillStyle = corona;
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.strokeStyle = 'rgba(255,222,120,0.34)';
+            ctx.lineWidth = 5;
+            for (let i = 0; i < 16; i++) {
+                const a = i / 16 * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(a) * 34, cy + Math.sin(a) * 34);
+                ctx.lineTo(cx + Math.cos(a) * (84 + (i % 2) * 18), cy + Math.sin(a) * (84 + (i % 2) * 18));
+                ctx.stroke();
+            }
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+            if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+            tex.needsUpdate = true;
+            return tex;
         }
 
         const SKY_STOPS = [
@@ -3448,10 +3487,19 @@
             return _insideFootprint(x,z,L.canteen,2) || _insideFootprint(x,z,L.office,2) ||
                    _insideFootprint(x,z,L.westToilet,2) || _insideFootprint(x,z,L.eastToilet,2);
         };
+        window._nearNewBldg = function(x, z, pad) {
+            const L = CAMPUS_LAYOUT;
+            const p = Math.max(0, pad || 0);
+            if(x>L.frontSchool.x1-p && x<L.frontSchool.x2+p && z>L.frontSchool.z1-p && z<L.frontSchool.z2+p) return true;
+            if(x>L.rearSchool.x1-p && x<L.rearSchool.x2+p && z>L.rearSchool.z1-p && z<L.rearSchool.z2+p) return true;
+            return _insideFootprint(x,z,L.canteen,p) || _insideFootprint(x,z,L.office,p) ||
+                   _insideFootprint(x,z,L.westToilet,p) || _insideFootprint(x,z,L.eastToilet,p);
+        };
         /** 参考图：下粗上细棱柱干 + 竖纹树皮；棕色枝条接到多颗二十面体冠（青柠绿、哑光分面）；无地面碎块 */
         function addLowPolyTree(x, z, h, cr, cc) {
             if (window._inNewBldg(x, z)) return; // 新教学楼里不种树/花坛
             const crownReach = (cr || 1.8) * 2.2 + 1.5;
+            if (window._nearNewBldg && window._nearNewBldg(x, z, Math.max(2.8, crownReach * 0.72))) return; // 树冠也不能戳进窗户/墙体
             if (x + crownReach > 61 && x - crownReach < 83 && z + crownReach > -22.5 && z - crownReach < -9.5) return;
             if (x + crownReach > 18 && x - crownReach < 40 && z + crownReach > -23.5 && z - crownReach < -12) return;
             // 绿树改用 Blender 导出的 GLB 模型实例化：仅记录位置，跳过程序化"多面体球块"建模
@@ -5314,7 +5362,7 @@
             }
 
             // ── 樱花树（粉色，主路两侧点缀，与绿树错开位置）──
-            [[-24,20],[24,20],[-24,36],[24,36],[-24,50],[24,50]].forEach(([x,z])=>{
+            [[-58,46],[58,46],[-58,72],[58,72],[-32,52],[32,52]].forEach(([x,z])=>{
                 addLowPolyTree(x, z, 4.5+Math.sin(x*0.3)*0.4, 1.6, 0xffb8d8);
             });
 
@@ -5865,12 +5913,25 @@
             if (!_moonPhaseTex) {
             // ── 月亮（月相纹理，昼夜与朔望月系统更新） ──
             _moonPhaseCanvas = document.createElement('canvas');
-            _moonPhaseCanvas.width = _moonPhaseCanvas.height = 128;
+            _moonPhaseCanvas.width = _moonPhaseCanvas.height = 256;
             _moonPhaseTex = new THREE.CanvasTexture(_moonPhaseCanvas);
             _moonPhaseTex.wrapS = _moonPhaseTex.wrapT = THREE.ClampToEdgeWrapping;
             if (THREE.SRGBColorSpace) _moonPhaseTex.colorSpace = THREE.SRGBColorSpace;
             if (_moonMesh) { scene.remove(_moonMesh); _moonMesh = null; }
             _moonMesh = new THREE.Group();
+            const moonGlow = new THREE.Mesh(
+                new THREE.CircleGeometry(18.5, 64),
+                new THREE.MeshBasicMaterial({
+                    color: 0xc9dcff,
+                    transparent: true,
+                    opacity: 0.18,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                    fog: false,
+                    side: THREE.DoubleSide
+                })
+            );
+            _moonMesh.add(moonGlow);
             const moonDisc = new THREE.Mesh(
                 new THREE.CircleGeometry(13, 56),
                 new THREE.MeshBasicMaterial({
@@ -5884,6 +5945,7 @@
             );
             _moonMesh.add(moonDisc);
             _moonMesh.userData.disc = moonDisc;
+            _moonMesh.userData.glow = moonGlow;
             _moonMesh.position.set(80, 65, -120);
             _moonMesh.visible = false;
             scene.add(_moonMesh);
@@ -5892,14 +5954,23 @@
             paintMoonPhaseTexture(lp0);
             _lastMoonPhaseDraw = lp0;
 
-            // ── 可见太阳：单球（若重复 init 先移除旧网格，避免天上两颗黄球） ──
+            // ── 可见太阳：高亮贴图光源（比“大黄球”更像真实远处强光） ──
             if (_sunVisual) { scene.remove(_sunVisual); _sunVisual = null; }
             _sunVisual = new THREE.Group();
             _sunVisual.renderOrder = 5;
-            const sunCoreMesh = new THREE.Mesh(
-                new THREE.SphereGeometry(14, 40, 36),
-                new THREE.MeshBasicMaterial({ color: 0xffcc44, fog: false, depthTest: true })
+            const sunCoreMesh = new THREE.Sprite(
+                new THREE.SpriteMaterial({
+                    map: makeSunBillboardTexture(),
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.98,
+                    fog: false,
+                    depthTest: false,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                })
             );
+            sunCoreMesh.scale.set(32, 32, 1);
             sunCoreMesh.renderOrder = 6;
             sunCoreMesh._noMerge = true; // 不透明球体会被 mergeStaticMeshes 烘焙进缓存，下次加载再建新太阳 → 天上两颗黄球
             _sunVisual.add(sunCoreMesh);
@@ -6028,7 +6099,7 @@
             }
 
             // ── 夜间窗户发光（教学楼各楼层窗户入夜发出暖黄光）──
-            if (!window._winGlowInited && !(window._winGlowMeshes && window._winGlowMeshes.length)) {
+            if (false && !window._winGlowInited && !(window._winGlowMeshes && window._winGlowMeshes.length)) {
                 window._winGlowInited = true;
                 const _WW=2.2, _WH=1.8, _WS=0.9;
                 const _wGeo=new THREE.PlaneGeometry(_WW*0.82,_WH*0.82);
@@ -6198,7 +6269,7 @@
                 window._petalInited = true;
                 const PCNT = 280;
                 // 樱花树位置（对应 createCampus 中的樱花树坐标）——剔除落在新教学楼里的，否则花瓣在楼里飘
-                let _cherryPos = [[-24,20],[24,20],[-24,36],[24,36],[-24,50],[24,50]].filter(function(p){ return !(window._inNewBldg&&window._inNewBldg(p[0],p[1])); });
+                let _cherryPos = [[-58,46],[58,46],[-58,72],[58,72],[-32,52],[32,52]].filter(function(p){ return !(window._nearNewBldg&&window._nearNewBldg(p[0],p[1],4.8)); });
                 if(_cherryPos.length===0) _cherryPos=[[-60,90],[60,90]]; // 兜底：操场两侧
                 const pGeo = new THREE.PlaneGeometry(0.09, 0.06);
                 const pMat = new THREE.MeshBasicMaterial({
@@ -7221,7 +7292,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v120'; // v120：优化人物待机/行走骨骼、室内补光，并修正服务核导视可见性
+        const MAP_VER = 'campus_v121'; // v121：修正树冠穿墙、悬空窗光片、日月贴图、室内外夜景割裂与入口门槛
 
         function _dbOpen(cb) {
             try {
@@ -8341,6 +8412,12 @@
                 const frameZ = zF + side * (WT / 2 + 0.056);
                 const paneW = 2.72;
                 const paneH = Math.max(1.12, gh - 0.18);
+                _windowFrameInstances.push(
+                    [cx, wy + paneH / 2 + 0.12, frameZ, totW - 0.70, 0.14, 0.09],
+                    [cx, wy - paneH / 2 - 0.12, frameZ, totW - 0.70, 0.14, 0.09],
+                    [xW + 0.36, wy, frameZ, 0.14, paneH + 0.30, 0.09],
+                    [xE - 0.36, wy, frameZ, 0.14, paneH + 0.30, 0.09]
+                );
                 for(let bx=xW+moduleW/2;bx<xE-0.2;bx+=moduleW){
                     _windowInstances.push([bx,wy,paneZ]);
                     _windowFrameInstances.push(
@@ -8445,6 +8522,8 @@
                     const sl=(gC-gH)-xW; if(sl>0.1) W((xW+gC-gH)/2,yB+fh/2,zS,sl,fh,WT);
                     const sr=xE-(gC+gH); if(sr>0.1) W((gC+gH+xE)/2,yB+fh/2,zS,sr,fh,WT);
                     W(gC,yB+DOOR_H+(fh-DOOR_H)/2,zS,gH*2,fh-DOOR_H,WT);
+                    F(gC, yB+0.035, zS+0.56, gH*2+0.90, 0.045, 1.10, 0xd6dbe0); // 门口灰色缓坡/收边，避免入口像一堵高门槛
+                    F(gC, yB+0.061, zS+0.04, gH*2+0.55, 0.025, 0.36, 0x8fa0ac); // 极低压边，不再挡视线/行走
                 } else ribbon(zS,yB);                                          // 南外墙(带形窗)
                 partition(zRoomSN,yB); partition(zCorrN,yB);
                 for(let i=1;i<perSide;i++){ const dx=xRW+i*rW; W(dx,yB+fh/2,(zS+zRoomSN)/2,WT,fh,rD,colC); W(dx,yB+fh/2,(zCorrN+zN)/2,WT,fh,rD,colC); } // 教室间隔墙
@@ -11819,19 +11898,20 @@
             // ── 夜间窗户发光 + 路灯光晕（入夜渐亮，天明渐暗）──
             if ((_visualFrame % 4 === 0) && (window._winGlowMeshes || window._lampGlowMeshes)) {
                 const _df = window._dayFactor != null ? window._dayFactor : 0;
-                const _nightOp = Math.max(0, 1 - _df * 2.8) * 0.6;
+                const _indoorsForGlow = (typeof _isPlayerIndoors === 'function') ? _isPlayerIndoors() : false;
+                const _nightOp = Math.max(0, 1 - _df * 2.8) * 0.48;
                 if (window._winGlowMeshes)
                     window._winGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp; });
                 if (window._lampGlowMeshes)
-                    window._lampGlowMeshes.forEach(function(m){ m.material.opacity = _nightOp * 0.7; });
+                    window._lampGlowMeshes.forEach(function(m){ m.material.opacity = _indoorsForGlow ? 0 : _nightOp * 0.58; });
                 // 路灯真实点光源（夜间亮起，与光晕同步）
                 if (window._lampPointLights) {
-                    var _lampInt = Math.max(0, 1 - _df * 2.8) * 1.5;
+                    var _lampInt = (_indoorsForGlow ? 0 : Math.max(0, 1 - _df * 2.8) * 1.35);
                     window._lampPointLights.forEach(function(pl){ pl.intensity = _lampInt; });
                 }
                 // 路灯地面光池（夜间亮起，模拟灯光照到地面）
                 if (window._lampPools) {
-                    var _poolOp = Math.max(0, 1 - _df * 2.8) * 0.42;
+                    var _poolOp = (_indoorsForGlow ? 0 : Math.max(0, 1 - _df * 2.8) * 0.34);
                     window._lampPools.forEach(function(p){ p.material.opacity = _poolOp; });
                 }
             }
@@ -12699,12 +12779,12 @@
             }
             const indoorBoost = _isPlayerIndoors() ? 1 : 0;
             if (_hemiLight) {
-                _hemiLight.intensity = 0.08 + 0.34 * dayFactor + indoorBoost * (0.20 + (1 - dayFactor) * 0.18);
+                _hemiLight.intensity = 0.06 + 0.34 * dayFactor + indoorBoost * (0.08 + (1 - dayFactor) * 0.08);
                 _hemiLight.color.setHex(0x9eb8e0);
-                _hemiLight.groundColor.setHex(indoorBoost ? 0xc8bca6 : (dayFactor > 0.08 ? 0xb8a080 : 0x1a2838));
+                _hemiLight.groundColor.setHex(indoorBoost ? 0x8b8070 : (dayFactor > 0.08 ? 0xb8a080 : 0x1a2838));
             }
-            if (_ambientLight) _ambientLight.intensity = 0.035 + 0.10 * dayFactor + indoorBoost * (0.12 + (1 - dayFactor) * 0.12);
-            if (_fillLight) _fillLight.intensity = 0.04 + (1 - dayFactor) * 0.10 + indoorBoost * 0.12;
+            if (_ambientLight) _ambientLight.intensity = 0.028 + 0.095 * dayFactor + indoorBoost * (0.045 + (1 - dayFactor) * 0.055);
+            if (_fillLight) _fillLight.intensity = 0.03 + (1 - dayFactor) * 0.055 + indoorBoost * (0.035 + (1 - dayFactor) * 0.035);
             const nightEnough = sunH < -0.22;
             const sunDiskUp = _sunVisual && _sunVisual.visible;
             const hour=(((gameTime%1)+1)%1)*24;
@@ -12744,6 +12824,7 @@
                 if (_moonMesh.userData.disc && camera) {
                     _moonMesh.updateMatrixWorld(true);
                     _moonMesh.userData.disc.lookAt(camera.position);
+                    if (_moonMesh.userData.glow) _moonMesh.userData.glow.lookAt(camera.position);
                 }
             }
             if (_cloudGroup) {
