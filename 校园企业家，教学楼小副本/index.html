@@ -7292,7 +7292,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v121'; // v121：修正树冠穿墙、悬空窗光片、日月贴图、室内外夜景割裂与入口门槛
+        const MAP_VER = 'campus_v122'; // v122：禁用远程士兵回退、清理旧非VRM装备缓存并修正第三人称步态
 
         function _dbOpen(cb) {
             try {
@@ -9600,17 +9600,25 @@
                 }
                 var ws = entry.ws || 0;
                 if (ws > 0.02) {
-                    entry.walkPhase += dt * ws * 2.3;
+                    var remoteRun = entry.state === 'run' || ws > 1.05;
+                    entry.walkPhase += dt * (remoteRun ? 1.36 : 0.92) * Math.max(0.45, Math.min(ws, 1.25));
                 }
                 var ph  = entry.walkPhase * Math.PI * 2;
-                var spd = Math.min(ws, 1.0);
-                var swing = Math.sin(ph) * 0.55 * spd;
-                if (entry.lLegPivot) entry.lLegPivot.rotation.x =  swing;
-                if (entry.rLegPivot) entry.rLegPivot.rotation.x = -swing;
-                if (entry.lArmPivot) entry.lArmPivot.rotation.x = -swing * 0.55;
-                if (entry.rArmPivot) entry.rArmPivot.rotation.x =  swing * 0.55;
+                var spd = Math.min(ws, 1.25);
+                var rMix = (entry.state === 'run' || ws > 1.05) ? 1 : 0;
+                var stride = Math.sin(ph) * (0.42 + rMix * 0.22) * spd;
+                var lift = (1 - Math.abs(Math.cos(ph))) * (0.035 + rMix * 0.035) * spd;
+                if (entry.lLegPivot) entry.lLegPivot.rotation.x =  stride;
+                if (entry.rLegPivot) entry.rLegPivot.rotation.x = -stride;
+                if (entry.lArmPivot) entry.lArmPivot.rotation.x = -stride * (0.62 + rMix * 0.18) - rMix * 0.08;
+                if (entry.rArmPivot) entry.rArmPivot.rotation.x =  stride * (0.62 + rMix * 0.18) - rMix * 0.08;
                 if (entry.mesh && ws > 0.02) {
-                    entry.mesh.position.y = entry._py + Math.abs(Math.sin(ph * 2)) * 0.045 * spd;
+                    entry.mesh.rotation.x = 0.018 + rMix * 0.050 + lift * 0.32;
+                    entry.mesh.rotation.z = Math.sin(ph) * (0.010 + rMix * 0.010) * spd;
+                    entry.mesh.position.y = entry._py + lift;
+                } else if (entry.mesh) {
+                    entry.mesh.rotation.x *= 0.82;
+                    entry.mesh.rotation.z *= 0.82;
                 }
                 if(entry.emoteUntil>Date.now()&&entry.rArmPivot){
                     if(entry.emote==='wave')entry.rArmPivot.rotation.z=-1.9+Math.sin(Date.now()*0.014)*0.35;
@@ -9638,7 +9646,12 @@
             const startZ = 116 + spawnOff[1];   // 出生点改到校门口（门在 Z=118），面朝北进校园
 
             // 读取主菜单装备（皮肤/VRM）
-            const equippedVrmFile = localStorage.getItem('equipped_vrm_file');
+            let equippedVrmFile = localStorage.getItem('equipped_vrm_file');
+            if (equippedVrmFile && !/\.vrm(?:[?#].*)?$/i.test(equippedVrmFile)) {
+                console.warn('⚠️ 已忽略旧的非VRM角色缓存，避免回退成装甲士兵:', equippedVrmFile);
+                localStorage.removeItem('equipped_vrm_file');
+                equippedVrmFile = '';
+            }
             const skinIndex = parseInt(localStorage.getItem('equipped_skin_index') || '0');
             const SKINS_DEF = [
                 {shirt:0xfafafa,pants:0x1e2d5a},{shirt:0xdbeafe,pants:0x1e2d5a},
@@ -9872,7 +9885,11 @@
 
             // 先创建备用简单士兵模型
             function createSimpleSoldier() {
-                console.log('🔄 创建简单士兵模型...');
+                console.log('🔄 创建学生简易模型...');
+                window.useSimpleModel = true;
+                _isVrm = false;
+                FIRST_PERSON_HEIGHT = 1.0;
+                normalHeight = FIRST_PERSON_HEIGHT;
 
                 const soldierGroup = new THREE.Group();
 
@@ -10065,6 +10082,7 @@
                         vrmWrapper.position.set(startX, 0, startZ);
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
+                        window.useSimpleModel = false;
                         _vrmBonesResolved = false;
                         FIRST_PERSON_HEIGHT = 1.45;
                         normalHeight = FIRST_PERSON_HEIGHT;
@@ -10154,6 +10172,7 @@
                         vrmWrapper.position.set(startX, 0, startZ);
                         vrmWrapper.add(vrmInner);
                         _isVrm = true;
+                        window.useSimpleModel = false;
                         _vrmBonesResolved = false;
                         FIRST_PERSON_HEIGHT = 1.45;
                         normalHeight = FIRST_PERSON_HEIGHT;
@@ -10175,59 +10194,15 @@
                             console.warn('男生VRM解析失败:', err2); initializeSoldier(createSimpleSoldier());
                         });
                 }).catch(function(err) {
-                    // 回退直接用 loader（旧行为）
+                    // 回退直接用本地默认VRM；如果仍失败，只使用本地简易学生模型。
                     var loaderFb = new THREE.GLTFLoader();
-                    loaderFb.load(defaultMaleVrm, _onMaleGltf, undefined,
-                    function(err) {
+                    loaderFb.load(defaultMaleVrm, _onMaleGltf, undefined, function(err2) {
                         clearTimeout(maleTimeoutId);
                         clearTimeout(_maleSkipShowTimer);
                         _hideMaleVrmOverlay();
-                        console.warn('男生VRM加载失败，尝试在线模型:', err);
-                        // 回退：在线Soldier模型
-                        loader.load(
-                    'https://threejs.org/examples/models/gltf/Soldier.glb',
-                    function(gltf) {
-                        console.log('✅ 在线士兵模型加载成功');
-                        
-                        const soldierModel = gltf.scene;
-                        soldierModel.scale.set(0.5, 0.5, 0.5);
-                        soldierModel.position.set(startX, 0, startZ);
-                        
-                        // 设置动画
-                        mixer = new THREE.AnimationMixer(soldierModel);
-                        const animations = gltf.animations;
-                        
-                        idleAction = mixer.clipAction(animations.find(a => a.name === 'Idle'));
-                        runAction = mixer.clipAction(animations.find(a => a.name === 'Run'));
-                        
-                        const jumpAnim = animations.find(a => a.name === 'Jump') || animations.find(a => a.name === 'Run');
-                        if (jumpAnim) {
-                            jumpAction = mixer.clipAction(jumpAnim);
-                            if (jumpAnim.name === 'Run') {
-                                jumpAction.timeScale = 1.5;
-                            }
-                        }
-                        
-                        slideAction = createSlideAnimation(gltf.animations);
-                        crouchAction = createCrouchAnimation(gltf.animations);
-                        
-                        if (idleAction) {
-                            idleAction.play();
-                            currentAction = idleAction;
-                        }
-                        
-                        initializeSoldier(soldierModel);
-                    },
-                    function(xhr) {
-                        if (window.DEBUG_MODEL) console.log('📦 模型加载进度:', (xhr.loaded / xhr.total * 100).toFixed(1) + '%');
-                    },
-                    function(error) {
-                        console.warn('⚠️ 在线模型加载失败:', error);
+                        console.warn('男生VRM加载失败，使用本地简易学生模型，不再回退远程装甲士兵:', err || err2);
                         initializeSoldier(createSimpleSoldier());
-                    }
-                ); // 在线模型 loader.load 结束
-                    } // 男生VRM失败回退结束
-                );   // loaderFb.load 结束
+                    });
                 }); // catch 结束
             } else {
                 console.log('⚠️ GLTFLoader不可用，使用简单模型');
@@ -11196,11 +11171,24 @@
                 return;
             }
             
-            // 如果不在移动，立即重置到待机姿势
+            // 如果不在移动，先平滑减速再回待机；不要立刻归零，否则第三人称看起来像“瞬间冻住”。
             if (!isWalking) {
-                // 强制停止所有走路动画
+                targetWalkSpeed = 0;
+                walkSpeed = THREE.MathUtils.lerp(walkSpeed, 0, Math.min(1, deltaTime * 10));
+                if (walkSpeed > 0.025) {
+                    walkCycle += deltaTime * 4.2 * THREE.MathUtils.clamp(walkSpeed, 0.15, 1.0);
+                    if (isFirstPerson) {
+                        if (fpArms) applyWalkAnimationToFPArms();
+                        if (fpLegs) applyWalkAnimationToFPLegs();
+                    } else {
+                        applyWalkAnimationToSoldier();
+                    }
+                    applyHeadBobToCamera(deltaTime);
+                    return;
+                }
+
+                // 速度足够低后再进入待机姿势
                 walkSpeed = 0;
-                walkCycle = 0;
 
                 // 立即重置到军事化标准姿势
                 resetWalkAnimation();
@@ -11268,8 +11256,10 @@
                 return;
             }
 
-            // 更新走动周期：走/跑分别限速，避免奔跑时腿和脚步声像“抽帧电风扇”。
-            const gaitRate = (isRunning ? 8.2 : 6.1) * Math.min(walkSpeed, isRunning ? 1.28 : 1.0);
+            // 更新走动周期：按“步行/奔跑”分别给步频，避免原来高速时腿像电风扇、低速又像平移。
+            const gaitRun = isRunning && targetWalkSpeed > 1.08;
+            const gaitNorm = THREE.MathUtils.clamp(walkSpeed / (gaitRun ? RUN_SPEED_MULT : 1.0), 0.38, 1.12);
+            const gaitRate = (gaitRun ? 8.35 : 5.75) * gaitNorm;
             walkCycle += deltaTime * gaitRate;
             
             // 脚步声效果 - 只在地面行走时播放
@@ -11443,68 +11433,92 @@
             const rLeg = soldier.children[5];
             const lBoot = soldier.children[6];
             const rBoot = soldier.children[7];
+            const body = soldier.children[0];
+            const head = soldier.children[1];
 
             // ── 静止姿势：自然呼吸 + 轻微重心转移，避免像木偶站军姿 ──
             if (walkSpeed <= 0.01) {
                 const t = _gameIdleT || 0;
                 const breath = Math.sin(t * 1.65) * 0.018;
                 const sway = Math.sin(t * 0.72) * 0.018;
-                soldier.rotation.x = breath * 0.35;
-                soldier.rotation.z = sway;
-                if (lArm)  { lArm.rotation.x = -0.035 + breath; lArm.rotation.z =  0.145 + sway * 0.35; }
-                if (rArm)  { rArm.rotation.x = -0.030 + breath * 0.8; rArm.rotation.z = -0.145 + sway * 0.35; }
-                if (lLeg)  { lLeg.rotation.x = 0.012; lLeg.rotation.z =  sway * 0.20; lLeg.position.y = -0.30; }
-                if (rLeg)  { rLeg.rotation.x = -0.010; rLeg.rotation.z = -sway * 0.20; rLeg.position.y = -0.30; }
-                if (lBoot) { lBoot.rotation.x = -0.015; lBoot.position.y = -0.62; }
-                if (rBoot) { rBoot.rotation.x =  0.010; rBoot.position.y = -0.62; }
+                soldier.rotation.x = 0;
+                soldier.rotation.z = 0;
+                if (body) { body.rotation.x = breath * 0.35; body.rotation.y = 0; body.rotation.z = sway; }
+                if (head) { head.rotation.x = breath * 0.20; head.rotation.y = Math.sin(t * 0.42) * 0.035; head.rotation.z = -sway * 0.25; }
+                if (lArm)  { lArm.rotation.x = -0.035 + breath; lArm.rotation.z =  0.145 + sway * 0.35; lArm.position.y = 0.40; lArm.position.z = 0; }
+                if (rArm)  { rArm.rotation.x = -0.030 + breath * 0.8; rArm.rotation.z = -0.145 + sway * 0.35; rArm.position.y = 0.40; rArm.position.z = 0; }
+                if (lLeg)  { lLeg.rotation.x = 0.012; lLeg.rotation.z =  sway * 0.20; lLeg.position.y = -0.30; lLeg.position.z = 0; }
+                if (rLeg)  { rLeg.rotation.x = -0.010; rLeg.rotation.z = -sway * 0.20; rLeg.position.y = -0.30; rLeg.position.z = 0; }
+                if (lBoot) { lBoot.rotation.x = -0.015; lBoot.position.y = -0.62; lBoot.position.z = 0.05; }
+                if (rBoot) { rBoot.rotation.x =  0.010; rBoot.position.y = -0.62; rBoot.position.z = 0.05; }
                 return;
             }
 
-            // ── 奔跑 vs 步行 参数 ──
-            const running = isRunning && walkSpeed > 0.5;
-            const armAmp  = running ? 0.48 : 0.28;
-            const legAmp  = running ? 0.46 : 0.29;
-            const armZspr = running ? 0.13 : 0.15;
-            const bodyLeanX = running ? 0.072 : 0.025;
-
-            // 身体侧倾（步行有轻微摇摆，奔跑去掉避免滑稽）
+            // ── 奔跑 vs 步行：加入重心、髋肩反扭和“落地/抬脚”相位，避免像两条腿纯正弦摆动 ──
+            const running = isRunning && walkSpeed > 0.95;
             const phase = walkCycle;
             const s = Math.sin(phase);
             const c = Math.cos(phase);
-            const speed01 = Math.min(1.15, Math.max(0.15, walkSpeed));
-            const footLiftL = Math.max(0, s) * (running ? 0.15 : 0.08) * speed01;
-            const footLiftR = Math.max(0, -s) * (running ? 0.15 : 0.08) * speed01;
-            const bodySway = s * BODY_SWAY_AMPLITUDE * walkSpeed * (running ? 0.13 : 0.26);
-            soldier.rotation.z = bodySway;
-            soldier.rotation.x = bodyLeanX + Math.abs(s) * (running ? 0.018 : 0.008);
+            const speed01 = THREE.MathUtils.clamp(walkSpeed / (running ? RUN_SPEED_MULT : 1.0), 0.35, 1.18);
+            const runMix = running ? 1 : 0;
+            const pL = Math.sin(phase + Math.PI); // 左脚摆动相位
+            const pR = Math.sin(phase);
+            const liftPow = running ? 1.18 : 1.55;
+            const footLiftL = Math.pow(Math.max(0, pL), liftPow) * (0.075 + runMix * 0.095) * speed01;
+            const footLiftR = Math.pow(Math.max(0, pR), liftPow) * (0.075 + runMix * 0.095) * speed01;
+            const legAmp = (0.30 + runMix * 0.22) * speed01;
+            const armAmp = (0.28 + runMix * 0.25) * speed01;
+            const torsoLean = 0.025 + runMix * 0.075;
+            const stepCompress = (1 - Math.abs(c)) * (0.010 + runMix * 0.018) * speed01;
 
-            // ── 手臂前后摆动 ──
-            // 手臂Z展开角度先归位，再叠加X方向前后摆
-            const armSwing = s * armAmp * speed01;
-            if (lArm) { lArm.rotation.z =  armZspr + c * 0.018; lArm.rotation.x =  armSwing - 0.035; }
-            if (rArm) { rArm.rotation.z = -armZspr + c * 0.018; rArm.rotation.x = -armSwing - 0.030; }
+            soldier.rotation.x = 0;
+            soldier.rotation.z = 0;
+            if (body) {
+                body.rotation.x = torsoLean + stepCompress;
+                body.rotation.y = c * (0.018 + runMix * 0.020) * speed01; // 髋肩微扭，不覆盖角色朝向
+                body.rotation.z = s * BODY_SWAY_AMPLITUDE * (running ? 0.16 : 0.32) * speed01;
+            }
+            if (head) {
+                head.rotation.x = -torsoLean * 0.35;
+                head.rotation.y = -c * (0.010 + runMix * 0.010) * speed01;
+                head.rotation.z = -s * BODY_SWAY_AMPLITUDE * 0.12 * speed01;
+            }
 
-            // ── 腿部摆动 ──
-            const legSwing = s * legAmp * speed01;
+            // 手臂与对侧腿反相，奔跑时肘部更收，不再张臂横甩。
+            if (lArm) {
+                lArm.rotation.z = 0.12 + c * (0.012 + runMix * 0.010);
+                lArm.rotation.x = s * armAmp - 0.045 - runMix * 0.035;
+                lArm.position.y = 0.40 + Math.max(0, -pL) * 0.025 * speed01;
+            }
+            if (rArm) {
+                rArm.rotation.z = -0.12 + c * (0.012 + runMix * 0.010);
+                rArm.rotation.x = -s * armAmp - 0.040 - runMix * 0.035;
+                rArm.position.y = 0.40 + Math.max(0, -pR) * 0.025 * speed01;
+            }
+
+            const legSwingL = pL * legAmp;
+            const legSwingR = pR * legAmp;
             if (lLeg) {
-                lLeg.rotation.x = -legSwing;
-                lLeg.rotation.z = c * (running ? 0.020 : 0.012);
-                lLeg.position.y = -0.30 + footLiftL;
+                lLeg.rotation.x = -legSwingL;
+                lLeg.rotation.z = c * (0.010 + runMix * 0.020);
+                lLeg.position.y = -0.30 + footLiftL - stepCompress * 0.55;
+                lLeg.position.z = Math.max(0, pL) * (0.035 + runMix * 0.035);
             }
             if (rLeg) {
-                rLeg.rotation.x =  legSwing;
-                rLeg.rotation.z = c * (running ? 0.020 : 0.012);
-                rLeg.position.y = -0.30 + footLiftR;
+                rLeg.rotation.x = -legSwingR;
+                rLeg.rotation.z = c * (0.010 + runMix * 0.020);
+                rLeg.position.y = -0.30 + footLiftR - stepCompress * 0.55;
+                rLeg.position.z = Math.max(0, pR) * (0.035 + runMix * 0.035);
             }
-            // 靴子跟随腿部（奔跑时抬脚更明显）
-            const bootFactor = running ? 0.60 : 0.42;
             if (lBoot) {
-                lBoot.rotation.x = -legSwing * bootFactor;
-                lBoot.position.y = -0.62 + footLiftL * 0.70;
+                lBoot.rotation.x = -legSwingL * (0.45 + runMix * 0.18) - Math.max(0, -pL) * 0.10;
+                lBoot.position.y = -0.62 + footLiftL * 0.72;
+                lBoot.position.z = 0.05 + Math.max(0, pL) * (0.045 + runMix * 0.045);
             }
             if (rBoot) {
-                rBoot.rotation.x =  legSwing * bootFactor;
-                rBoot.position.y = -0.62 + footLiftR * 0.70;
+                rBoot.rotation.x = -legSwingR * (0.45 + runMix * 0.18) - Math.max(0, -pR) * 0.10;
+                rBoot.position.y = -0.62 + footLiftR * 0.72;
+                rBoot.position.z = 0.05 + Math.max(0, pR) * (0.045 + runMix * 0.045);
             }
         }
         
@@ -12215,7 +12229,7 @@
                     _animEar('j_opt_l_catear2_01',  earBSimple * 0.6, 0.16);
                     _animEar('j_opt_r_catear1_01', -earBSimple,       0.16);
                     _animEar('j_opt_r_catear2_01', -earBSimple * 0.6, 0.16);
-                    return;
+                    return; // 非humanoid/旧GLTF只走安全兜底动画，避免错误套用VRM关键帧导致士兵步态抽搐。
                     // ══ 跑步骨骼动画 v9（6帧生物力学关键帧）══
                     const spd01 = Math.min(spd, 1.0);
                     // 归一化相位 [0,1)：walkCycle为弧度，除以2π转换
@@ -12398,8 +12412,8 @@
                 bl(rKnee, _sL2SimpleH * Math.max(0, -sSimpleH) * kneeAmpSimpleH, 0, 0);
                 bl(lFoot, _sL2SimpleH * Math.max(0, -sSimpleH) * -0.08, 0, 0);
                 bl(rFoot, _sL2SimpleH * Math.max(0, sSimpleH) * -0.08, 0, 0);
-                return;
-                // old v9 code remains unreachable
+                return; // 先使用更稳的学生步态：避免不同VRM骨骼轴向下被6帧关键帧二次覆盖，导致奔跑姿势变形。
+                // 关键帧步态：contact / down / passing / push / up / recovery
                 // ══ 奔跑动画 v9（6帧生物力学关键帧）══
                 const spd01 = Math.min(spd, 1.0);
                 const t = (((cycle / (Math.PI * 2)) % 1) + 1) % 1;
@@ -13833,8 +13847,8 @@
 
             const now = audioContext.currentTime;
             const running = isRunning && walkSpeed > 1.05;
-            const dur = running ? 0.105 : 0.085;
-            const vol = masterVolume * (running ? 0.26 : 0.16);
+            const dur = running ? 0.118 : 0.092;
+            const vol = masterVolume * (running ? 0.21 : 0.145);
 
             // 短促摩擦噪声：比方波更像鞋底接触草地/地面的瞬间
             const buffer = audioContext.createBuffer(1, Math.max(1, Math.floor(audioContext.sampleRate * dur)), audioContext.sampleRate);
@@ -13847,8 +13861,8 @@
             noise.buffer = buffer;
             const noiseFilter = audioContext.createBiquadFilter();
             noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.setValueAtTime(running ? 780 : 560, now);
-            noiseFilter.Q.setValueAtTime(0.8, now);
+            noiseFilter.frequency.setValueAtTime(running ? 620 : 500, now);
+            noiseFilter.Q.setValueAtTime(running ? 0.65 : 0.75, now);
             const noiseGain = audioContext.createGain();
             noiseGain.gain.setValueAtTime(0, now);
             noiseGain.gain.linearRampToValueAtTime(vol, now + 0.006);
@@ -13863,8 +13877,8 @@
             const thump = audioContext.createOscillator();
             const thumpGain = audioContext.createGain();
             thump.type = 'sine';
-            thump.frequency.setValueAtTime(running ? 95 : 72, now);
-            thump.frequency.exponentialRampToValueAtTime(running ? 48 : 38, now + dur);
+            thump.frequency.setValueAtTime(running ? 82 : 68, now);
+            thump.frequency.exponentialRampToValueAtTime(running ? 44 : 36, now + dur);
             thumpGain.gain.setValueAtTime(0, now);
             thumpGain.gain.linearRampToValueAtTime(vol * 0.55, now + 0.004);
             thumpGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
