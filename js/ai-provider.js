@@ -64,6 +64,17 @@
         return '/api/ai-teacher';
     }
 
+    function buildProxyHeaders(endpoint) {
+        const headers = { 'Content-Type': 'application/json' };
+        const isSupabaseFunction = /^https:\/\/[^/]+\.supabase\.co\/functions\/v1\//i.test(String(endpoint || ''));
+        const publishableKey = window.CAMPUS_SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_KEY || '';
+        if (isSupabaseFunction && publishableKey) {
+            headers.apikey = publishableKey;
+            headers.Authorization = `Bearer ${publishableKey}`;
+        }
+        return headers;
+    }
+
     function getConfig() {
         try {
             const localConfig = window.CAMPUS_AI_LOCAL_CONFIG || {};
@@ -129,7 +140,7 @@
             const endpoint = config.endpoint || getDefaultProxyEndpoint();
             const res = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: buildProxyHeaders(endpoint),
                 body: JSON.stringify({
                     model: config.model || provider.defaultModel,
                     messages,
