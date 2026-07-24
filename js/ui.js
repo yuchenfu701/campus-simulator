@@ -30,6 +30,10 @@ class UIManager {
         // 消息系统
         this.messages = [];
         this.maxMessages = 10;
+
+        // 任务追踪器低频刷新，避免每帧写DOM
+        this.questTrackerCache = '';
+        this.questTrackerAccum = 0;
     }
     
     // 初始化UI系统
@@ -97,6 +101,9 @@ class UIManager {
         
         // 创建HUD覆盖层
         this.createHUDOverlay();
+
+        // 创建校园任务追踪器
+        this.createQuestTracker();
     }
     
     // 创建消息容器
@@ -153,12 +160,73 @@ class UIManager {
             document.body.appendChild(overlay);
         }
     }
+
+    createQuestTracker() {
+        if (document.getElementById('campus-quest-tracker')) return;
+        const tracker = document.createElement('div');
+        tracker.id = 'campus-quest-tracker';
+        tracker.style.cssText = `
+            position: fixed;
+            right: 18px;
+            top: 96px;
+            width: 300px;
+            max-width: calc(100vw - 36px);
+            background: rgba(8, 24, 40, 0.86);
+            color: #eaf8ff;
+            border: 1px solid rgba(90, 190, 255, 0.42);
+            border-radius: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+            padding: 12px 14px;
+            z-index: 760;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            pointer-events: none;
+            line-height: 1.5;
+        `;
+        document.body.appendChild(tracker);
+        this.updateQuestTracker();
+    }
     
     // 更新UI
     update(deltaTime) {
         this.updateNotifications(deltaTime);
         this.updateMessages(deltaTime);
         this.updateHUD();
+        this.questTrackerAccum += deltaTime;
+        if (this.questTrackerAccum >= 0.35) {
+            this.questTrackerAccum = 0;
+            this.updateQuestTracker();
+        }
+    }
+
+    updateQuestTracker() {
+        const tracker = document.getElementById('campus-quest-tracker');
+        if (!tracker || !window.CampusQuests) return;
+        const state = window.CampusQuests.loadState();
+        const lines = Object.entries(window.CampusQuests.quests).map(([questId, quest]) => {
+            const p = window.CampusQuests.getQuestProgress(questId, state);
+            const pct = p.total ? Math.round(p.completedCount / p.total * 100) : 0;
+            const next = p.nextStep ? `下一步：${p.nextStep.label}` : '已完成';
+            return `
+                <div style="margin-top:8px;">
+                    <div style="display:flex;justify-content:space-between;gap:8px;font-weight:700;">
+                        <span>${quest.title}</span><span>${p.completedCount}/${p.total}</span>
+                    </div>
+                    <div style="height:6px;background:rgba(255,255,255,0.14);border-radius:999px;overflow:hidden;margin:5px 0;">
+                        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#38bdf8,#34d399);"></div>
+                    </div>
+                    <div style="font-size:12px;color:#b9e9ff;">${next}</div>
+                </div>
+            `;
+        }).join('');
+        const html = `
+            <div style="font-weight:900;color:#7dd3fc;font-size:15px;">🎒 校园探索任务</div>
+            <div style="font-size:12px;color:#cdefff;margin-top:2px;">按 E 与区域互动，完成导览和校园生活线。</div>
+            ${lines}
+        `;
+        if (html !== this.questTrackerCache) {
+            tracker.innerHTML = html;
+            this.questTrackerCache = html;
+        }
     }
     
     // 渲染UI
@@ -1157,28 +1225,148 @@ class UIManager {
         );
     }
     
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 10000;
-            font-size: 14px;
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
+    handleEvent(eventType, data = {}) {
+        switch (eventType) {
+            case 'startDialog':
+                this.onStartDialog(data);
+                break;
+            case 'attributeChanged':
+                this.onAttributeChanged(data);
+                break;
+            case 'areaChanged':
+                this.onAreaChanged(data);
+                break;
+            case 'interact':
+                this.onInteract(data);
+                break;
+            case 'taskCompleted':
+                this.showNotification('任务完成', data.name || data.title || '完成了一个校园任务', 'success', 3500);
+                break;
+            case 'goalCompleted':
+                this.showNotification('目标完成', data.name || '今日目标已完成', 'success', 3500);
+                break;
+        }
+    }
+
+    onInteract(data = {}) {
+        const objectName = data.object;
+        const mapSystem = this.gameEngine?.getSystem('map');
+        const info = mapSystem?.getInteractableInfo ? mapSystem.getInteractableInfo(objectName) : null;
+
+        if (!objectName || !info) {
+            this.showNotification('互动失败', objectName ? `暂时还不能使用「${objectName}」` : '附近没有可互动内容', 'warning', 2500);
+            return;
+        }
+
+        const player = this.gameEngine?.getSystem('player');
+        this.applyInteractableEffects(player, info);
+
+        const areaName = data.area?.name ? ` · ${data.area.name}` : '';
+        this.showNotification(objectName, `${info.description || '完成了一次校园互动'}${areaName}`, info.type === 'ai' ? 'info' : 'success', 3200);
+        this.updateCampusQuestProgress(objectName);
+
+        if (info.type === 'ai') {
+            const teacherId = info.aiTeacherId || 'guide';
+            const teacher = window.CampusAITeachers?.getTeacher?.(teacherId);
+            const teacherName = teacher?.displayName || objectName || 'AI老师';
+            const question = `我在${data.area?.name || '校园'}，现在下一步该做什么？`;
+            setTimeout(async () => {
+                let reply;
+                try {
+                    reply = await (window.CampusAI?.chat
+                        ? window.CampusAI.chat({
+                            teacherId,
+                            scene: '2d-map',
+                            messages: [{ role: 'user', content: question }]
+                        })
+                        : Promise.resolve(window.CampusAI?.fallbackTeacherReply?.(question, '2d-map', teacherId)));
+                } catch (err) {
+                    console.warn('2D AI老师请求失败，使用兜底回复', err);
+                    reply = window.CampusAI?.fallbackTeacherReply?.(question, '2d-map', teacherId) || '先完成新生导览，再去食堂、操场、教学楼各打卡一次。';
+                }
+                this.startDialog(teacherName, [
+                    { speaker: teacherName, text: reply || teacher?.opening || '先看任务追踪器，完成最近的一步。', mood: 'happy' },
+                    { speaker: '我', text: '明白了，我先从最近的任务开始。', mood: 'confident' }
+                ]);
+            }, 250);
+        } else if (info.dialogue && info.dialogue.length) {
+            setTimeout(() => this.startDialog(objectName, info.dialogue), 250);
+        }
+    }
+
+    updateCampusQuestProgress(objectName) {
+        if (!window.CampusQuests || !objectName) return;
+        const result = window.CampusQuests.completeInteraction(objectName);
+        if (!result?.changed) return;
+        const progress = result.progress;
+        if (result.completedQuest) {
+            this.showNotification('任务线完成', `「${result.completedQuest.title}」完成！校园熟悉度提升。`, 'success', 4200);
+        } else if (progress) {
+            this.showNotification('导览进度', `${progress.quest.title} ${progress.completedCount}/${progress.total}，下一步：${progress.nextStep?.label || '自由探索'}`, 'info', 3200);
+        }
+    }
+
+    applyInteractableEffects(player, info) {
+        if (!player) return;
+
+        const directAttributes = ['academic', 'social', 'family', 'health', 'talent', 'energy', 'mood', 'stress'];
+        const effects = { ...(info.effects || {}) };
+        directAttributes.forEach(attr => {
+            if (typeof info[attr] === 'number') effects[attr] = (effects[attr] || 0) + info[attr];
+        });
+
+        Object.entries(effects).forEach(([attr, change]) => {
+            if (typeof change !== 'number') return;
+            if (typeof player.adjustAttribute === 'function') {
+                player.adjustAttribute(attr, change);
+            } else if (player.attributes && typeof player.attributes[attr] === 'number') {
+                player.attributes[attr] = Math.max(0, Math.min(100, player.attributes[attr] + change));
             }
-        }, 3000);
+        });
+
+        if (typeof info.money === 'number' && player.inventory) {
+            player.inventory.money = Math.max(0, (player.inventory.money || 0) + info.money);
+        }
+
+        if (info.skills && typeof player.improveSkill === 'function') {
+            Object.entries(info.skills).forEach(([skill, amount]) => player.improveSkill(skill, amount));
+        }
+
+        if (info.item && player.inventory?.items && !player.inventory.items.some(item => item.name === info.item)) {
+            player.inventory.items.push({
+                name: info.item,
+                type: info.type || 'story',
+                acquiredAt: Date.now()
+            });
+        }
+    }
+
+    showNotification(title, message, type = 'info', duration = 3000) {
+        if (arguments.length <= 2) {
+            const legacyMessage = title;
+            const legacyType = message || 'info';
+            title = legacyType === 'error' ? '错误' : legacyType === 'success' ? '成功' : legacyType === 'warning' ? '警告' : '提示';
+            message = legacyMessage;
+            type = legacyType;
+        }
+
+        const notification = {
+            id: Date.now() + Math.random(),
+            title: String(title || '提示'),
+            message: String(message || ''),
+            type,
+            duration,
+            timestamp: Date.now()
+        };
+
+        this.notifications.push(notification);
+        if (this.notifications.length > this.maxNotifications) {
+            this.notifications.shift();
+        }
+
+        if (typeof this.createNotificationElement === 'function') {
+            this.createNotificationElement(notification);
+        }
     }
     
     // 文本自动换行
@@ -1222,4 +1410,4 @@ class UIManager {
 }
 
 // 创建全局UI管理器实例
-window.ui = new UIManager(); 
+window.ui = new UIManager();

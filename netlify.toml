@@ -10,6 +10,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/ai-teacher"
+  to = "/.netlify/functions/ai-teacher"
+  status = 200
+  force = true
+
 # 404 回退到错误页
 [[redirects]]
   from = "/*"

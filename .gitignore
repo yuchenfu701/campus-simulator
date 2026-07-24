@@ -9,6 +9,7 @@ dist/
 .env
 .env.local
 server/.env
+js/ai-local-config.js
 
 # 日志文件
 *.log

@@ -664,6 +664,21 @@ class Player {
             window.location.href = currentArea.specialPage;
             return;
         }
+
+        if (this.interaction.nearbyObjects.length > 0) {
+            const object = this.interaction.nearbyObjects[0];
+            console.log('🔍 与区域互动:', object);
+            if (this.gameEngine) {
+                const hint = document.getElementById('interaction-hint');
+                if (hint) {
+                    hint.textContent = `正在进行：${object}`;
+                    hint.classList.remove('hidden');
+                    setTimeout(() => hint.classList.add('hidden'), 2000);
+                }
+                this.gameEngine.broadcastEvent('interact', { object, area: currentArea });
+            }
+            return;
+        }
         
         if (currentArea && supportedBuildings.includes(currentArea.id)) {
             console.log(`🏫 在${this.getBuildingName(currentArea)}内，显示建筑内部系统`);

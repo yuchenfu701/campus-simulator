@@ -25,6 +25,7 @@ class SchoolMap {
         
         // 地图资源
         this.textures = {};
+        this.lastBroadcastAreaId = null;
 
         // 预生成草地纹理点（避免每帧 Math.random() 导致闪烁）
         this.grassDots = [];
@@ -998,6 +999,199 @@ class SchoolMap {
                 target: 'teaching_a',
                 description: '从校门进入校园主区域'
             },
+            '新生导览': {
+                type: 'story',
+                academic: 1,
+                social: 2,
+                mood: 4,
+                item: '新生导览卡',
+                storyId: 'freshman_guide',
+                description: '跟着导览路线熟悉校门、教学楼、操场、食堂和老师办公室',
+                dialogue: [
+                    { speaker: 'AI导览老师', text: '欢迎来到爱哲安民未来学校！先从校门出发，我会带你认识主要建筑和常见老师。', mood: 'happy' },
+                    { speaker: '我', text: '这样新同学就不会一进校园就迷路了。', mood: 'confident' }
+                ]
+            },
+            '校门打卡': {
+                type: 'story',
+                social: 1,
+                mood: 2,
+                item: '校门打卡章',
+                storyId: 'gate_checkin',
+                description: '在校门口完成第一站打卡，解锁校园探索任务'
+            },
+            '领取校园手册': {
+                type: 'item',
+                academic: 1,
+                mood: 2,
+                item: '校园手册',
+                description: '一本写着楼层、老师办公室和活动地点的简易手册'
+            },
+            'AI老师问答': {
+                type: 'ai',
+                aiTeacherId: 'guide',
+                academic: 2,
+                social: 1,
+                mood: 2,
+                description: '向AI老师询问路线、老师、课程或校园规则',
+                dialogue: [
+                    { speaker: 'AI老师', text: '你可以问我“食堂在哪”“今天适合做什么任务”“某个老师在哪”。现在先去操场和食堂各打卡一次吧。', mood: 'happy' }
+                ]
+            },
+            'AI语文老师': {
+                type: 'ai',
+                aiTeacherId: 'chinese',
+                academic: 3,
+                talent: 1,
+                description: '和语文林老师聊校园观察、吐槽记录和班级故事'
+            },
+            'AI数学老师': {
+                type: 'ai',
+                aiTeacherId: 'math',
+                academic: 4,
+                energy: -2,
+                description: '向数学王老师问路线逻辑、学习规划和坐标定位'
+            },
+            'AI英语老师': {
+                type: 'ai',
+                aiTeacherId: 'english',
+                academic: 3,
+                mood: 2,
+                description: '向英语Miss Chen练习表达，也能获得温柔鼓励'
+            },
+            'AI体育老师': {
+                type: 'ai',
+                aiTeacherId: 'pe',
+                health: 3,
+                mood: 2,
+                description: '向体育张教练询问操场训练和运动任务'
+            },
+            'AI信息老师': {
+                type: 'ai',
+                aiTeacherId: 'it',
+                academic: 3,
+                skills: { computer: 2 },
+                description: '向信息吴老师询问AI、软件、地图Bug和功能使用'
+            },
+            'AI生物老师': {
+                type: 'ai',
+                aiTeacherId: 'biology',
+                academic: 2,
+                health: 2,
+                description: '向生物周老师询问校园环境、健康和实验观察'
+            },
+            'AI班主任': {
+                type: 'ai',
+                aiTeacherId: 'headTeacher',
+                academic: 2,
+                social: 2,
+                description: '向班主任确认教室、老师和新生任务'
+            },
+            'AI保安大叔': {
+                type: 'ai',
+                aiTeacherId: 'security',
+                social: 1,
+                mood: 1,
+                description: '向保安大叔询问校门规则、失物招领和入口路线'
+            },
+            '教室寻路': {
+                type: 'story',
+                academic: 2,
+                mood: 1,
+                item: '教室路线便签',
+                description: '确认班级、楼层和附近功能室的位置'
+            },
+            '班级剧情': {
+                type: 'story',
+                social: 3,
+                mood: 3,
+                description: '触发同学吐槽、老师介绍和新生融入的小剧情',
+                dialogue: [
+                    { speaker: '同学', text: '这个学校槽点不少，但熟悉之后其实挺有意思。你要不要先把最容易迷路的几个地方记下来？', mood: 'excited' },
+                    { speaker: '我', text: '好，这正是我做校园模拟器想解决的事。', mood: 'confident' }
+                ]
+            },
+            '食堂点餐': {
+                type: 'action',
+                energy: 18,
+                health: 4,
+                mood: 5,
+                money: -6,
+                description: '选择今日套餐，恢复体力，也能听到同学们的校园吐槽',
+                dialogue: [
+                    { speaker: '食堂阿姨', text: '今天有两种套餐，别只看吐槽榜，也看看营养搭配。', mood: 'neutral' },
+                    { speaker: '同学', text: '新来的？记住：人多的时候先排右边那队，快一点。', mood: 'excited' }
+                ]
+            },
+            '图书馆检索': {
+                type: 'action',
+                academic: 5,
+                energy: -4,
+                skills: { research: 2 },
+                description: '按主题检索资料，为剧情任务和课程任务做准备',
+                dialogue: [
+                    { speaker: '图书馆系统', text: '已为你推荐：校园导览、老师办公室分布、社团活动手册。', mood: 'calm' }
+                ]
+            },
+            '任务看板': {
+                type: 'story',
+                social: 2,
+                mood: 2,
+                item: '学生会任务单',
+                description: '查看今日校园任务：导览、社团、课程、操场训练',
+                dialogue: [
+                    { speaker: '学生会成员', text: '今天的目标很简单：帮新同学认路、体验社团，再把学校几个槽点记录下来。', mood: 'happy' },
+                    { speaker: '我', text: '这比单纯逛地图有意思多了。', mood: 'confident' }
+                ]
+            },
+            '社团招新': {
+                type: 'story',
+                talent: 3,
+                social: 3,
+                mood: 4,
+                description: '了解社团活动，后续可以扩展成分支剧情',
+                dialogue: [
+                    { speaker: '社团负责人', text: '我们缺一个会做校园模拟器的人，你要不要把真实校园里的好玩细节做进去？', mood: 'excited' }
+                ]
+            },
+            '操场训练': {
+                type: 'action',
+                energy: -12,
+                health: 7,
+                mood: 4,
+                skills: { sports: 3 },
+                description: '完成操场训练，提升体能并解锁运动剧情',
+                dialogue: [
+                    { speaker: '体育老师', text: '别光跑直线。先慢跑一圈，再做折返跑，这样更像真实训练。', mood: 'confident' }
+                ]
+            },
+            '校园广播': {
+                type: 'story',
+                social: 2,
+                talent: 2,
+                mood: 3,
+                description: '录制校园广播，介绍学校槽点和新生注意事项',
+                dialogue: [
+                    { speaker: '广播站', text: '欢迎收听新生导览：今天我们聊聊哪里最容易迷路，以及哪些老师最适合先认识。', mood: 'happy' }
+                ]
+            },
+            '教师办公室咨询': {
+                type: 'story',
+                academic: 3,
+                social: 1,
+                mood: 2,
+                description: '向老师确认课程安排、教室位置和近期任务',
+                dialogue: [
+                    { speaker: '老师', text: '如果你是新同学，先记住教学楼、办公室、食堂和操场四个点，校园就基本能跑通了。', mood: 'happy' }
+                ]
+            },
+            '失物招领': {
+                type: 'story',
+                social: 1,
+                mood: 2,
+                item: '备用校卡',
+                description: '在保安室登记失物招领，获得一张备用校卡'
+            },
             '请假': {
                 type: 'special',
                 requires: { health: 30 },
@@ -1005,6 +1199,44 @@ class SchoolMap {
                 description: '因病请假，需要保安大叔批准'
             }
         };
+
+        const areaInteractions = {
+            entrance: ['进入校园', '新生导览', '校门打卡', '领取校园手册', 'AI老师问答'],
+            security: ['AI保安大叔', '失物招领', '请假'],
+            g8: ['AI语文老师', '教室寻路', '语文课', '班级剧情'],
+            g9: ['AI信息老师', '教室寻路', '信息课', '计算机课'],
+            g1_1: ['AI班主任', '教室寻路', '班级剧情'],
+            g1_2: ['AI英语老师', '教室寻路', '班级剧情'],
+            g2_1: ['AI数学老师', '数学课', '教室寻路'],
+            g2_2: ['AI老师问答', '教室寻路', '班级剧情'],
+            g3: ['AI老师问答', '教室寻路', '班级剧情'],
+            g3_2: ['AI老师问答', '教室寻路', '班级剧情'],
+            g4: ['AI老师问答', '教室寻路', '班级剧情'],
+            g5: ['AI老师问答', '教室寻路', '班级剧情'],
+            g6: ['AI老师问答', '教室寻路', '班级剧情'],
+            g7: ['AI老师问答', '教室寻路', '班级剧情'],
+            teachers_office: ['AI班主任', '找老师', '教师办公室咨询', 'AI老师问答'],
+            cafeteria: ['吃午餐', '食堂点餐'],
+            playground: ['AI体育老师', '跑步', '操场训练', '篮球', '踢球'],
+            badminton_court: ['AI体育老师', '体育课', '操场训练'],
+            aizhe_library: ['借书', '查资料', '图书馆检索'],
+            biology_lab: ['AI生物老师', '生物课', '生物实验', 'AI老师问答'],
+            art_classroom: ['美术课', '画画', '社团招新'],
+            student_council: ['任务看板', '社团招新'],
+            broadcast_room: ['校园广播'],
+            clinic: ['休息'],
+            music_room: ['音乐课', '练钢琴'],
+            activity_room: ['社团招新', '任务看板'],
+            sports_equipment: ['体育课', '操场训练'],
+            male_toilet: ['洗漱'],
+            broadcast: ['洗漱']
+        };
+
+        Object.entries(areaInteractions).forEach(([areaId, interactions]) => {
+            const area = this.areas[areaId];
+            if (!area) return;
+            area.interactions = Array.from(new Set([...(area.interactions || []), ...interactions]));
+        });
     }
     
     // 更新地图状态
@@ -1237,7 +1469,41 @@ class SchoolMap {
                 ctx.font = 'bold 14px Arial';
                 ctx.fillText(`👥 ${area.npcs.length}`, area.x + 20, area.y + 25);
             }
+
+            this.renderInteractionBadges(ctx, area);
         });
+    }
+
+    renderInteractionBadges(ctx, area) {
+        if (!area.interactions || area.interactions.length === 0) return;
+        const badges = area.interactions.slice(0, 3).map(name => {
+            const info = this.interactables[name];
+            if (!info) return '互动';
+            if (info.type === 'ai') return 'AI';
+            if (info.type === 'story') return '剧情';
+            if (info.type === 'item') return '道具';
+            if (name.includes('课')) return '课程';
+            if (name.includes('训练') || name.includes('跑') || name.includes('球')) return '运动';
+            return '互动';
+        });
+
+        ctx.save();
+        ctx.font = 'bold 11px "Microsoft YaHei", Arial';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        let x = area.x + area.width - 8;
+        const y = area.y + 8;
+        badges.reverse().forEach(label => {
+            const w = ctx.measureText(label).width + 14;
+            ctx.fillStyle = label === 'AI' ? 'rgba(37, 99, 235, 0.88)' : label === '剧情' ? 'rgba(168, 85, 247, 0.86)' : 'rgba(15, 118, 110, 0.84)';
+            ctx.beginPath();
+            ctx.roundRect(x - w, y, w, 20, 10);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.fillText(label, x - 7, y + 4);
+            x -= w + 5;
+        });
+        ctx.restore();
     }
     
     // 获取现代化的配色方案
@@ -1716,6 +1982,8 @@ class SchoolMap {
     onPlayerMoved(data) {
         const currentArea = this.getCurrentArea(data.x, data.y);
         if (currentArea && this.gameEngine) {
+            if (currentArea.id === this.lastBroadcastAreaId) return;
+            this.lastBroadcastAreaId = currentArea.id;
             this.gameEngine.broadcastEvent('areaChanged', {
                 area: currentArea,
                 position: { x: data.x, y: data.y }
@@ -1910,4 +2178,4 @@ class SchoolMap {
 }
 
 // 导出地图实例
-window.SchoolMap = SchoolMap; 
+window.SchoolMap = SchoolMap;

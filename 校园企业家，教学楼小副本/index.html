@@ -6,6 +6,10 @@
     <title>3D教学楼 - 多层第一人称漫游</title>
     <script src="../js/campus-settings.js"></script>
     <script src="../js/api-client.js"></script>
+    <script src="../js/ai-teachers.js"></script>
+    <script src="../js/ai-public-config.js"></script>
+    <script src="../js/ai-provider.js"></script>
+    <script src="../js/campus-quests.js"></script>
     <link rel="stylesheet" href="../css/campus-mobile.css">
     <style>
         * { box-sizing: border-box; }
@@ -1040,6 +1044,12 @@
         let chains = [];
         let teacherLabel = null;
         let isTeacherRescued = false;
+        let aiTeacherModel = null;
+        let aiTeacherLabel = null;
+        let aiTeacherPanel = null;
+        let aiTeacherActiveId = 'guide';
+        let campusQuestHotspots = [];
+        let campusQuestToastTimer = null;
         
         // 坐下功能相关变量
         let isSitting = false;
@@ -1317,6 +1327,13 @@
                 case 'version':
                     cmdVersion();
                     break;
+                case 'ai':
+                case 'teacherai':
+                    cmdAiConfig(args);
+                    break;
+                case 'teachers':
+                    cmdAiConfig(['teachers']);
+                    break;
                 case 'fps':
                 case 'hud':
                     cmdHudToggle();
@@ -1540,6 +1557,87 @@
         function cmdVersion() {
             const out = document.createElement('div');
             out.textContent = '地图缓存版本 MAP_VER: ' + MAP_VER;
+            consoleOutput.appendChild(out);
+        }
+
+        function _maskAiKey(key) {
+            if (!key) return '未设置';
+            const s = String(key);
+            if (s.length <= 10) return s[0] + '***' + s[s.length - 1];
+            return s.slice(0, 6) + '...' + s.slice(-4);
+        }
+
+        function cmdAiConfig(args) {
+            const out = document.createElement('div');
+            const config = window.CampusAI?.getConfig?.() || {};
+            const sub = (args[0] || 'show').toLowerCase();
+            const teachers = window.CampusAITeachers?.teachers || {};
+
+            if (sub === 'teachers' || sub === 'teacher') {
+                out.innerHTML = '<strong>可用 AI 老师：</strong><br>' + Object.values(teachers).map(t =>
+                    '<code>' + t.id + '</code> - ' + t.displayName + '（' + t.subject + '）'
+                ).join('<br>');
+                consoleOutput.appendChild(out);
+                return;
+            }
+
+            if (sub === 'scripted' || sub === 'offline') {
+                window.CampusAI?.saveConfig?.({ provider: 'scripted', apiKey: '', endpoint: '', model: '' });
+                out.textContent = 'AI 已切回本地脚本兜底：无网络也能用，适合展会保底。';
+                consoleOutput.appendChild(out);
+                return;
+            }
+
+            if (sub === 'reset') {
+                localStorage.removeItem('campus_ai_config');
+                localStorage.removeItem('campus_ai_proxy_endpoint');
+                out.textContent = 'AI 配置已重置。刷新页面后生效。';
+                consoleOutput.appendChild(out);
+                return;
+            }
+
+            if (sub === 'proxy') {
+                const endpoint = args[1] || '/api/ai-teacher';
+                localStorage.setItem('campus_ai_proxy_endpoint', endpoint);
+                window.CampusAI?.saveConfig?.({ provider: 'proxy', apiKey: '', endpoint, model: args[2] || 'gemini-2.5-flash' });
+                out.innerHTML = 'AI 已切到后端代理：<code>' + endpoint + '</code><br>如果前端和后端同域，默认 <code>/api/ai-teacher</code> 即可。';
+                consoleOutput.appendChild(out);
+                return;
+            }
+
+            if (sub === 'gemini') {
+                const key = args[1] || '';
+                const model = args[2] || 'gemini-2.5-flash';
+                if (!key) {
+                    out.innerHTML = '用法：<code>ai gemini 你的API_KEY [模型名]</code><br>推荐模型：<code>gemini-2.5-flash</code>。正式上线建议走后端代理，不要把 key 暴露在网页源码里。';
+                    consoleOutput.appendChild(out);
+                    return;
+                }
+                window.CampusAI?.saveConfig?.({ provider: 'gemini', apiKey: key, model, endpoint: '' });
+                out.innerHTML = 'Gemini 已接入：<code>' + model + '</code>，key=' + _maskAiKey(key) + '<br>刷新页面后也会保留在本机浏览器 localStorage。';
+                consoleOutput.appendChild(out);
+                return;
+            }
+
+            if (sub === 'model') {
+                const model = args.slice(1).join(' ');
+                if (!model) {
+                    out.textContent = '用法：ai model gemini-2.5-flash';
+                    consoleOutput.appendChild(out);
+                    return;
+                }
+                window.CampusAI?.saveConfig?.({ model });
+                out.textContent = 'AI 模型已改为：' + model;
+                consoleOutput.appendChild(out);
+                return;
+            }
+
+            out.innerHTML = '<strong>AI 当前配置</strong><br>'
+                + 'provider: <code>' + (config.provider || 'scripted') + '</code><br>'
+                + 'model: <code>' + (config.model || '默认/未设置') + '</code><br>'
+                + 'endpoint: <code>' + (config.endpoint || '默认') + '</code><br>'
+                + 'apiKey: <code>' + _maskAiKey(config.apiKey) + '</code><br>'
+                + '命令：<code>ai proxy [接口地址]</code>、<code>ai gemini KEY [model]</code>、<code>ai scripted</code>、<code>ai teachers</code>、<code>ai reset</code>';
             consoleOutput.appendChild(out);
         }
 
@@ -2422,6 +2520,8 @@
             
             // 创建第一人称视角的手臂和腿部
             createFPLimbs();
+            createAITeacherGuide();
+            createCampusQuestHotspots();
             
             // 添加事件监听器
             window.addEventListener('resize', onWindowResize);
@@ -2562,6 +2662,8 @@
                             showHint(_sgOpen ? '校门已开启' : '校门已关闭');
                         }
                     }
+                    if(!doorTriggered && tryInteractAITeacher()) doorTriggered = true;
+                    if(!doorTriggered && tryInteractCampusQuestHotspot()) doorTriggered = true;
                     if(!doorTriggered) toggleSitting();
                 }
                 
@@ -7292,7 +7394,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v122'; // v122：禁用远程士兵回退、清理旧非VRM装备缓存并修正第三人称步态
+        const MAP_VER = 'campus_v125'; // v125：接入AI老师性格配置/Gemini命令，继续优化剧情互动与缓存刷新
 
         function _dbOpen(cb) {
             try {
@@ -9647,8 +9749,11 @@
 
             // 读取主菜单装备（皮肤/VRM）
             let equippedVrmFile = localStorage.getItem('equipped_vrm_file');
-            if (equippedVrmFile && !/\.vrm(?:[?#].*)?$/i.test(equippedVrmFile)) {
-                console.warn('⚠️ 已忽略旧的非VRM角色缓存，避免回退成装甲士兵:', equippedVrmFile);
+            function _isLegacyCombatAvatar(path) {
+                return /(soldier|combat|armor|armour|tactical|military|weapon|枪|士兵|装甲|战术|军)/i.test(String(path || ''));
+            }
+            if (equippedVrmFile && (!/\.vrm(?:[?#].*)?$/i.test(equippedVrmFile) || _isLegacyCombatAvatar(equippedVrmFile))) {
+                console.warn('⚠️ 已忽略旧角色缓存，避免回退成装甲/战术士兵:', equippedVrmFile);
                 localStorage.removeItem('equipped_vrm_file');
                 equippedVrmFile = '';
             }
@@ -11258,8 +11363,8 @@
 
             // 更新走动周期：按“步行/奔跑”分别给步频，避免原来高速时腿像电风扇、低速又像平移。
             const gaitRun = isRunning && targetWalkSpeed > 1.08;
-            const gaitNorm = THREE.MathUtils.clamp(walkSpeed / (gaitRun ? RUN_SPEED_MULT : 1.0), 0.38, 1.12);
-            const gaitRate = (gaitRun ? 8.35 : 5.75) * gaitNorm;
+            const gaitNorm = THREE.MathUtils.clamp(walkSpeed / (gaitRun ? RUN_SPEED_MULT : 1.0), 0.32, 1.08);
+            const gaitRate = (gaitRun ? 7.25 : 5.15) * (0.82 + gaitNorm * 0.32);
             walkCycle += deltaTime * gaitRate;
             
             // 脚步声效果 - 只在地面行走时播放
@@ -11787,6 +11892,8 @@
             // 驱动联机远程玩家行走动画
             _tickRemotePlayers(deltaTime);
             _tickCampusExploration(performance.now());
+            tickAITeacherGuide(deltaTime);
+            tickCampusQuestHotspots(deltaTime);
 
             // 自适应阴影相机：跟踪玩家位置，保留时间系统设置的光源方向
             if (_sunLight && _sunLight.castShadow && soldier && window._gfxTier !== 'low') {
@@ -12196,34 +12303,44 @@
                 }
 
                 if (spd > 0.04) {
-                    const spd01Simple = Math.min(spd, 1.15);
-                    const runMixSimple = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
+                    const spd01Simple = Math.min(spd, 1.18);
+                    const runMixSimple = Math.max(0, Math.min(1, (spd - 0.95) / 0.75));
                     const phaseSimple = cycle;
                     const sSimple = Math.sin(phaseSimple);
                     const cSimple = Math.cos(phaseSimple);
-                    const stepLiftSimple = Math.abs(sSimple);
-                    const sideSimple = sSimple * (0.014 + 0.012 * runMixSimple);
-                    const twistSimple = cSimple * (0.014 + 0.016 * runMixSimple);
-                    const leanSimple = 0.026 + 0.060 * runMixSimple + stepLiftSimple * (0.006 + 0.008 * runMixSimple);
-                    const legAmpSimple = 0.24 + 0.14 * runMixSimple;
-                    const kneeAmpSimple = 0.13 + 0.15 * runMixSimple;
-                    const armAmpSimple = 0.19 + 0.13 * runMixSimple;
+                    const doubleStepSimple = Math.sin(phaseSimple * 2);
+                    const contactPulseSimple = Math.pow(Math.abs(cSimple), 2.6);
+                    const liftPulseLSimple = Math.pow(Math.max(0, sSimple), 1.15);
+                    const liftPulseRSimple = Math.pow(Math.max(0, -sSimple), 1.15);
+                    const pushPulseLSimple = Math.pow(Math.max(0, -cSimple), 1.7);
+                    const pushPulseRSimple = Math.pow(Math.max(0, cSimple), 1.7);
+                    const mvLenSimple = moveDirection.length() || 0.01;
+                    const fwdSimple = -moveDirection.z / mvLenSimple;
+                    const sidSimple = moveDirection.x / mvLenSimple;
+                    const sidAbsSimple = Math.abs(sidSimple);
+                    const backSimple = Math.max(0, -fwdSimple);
+                    const pumpSimple = 1 - sidAbsSimple * 0.34;
+                    const sideSimple = sidSimple * (0.020 + 0.030 * runMixSimple) + sSimple * (0.010 + 0.010 * runMixSimple) + doubleStepSimple * 0.006;
+                    const twistSimple = cSimple * (0.022 + 0.030 * runMixSimple) * pumpSimple;
+                    const leanSimple = 0.045 + 0.125 * runMixSimple - backSimple * 0.040 + contactPulseSimple * (0.008 + 0.012 * runMixSimple);
+                    const legAmpSimple = (0.30 + 0.32 * runMixSimple) * (1 - sidAbsSimple * 0.22);
+                    const armAmpSimple = (0.24 + 0.30 * runMixSimple) * pumpSimple;
                     const _s2Simple = _vrmArmRzSign, _s3Simple = _vrmArmRxSign, _sLSimple = _vrmLegRxSign;
                     _animBones('j_bip_c_hips', leanSimple, twistSimple, sideSimple, al);
-                    _animBones('j_bip_c_spine', -leanSimple * 0.28, -twistSimple * 0.65, -sideSimple * 0.70, al);
-                    _animBones('j_bip_c_chest', -leanSimple * 0.18, -twistSimple * 0.55, -sideSimple * 0.42, al);
-                    _animBones('j_bip_c_neck', -0.035, 0, 0, al);
-                    _animBones('j_bip_c_head', -0.025, 0, 0, al);
-                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple - 0.025, 0, _s2Simple * -0.82, al);
-                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple - 0.025, 0, _s2Simple * 0.82, al);
-                    _animBones('j_bip_l_lowerarm', 0.06, 0, _s2Simple * -0.18, al);
-                    _animBones('j_bip_r_lowerarm', 0.06, 0, _s2Simple * 0.18, al);
-                    _animBones('j_bip_l_upperleg', _sLSimple * -sSimple * legAmpSimple * spd01Simple, 0, 0, al);
-                    _animBones('j_bip_r_upperleg', _sLSimple * sSimple * legAmpSimple * spd01Simple, 0, 0, al);
-                    _animBones('j_bip_l_lowerleg', _sLSimple * Math.max(0, sSimple) * kneeAmpSimple, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg', _sLSimple * Math.max(0, -sSimple) * kneeAmpSimple, 0, 0, al);
-                    _animBones('j_bip_l_foot', _sLSimple * Math.max(0, -sSimple) * -0.08, 0, 0, al);
-                    _animBones('j_bip_r_foot', _sLSimple * Math.max(0, sSimple) * -0.08, 0, 0, al);
+                    _animBones('j_bip_c_spine', -leanSimple * 0.34, -twistSimple * 0.62, -sideSimple * 0.72, al);
+                    _animBones('j_bip_c_chest', -leanSimple * 0.22, -twistSimple * 0.52, -sideSimple * 0.44, al);
+                    _animBones('j_bip_c_neck', -0.030 - 0.018 * runMixSimple, 0, 0, al);
+                    _animBones('j_bip_c_head', -0.018 - 0.012 * runMixSimple, -twistSimple * 0.18, -sideSimple * 0.12, al);
+                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple - 0.035 - 0.050 * runMixSimple, -0.020 * cSimple + sidSimple * 0.020, _s2Simple * (-0.82 + 0.070 * liftPulseRSimple), al);
+                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple - 0.035 - 0.050 * runMixSimple, 0.020 * cSimple + sidSimple * 0.020, _s2Simple * (0.82 - 0.070 * liftPulseLSimple), al);
+                    _animBones('j_bip_l_lowerarm', 0.070 + 0.190 * liftPulseRSimple + 0.085 * runMixSimple, 0, _s2Simple * (-0.19 - 0.12 * runMixSimple), al);
+                    _animBones('j_bip_r_lowerarm', 0.070 + 0.190 * liftPulseLSimple + 0.085 * runMixSimple, 0, _s2Simple * (0.19 + 0.12 * runMixSimple), al);
+                    _animBones('j_bip_l_upperleg', _sLSimple * (-sSimple * legAmpSimple * spd01Simple - pushPulseLSimple * (0.08 + 0.08 * runMixSimple)), 0.018 * cSimple + sidSimple * 0.018, -0.020 * sSimple + sidSimple * 0.020, al);
+                    _animBones('j_bip_r_upperleg', _sLSimple * (sSimple * legAmpSimple * spd01Simple - pushPulseRSimple * (0.08 + 0.08 * runMixSimple)), -0.018 * cSimple + sidSimple * 0.018, 0.020 * sSimple + sidSimple * 0.020, al);
+                    _animBones('j_bip_l_lowerleg', _sLSimple * (0.060 + liftPulseLSimple * (0.30 + 0.28 * runMixSimple) + pushPulseLSimple * 0.10), 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', _sLSimple * (0.060 + liftPulseRSimple * (0.30 + 0.28 * runMixSimple) + pushPulseRSimple * 0.10), 0, 0, al);
+                    _animBones('j_bip_l_foot', _sLSimple * (-0.10 * liftPulseLSimple + 0.06 * pushPulseLSimple), 0, 0, al);
+                    _animBones('j_bip_r_foot', _sLSimple * (-0.10 * liftPulseRSimple + 0.06 * pushPulseRSimple), 0, 0, al);
                     const earBSimple = Math.sin(phaseSimple * 2) * 0.045 * spd01Simple;
                     _animEar('j_opt_l_catear1_01',  earBSimple,       0.16);
                     _animEar('j_opt_l_catear2_01',  earBSimple * 0.6, 0.16);
@@ -12381,38 +12498,54 @@
             }
 
             if (spd > 0.04) {
-                const spd01SimpleH = Math.min(spd, 1.15);
-                const runMixSimpleH = Math.max(0, Math.min(1, (spd - 1.05) / 0.75));
+                const spd01SimpleH = Math.min(spd, 1.18);
+                const runMixSimpleH = Math.max(0, Math.min(1, (spd - 0.95) / 0.75));
                 const phaseSimpleH = cycle;
                 const sSimpleH = Math.sin(phaseSimpleH);
                 const cSimpleH = Math.cos(phaseSimpleH);
-                const stepLiftSimpleH = Math.abs(sSimpleH);
-                const sideSimpleH = sSimpleH * (0.014 + 0.012 * runMixSimpleH);
-                const twistSimpleH = cSimpleH * (0.014 + 0.016 * runMixSimpleH);
-                const leanSimpleH = 0.026 + 0.060 * runMixSimpleH + stepLiftSimpleH * (0.006 + 0.008 * runMixSimpleH);
-                const legAmpSimpleH = 0.24 + 0.14 * runMixSimpleH;
-                const kneeAmpSimpleH = 0.13 + 0.15 * runMixSimpleH;
-                const armAmpSimpleH = 0.19 + 0.13 * runMixSimpleH;
+                const doubleStepH = Math.sin(phaseSimpleH * 2);
+                const contactPulseH = Math.pow(Math.abs(cSimpleH), 2.6);
+                const liftPulseLH = Math.pow(Math.max(0, sSimpleH), 1.15);
+                const liftPulseRH = Math.pow(Math.max(0, -sSimpleH), 1.15);
+                const pushPulseLH = Math.pow(Math.max(0, -cSimpleH), 1.7);
+                const pushPulseRH = Math.pow(Math.max(0, cSimpleH), 1.7);
+                const mvLenSimpleH = moveDirection.length() || 0.01;
+                const fwdSimpleH = -moveDirection.z / mvLenSimpleH;
+                const sidSimpleH = moveDirection.x / mvLenSimpleH;
+                const sidAbsSimpleH = Math.abs(sidSimpleH);
+                const backSimpleH = Math.max(0, -fwdSimpleH);
+                const pumpSimpleH = 1 - sidAbsSimpleH * 0.34;
+                const sideSimpleH = sidSimpleH * (0.020 + 0.030 * runMixSimpleH) + sSimpleH * (0.010 + 0.010 * runMixSimpleH) + doubleStepH * 0.006;
+                const twistSimpleH = cSimpleH * (0.022 + 0.030 * runMixSimpleH) * pumpSimpleH;
+                const leanSimpleH = 0.045 + 0.125 * runMixSimpleH - backSimpleH * 0.040 + contactPulseH * (0.008 + 0.012 * runMixSimpleH);
+                const legAmpSimpleH = (0.30 + 0.32 * runMixSimpleH) * (1 - sidAbsSimpleH * 0.22);
+                const armAmpSimpleH = (0.24 + 0.30 * runMixSimpleH) * pumpSimpleH;
                 const _s4SimpleH = _vrmArmRxSign, _sRzSimpleH = _vrmArmRzSign, _sL2SimpleH = _vrmLegRxSign;
                 bl(hips, leanSimpleH, twistSimpleH, sideSimpleH);
-                bl(spine, -leanSimpleH * 0.28, -twistSimpleH * 0.65, -sideSimpleH * 0.70);
-                bl(spine2, -leanSimpleH * 0.18, -twistSimpleH * 0.55, -sideSimpleH * 0.45);
-                bl(spine3, -leanSimpleH * 0.12, -twistSimpleH * 0.35, -sideSimpleH * 0.25);
-                bl(neck, -0.035, 0, 0);
-                bl(head, -0.025, 0, 0);
-                bl(lSho, 0, 0, 0);
-                bl(rSho, 0, 0, 0);
-                bl(lArm, _s4SimpleH * sSimpleH * armAmpSimpleH * spd01SimpleH - 0.025, 0, _sRzSimpleH * -0.82);
-                bl(rArm, _s4SimpleH * -sSimpleH * armAmpSimpleH * spd01SimpleH - 0.025, 0, _sRzSimpleH * 0.82);
-                bl(lFa, 0.06, 0, _sRzSimpleH * -0.18);
-                bl(rFa, 0.06, 0, _sRzSimpleH * 0.18);
-                bl(lLeg, _sL2SimpleH * -sSimpleH * legAmpSimpleH * spd01SimpleH, 0, 0);
-                bl(rLeg, _sL2SimpleH * sSimpleH * legAmpSimpleH * spd01SimpleH, 0, 0);
-                bl(lKnee, _sL2SimpleH * Math.max(0, sSimpleH) * kneeAmpSimpleH, 0, 0);
-                bl(rKnee, _sL2SimpleH * Math.max(0, -sSimpleH) * kneeAmpSimpleH, 0, 0);
-                bl(lFoot, _sL2SimpleH * Math.max(0, -sSimpleH) * -0.08, 0, 0);
-                bl(rFoot, _sL2SimpleH * Math.max(0, sSimpleH) * -0.08, 0, 0);
-                return; // 先使用更稳的学生步态：避免不同VRM骨骼轴向下被6帧关键帧二次覆盖，导致奔跑姿势变形。
+                bl(spine, -leanSimpleH * 0.34, -twistSimpleH * 0.62, -sideSimpleH * 0.72);
+                bl(spine2, -leanSimpleH * 0.22, -twistSimpleH * 0.52, -sideSimpleH * 0.44);
+                bl(spine3, -leanSimpleH * 0.13, -twistSimpleH * 0.34, -sideSimpleH * 0.24);
+                bl(neck, -0.030 - 0.018 * runMixSimpleH, 0, 0);
+                bl(head, -0.018 - 0.012 * runMixSimpleH, -twistSimpleH * 0.18, -sideSimpleH * 0.12);
+                bl(lSho, 0.015 * runMixSimpleH, 0, _sRzSimpleH * (-0.020 * liftPulseLH));
+                bl(rSho, 0.015 * runMixSimpleH, 0, _sRzSimpleH * (0.020 * liftPulseRH));
+
+                const leftArmSwingH = _s4SimpleH * sSimpleH * armAmpSimpleH * spd01SimpleH;
+                const rightArmSwingH = _s4SimpleH * -sSimpleH * armAmpSimpleH * spd01SimpleH;
+                bl(lArm, leftArmSwingH - 0.035 - 0.050 * runMixSimpleH, -0.020 * cSimpleH + sidSimpleH * 0.020, _sRzSimpleH * (-0.82 + 0.070 * liftPulseRH));
+                bl(rArm, rightArmSwingH - 0.035 - 0.050 * runMixSimpleH, 0.020 * cSimpleH + sidSimpleH * 0.020, _sRzSimpleH * (0.82 - 0.070 * liftPulseLH));
+                bl(lFa, 0.070 + 0.190 * liftPulseRH + 0.085 * runMixSimpleH, 0, _sRzSimpleH * (-0.19 - 0.12 * runMixSimpleH));
+                bl(rFa, 0.070 + 0.190 * liftPulseLH + 0.085 * runMixSimpleH, 0, _sRzSimpleH * (0.19 + 0.12 * runMixSimpleH));
+
+                const leftLegSwingH = -sSimpleH * legAmpSimpleH * spd01SimpleH - pushPulseLH * (0.08 + 0.08 * runMixSimpleH);
+                const rightLegSwingH = sSimpleH * legAmpSimpleH * spd01SimpleH - pushPulseRH * (0.08 + 0.08 * runMixSimpleH);
+                bl(lLeg, _sL2SimpleH * leftLegSwingH, 0.018 * cSimpleH + sidSimpleH * 0.018, -0.020 * sSimpleH + sidSimpleH * 0.020);
+                bl(rLeg, _sL2SimpleH * rightLegSwingH, -0.018 * cSimpleH + sidSimpleH * 0.018, 0.020 * sSimpleH + sidSimpleH * 0.020);
+                bl(lKnee, _sL2SimpleH * (0.060 + liftPulseLH * (0.30 + 0.28 * runMixSimpleH) + pushPulseLH * 0.10), 0, 0);
+                bl(rKnee, _sL2SimpleH * (0.060 + liftPulseRH * (0.30 + 0.28 * runMixSimpleH) + pushPulseRH * 0.10), 0, 0);
+                bl(lFoot, _sL2SimpleH * (-0.10 * liftPulseLH + 0.06 * pushPulseLH), 0, 0);
+                bl(rFoot, _sL2SimpleH * (-0.10 * liftPulseRH + 0.06 * pushPulseRH), 0, 0);
+                return; // 使用接触/后蹬/腾空权重的稳定步态，避免不同VRM骨骼轴向下被关键帧二次覆盖。
                 // 关键帧步态：contact / down / passing / push / up / recovery
                 // ══ 奔跑动画 v9（6帧生物力学关键帧）══
                 const spd01 = Math.min(spd, 1.0);
@@ -14713,6 +14846,368 @@
             clearTimeout(_hintTimer);
             _hintTimer=setTimeout(()=>el.style.display='none',2000);
         }
+
+        function makeTextSprite(text, options = {}) {
+            const canvas = document.createElement('canvas');
+            canvas.width = options.width || 512;
+            canvas.height = options.height || 128;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = options.bg || 'rgba(8,20,38,0.82)';
+            ctx.strokeStyle = options.border || 'rgba(108,192,255,0.95)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            const r = 18;
+            ctx.moveTo(r, 8);
+            ctx.lineTo(canvas.width - r, 8);
+            ctx.quadraticCurveTo(canvas.width - 8, 8, canvas.width - 8, r);
+            ctx.lineTo(canvas.width - 8, canvas.height - r);
+            ctx.quadraticCurveTo(canvas.width - 8, canvas.height - 8, canvas.width - r, canvas.height - 8);
+            ctx.lineTo(r, canvas.height - 8);
+            ctx.quadraticCurveTo(8, canvas.height - 8, 8, canvas.height - r);
+            ctx.lineTo(8, r);
+            ctx.quadraticCurveTo(8, 8, r, 8);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = options.color || '#ffffff';
+            ctx.font = options.font || 'bold 38px Microsoft YaHei, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+            sprite.scale.set(options.scaleX || 4.8, options.scaleY || 1.2, 1);
+            return sprite;
+        }
+
+        function createAITeacherGuide() {
+            if (!scene || aiTeacherModel) return;
+            const group = new THREE.Group();
+            group.name = 'AI导览老师';
+            group.position.set(-8, 0, 103);
+            group.rotation.y = Math.PI * 0.08;
+
+            const coatMat = new THREE.MeshStandardMaterial({ color: 0x2d6cdf, roughness: 0.55, metalness: 0.04 });
+            const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.6 });
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd1b8, roughness: 0.72 });
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x2f211c, roughness: 0.85 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x1b2533, roughness: 0.65 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: 0x5eead4, roughness: 0.35, emissive: 0x123b36, emissiveIntensity: 0.25 });
+
+            const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.72, 6, 12), coatMat);
+            body.position.y = 1.18;
+            body.castShadow = true;
+            group.add(body);
+            const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.035), shirtMat);
+            shirt.position.set(0, 1.26, -0.33);
+            group.add(shirt);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 14), skinMat);
+            head.position.y = 1.83;
+            head.castShadow = true;
+            group.add(head);
+            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.255, 12, 8), hairMat);
+            hair.position.set(0, 1.93, -0.02);
+            hair.scale.set(1.05, 0.52, 1.0);
+            group.add(hair);
+            const glasses = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.006, 6, 16), darkMat);
+            glasses.position.set(-0.075, 1.84, -0.205);
+            glasses.rotation.x = Math.PI / 2;
+            group.add(glasses);
+            const glassesR = glasses.clone();
+            glassesR.position.x = 0.075;
+            group.add(glassesR);
+            const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.01, 0.01), darkMat);
+            bridge.position.set(0, 1.84, -0.205);
+            group.add(bridge);
+
+            const armGeo = new THREE.CapsuleGeometry(0.055, 0.5, 5, 8);
+            const leftArm = new THREE.Mesh(armGeo, skinMat);
+            leftArm.position.set(-0.44, 1.26, -0.02);
+            leftArm.rotation.z = -0.24;
+            group.add(leftArm);
+            const rightArm = new THREE.Mesh(armGeo, skinMat);
+            rightArm.position.set(0.44, 1.26, -0.02);
+            rightArm.rotation.z = 0.18;
+            group.add(rightArm);
+            const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.25, 0.035), accentMat);
+            tablet.position.set(0.28, 1.08, -0.24);
+            tablet.rotation.set(-0.35, 0.06, 0.05);
+            group.add(tablet);
+            const legGeo = new THREE.CapsuleGeometry(0.07, 0.55, 5, 8);
+            const leftLeg = new THREE.Mesh(legGeo, darkMat);
+            leftLeg.position.set(-0.13, 0.46, 0);
+            group.add(leftLeg);
+            const rightLeg = new THREE.Mesh(legGeo, darkMat);
+            rightLeg.position.set(0.13, 0.46, 0);
+            group.add(rightLeg);
+
+            const marker = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.018, 8, 48), new THREE.MeshBasicMaterial({ color: 0x64d8ff, transparent: true, opacity: 0.62 }));
+            marker.position.y = 0.035;
+            marker.rotation.x = Math.PI / 2;
+            group.add(marker);
+
+            aiTeacherLabel = makeTextSprite('AI导览老师  按E咨询', { scaleX: 3.8, scaleY: 0.8, font: 'bold 32px Microsoft YaHei, sans-serif' });
+            aiTeacherLabel.position.set(0, 2.35, 0);
+            group.add(aiTeacherLabel);
+            scene.add(group);
+            aiTeacherModel = group;
+        }
+
+        function tickAITeacherGuide(deltaTime) {
+            if (!aiTeacherModel) return;
+            const t = _gameIdleT || 0;
+            aiTeacherModel.rotation.y = Math.PI * 0.08 + Math.sin(t * 0.55) * 0.045;
+            const marker = aiTeacherModel.children.find(o => o.geometry && o.geometry.type === 'TorusGeometry');
+            if (marker) marker.material.opacity = 0.46 + Math.sin(t * 2.2) * 0.12;
+            if (aiTeacherLabel && soldier) {
+                const d = soldier.position.distanceTo(aiTeacherModel.position);
+                aiTeacherLabel.visible = d < 18;
+            }
+        }
+
+        function createCampusQuestHotspots() {
+            if (!scene || campusQuestHotspots.length) return;
+            const defs = [
+                { id: 'gate_checkin', label: '校门打卡', pos: [0, 0.05, 110.5], color: 0x60a5fa },
+                { id: 'manual', label: '校园手册', pos: [-6.5, 0.05, 100.5], color: 0x34d399 },
+                { id: 'canteen', label: '食堂熟悉', pos: [101.5, 0.05, -8.8], color: 0xf59e0b },
+                { id: 'playground', label: '操场训练', pos: [0, 0.05, 69.0], color: 0x22c55e },
+                { id: 'office', label: '办公室咨询', pos: [-105, 0.05, -7.2], color: 0x38bdf8 },
+                { id: 'library', label: '图书馆检索', pos: [-63, 0.05, -28.5], color: 0xa78bfa },
+                { id: 'class_story', label: '班级剧情', pos: [-33, 0.05, 37.6], color: 0xf472b6 },
+                { id: 'club', label: '社团招新', pos: [24, 0.05, -16.5], color: 0xfb7185 },
+                { id: 'broadcast', label: '校园广播', pos: [56, 0.05, -17.5], color: 0xfacc15 }
+            ];
+
+            defs.forEach(def => {
+                const group = new THREE.Group();
+                group.name = '任务热点_' + def.label;
+                group.position.set(def.pos[0], def.pos[1], def.pos[2]);
+                const ring = new THREE.Mesh(
+                    new THREE.TorusGeometry(0.86, 0.022, 8, 56),
+                    new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.74 })
+                );
+                ring.rotation.x = Math.PI / 2;
+                group.add(ring);
+                const dot = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.18, 0.22, 0.06, 16),
+                    new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.88 })
+                );
+                dot.position.y = 0.02;
+                group.add(dot);
+                const postMat = new THREE.MeshStandardMaterial({ color: 0x53616f, roughness: 0.62 });
+                const boardMat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.48, metalness: 0.05, emissive: def.color, emissiveIntensity: 0.10 });
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.96, 8), postMat);
+                post.position.set(-0.58, 0.52, 0);
+                group.add(post);
+                const board = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.36, 0.055), boardMat);
+                board.position.set(-0.58, 1.04, 0);
+                board.rotation.y = Math.PI * 0.05;
+                group.add(board);
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.08, 12), postMat);
+                base.position.set(-0.58, 0.04, 0);
+                group.add(base);
+                const label = makeTextSprite(def.label + '  E', {
+                    scaleX: 2.6,
+                    scaleY: 0.58,
+                    width: 420,
+                    height: 96,
+                    font: 'bold 30px Microsoft YaHei, sans-serif',
+                    bg: 'rgba(8,20,38,0.78)',
+                    border: 'rgba(255,255,255,0.68)'
+                });
+                label.position.set(0, 1.3, 0);
+                group.add(label);
+                group.userData.quest = def;
+                group._noMerge = true;
+                scene.add(group);
+                campusQuestHotspots.push(group);
+            });
+        }
+
+        function tickCampusQuestHotspots(deltaTime) {
+            if (!campusQuestHotspots.length) return;
+            const t = _gameIdleT || 0;
+            const state = window.CampusQuests?.loadState?.();
+            campusQuestHotspots.forEach(group => {
+                const done = state?.completedSteps?.includes(group.userData.quest.id);
+                const ring = group.children[0];
+                const label = group.children[group.children.length - 1];
+                const dist = soldier ? soldier.position.distanceTo(group.position) : 999;
+                group.visible = !done || dist < 10;
+                if (ring?.material) {
+                    ring.material.opacity = done ? 0.18 : 0.54 + Math.sin(t * 2.8 + group.position.x) * 0.16;
+                    ring.scale.setScalar(done ? 0.82 : 1 + Math.sin(t * 2.2 + group.position.z) * 0.035);
+                }
+                if (label) label.visible = !done && dist < 16;
+            });
+        }
+
+        function tryInteractCampusQuestHotspot() {
+            if (!soldier || !campusQuestHotspots.length || !window.CampusQuests) return false;
+            let nearest = null;
+            let nearestDist = Infinity;
+            campusQuestHotspots.forEach(group => {
+                const d = soldier.position.distanceTo(group.position);
+                if (d < nearestDist) { nearestDist = d; nearest = group; }
+            });
+            if (!nearest || nearestDist > 4.2) return false;
+            const quest = nearest.userData.quest;
+            const result = window.CampusQuests.completeStep(quest.id);
+            if (result.changed) {
+                const progress = result.progress;
+                const next = progress?.nextStep ? `下一步：${progress.nextStep.label}` : '可以继续自由探索';
+                showQuestToast(`✅ ${quest.label}完成`, result.completedQuest ? `任务线「${result.completedQuest.title}」完成！` : `${progress?.quest.title || '校园任务'} ${progress?.completedCount || 0}/${progress?.total || 0} · ${next}`);
+            } else {
+                showQuestToast(`已完成：${quest.label}`, window.CampusQuests.getNextHint());
+            }
+            return true;
+        }
+
+        function showQuestToast(title, text) {
+            let el = document.getElementById('campus-quest-toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'campus-quest-toast';
+                Object.assign(el.style, {
+                    position: 'fixed',
+                    right: '22px',
+                    top: '108px',
+                    maxWidth: '360px',
+                    background: 'rgba(5,18,32,0.90)',
+                    color: '#e8f7ff',
+                    border: '1px solid rgba(125,211,252,0.55)',
+                    borderRadius: '14px',
+                    padding: '12px 14px',
+                    boxShadow: '0 14px 36px rgba(0,0,0,0.30)',
+                    zIndex: 1300,
+                    fontFamily: 'Microsoft YaHei, sans-serif',
+                    lineHeight: '1.55'
+                });
+                document.body.appendChild(el);
+            }
+            el.innerHTML = `<div style="font-weight:800;color:#7dd3fc;margin-bottom:4px;">${title}</div><div style="font-size:14px;">${text}</div>`;
+            el.style.display = 'block';
+            clearTimeout(campusQuestToastTimer);
+            campusQuestToastTimer = setTimeout(() => { el.style.display = 'none'; }, 4200);
+        }
+
+        function tryInteractAITeacher() {
+            if (!soldier || !aiTeacherModel) return false;
+            const d = soldier.position.distanceTo(aiTeacherModel.position);
+            if (d > 5.2) return false;
+            showAITeacherPanel();
+            return true;
+        }
+
+        function showAITeacherPanel() {
+            if (!aiTeacherPanel) {
+                aiTeacherPanel = document.createElement('div');
+                aiTeacherPanel.id = 'ai-teacher-panel';
+                Object.assign(aiTeacherPanel.style, {
+                    position: 'fixed',
+                    left: '50%',
+                    bottom: '88px',
+                    transform: 'translateX(-50%)',
+                    width: 'min(560px, calc(100vw - 32px))',
+                    background: 'rgba(9,22,39,0.92)',
+                    color: '#fff',
+                    border: '1px solid rgba(116,197,255,0.55)',
+                    borderRadius: '16px',
+                    boxShadow: '0 18px 48px rgba(0,0,0,0.35)',
+                    padding: '16px',
+                    zIndex: 1200,
+                    fontFamily: 'Microsoft YaHei, sans-serif'
+                });
+                aiTeacherPanel.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;">
+                        <div data-ai-title style="font-weight:800;color:#7dd3fc;font-size:18px;">👩‍🏫 AI导览老师</div>
+                        <button data-ai-close style="background:rgba(255,255,255,0.12);color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;">关闭</button>
+                    </div>
+                    <div data-ai-teachers style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                        <button data-ai-teacher="guide">导览</button>
+                        <button data-ai-teacher="headTeacher">班主任</button>
+                        <button data-ai-teacher="chinese">语文</button>
+                        <button data-ai-teacher="math">数学</button>
+                        <button data-ai-teacher="pe">体育</button>
+                        <button data-ai-teacher="it">信息</button>
+                        <button data-ai-teacher="biology">生物</button>
+                        <button data-ai-teacher="security">保安</button>
+                    </div>
+                    <div data-ai-answer style="min-height:56px;line-height:1.65;color:#e5f6ff;margin-bottom:12px;">欢迎，新同学。你可以问我路线、老师、剧情任务，或者直接点下面的快捷问题。</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <button data-ai-q="我现在该去哪？">我现在该去哪？</button>
+                        <button data-ai-q="介绍一下校园主线任务">主线任务</button>
+                        <button data-ai-q="食堂和操场在哪里？">食堂/操场</button>
+                        <button data-ai-q="有哪些老师可以咨询？">老师咨询</button>
+                    </div>
+                    <input data-ai-input placeholder="也可以自己输入问题，例如：厕所在哪？" style="margin-top:10px;width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(125,211,252,0.35);background:rgba(255,255,255,0.08);color:#fff;padding:10px 12px;outline:none;">
+                `;
+                aiTeacherPanel.querySelectorAll('button[data-ai-teacher]').forEach(btn => {
+                    Object.assign(btn.style, { background: 'rgba(255,255,255,0.08)', color: '#dff7ff', border: '1px solid rgba(125,211,252,0.22)', borderRadius: '999px', padding: '6px 10px', cursor: 'pointer', fontSize: '12px' });
+                    btn.addEventListener('click', () => {
+                        aiTeacherActiveId = btn.dataset.aiTeacher || 'guide';
+                        updateAITeacherPanelTitle();
+                    });
+                });
+                aiTeacherPanel.querySelectorAll('button[data-ai-q]').forEach(btn => {
+                    Object.assign(btn.style, { background: 'rgba(14,165,233,0.18)', color: '#dff7ff', border: '1px solid rgba(125,211,252,0.35)', borderRadius: '999px', padding: '8px 12px', cursor: 'pointer' });
+                    btn.addEventListener('click', () => askAITeacher(btn.dataset.aiQ));
+                });
+                aiTeacherPanel.querySelector('[data-ai-close]').addEventListener('click', () => aiTeacherPanel.style.display = 'none');
+                aiTeacherPanel.querySelector('[data-ai-input]').addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                        askAITeacher(e.target.value.trim());
+                        e.target.value = '';
+                    }
+                });
+                document.body.appendChild(aiTeacherPanel);
+            }
+            updateAITeacherPanelTitle();
+            aiTeacherPanel.style.display = 'block';
+            showHint('已打开AI导览老师');
+        }
+
+        function updateAITeacherPanelTitle() {
+            if (!aiTeacherPanel) return;
+            const teacher = window.CampusAITeachers?.getTeacher?.(aiTeacherActiveId);
+            const title = aiTeacherPanel.querySelector('[data-ai-title]');
+            const answer = aiTeacherPanel.querySelector('[data-ai-answer]');
+            if (title) title.textContent = `👩‍🏫 ${teacher?.displayName || 'AI导览老师'}`;
+            if (answer && teacher) answer.textContent = teacher.opening || '你可以问我路线、老师、剧情任务。';
+            aiTeacherPanel.querySelectorAll('button[data-ai-teacher]').forEach(btn => {
+                const active = btn.dataset.aiTeacher === aiTeacherActiveId;
+                btn.style.background = active ? 'rgba(14,165,233,0.38)' : 'rgba(255,255,255,0.08)';
+                btn.style.borderColor = active ? 'rgba(125,211,252,0.65)' : 'rgba(125,211,252,0.22)';
+            });
+        }
+
+        async function askAITeacher(question) {
+            if (!aiTeacherPanel) return;
+            const teacherId = aiTeacherActiveId || 'guide';
+            const teacher = window.CampusAITeachers?.getTeacher?.(teacherId);
+            const answer = aiTeacherPanel.querySelector('[data-ai-answer]');
+            answer.textContent = `${teacher?.displayName || 'AI老师'}正在思考……`;
+            if (window.CampusQuests) {
+                const qres = window.CampusQuests.completeStep('ai_teacher');
+                if (qres.changed) showQuestToast('✅ AI老师咨询完成', qres.progress ? `${qres.progress.quest.title} ${qres.progress.completedCount}/${qres.progress.total}` : window.CampusQuests.getSummary());
+            }
+            try {
+                const reply = await (window.CampusAI?.chat
+                    ? window.CampusAI.chat({
+                        teacherId,
+                        scene: '3d-campus-teacher',
+                        messages: [{ role: 'user', content: question }]
+                    })
+                    : Promise.resolve(window.CampusAI?.fallbackTeacherReply?.(question, '3d-campus-teacher', teacherId) || '先完成新生导览，再去教学楼、食堂、操场各探索一次。'));
+                answer.textContent = reply;
+            } catch (err) {
+                console.warn('AI老师在线请求失败，使用脚本兜底', err);
+                answer.textContent = window.CampusAI?.fallbackTeacherReply?.(question, '3d-campus-teacher', teacherId) || '网络不稳定也没关系：先去教学楼正门、操场、食堂完成三个打卡点。';
+            }
+        }
+
         function toggleSitting() {
             if (isSitting) {
                 // 站起来

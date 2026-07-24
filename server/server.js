@@ -9,6 +9,7 @@ const userRoutes     = require('./routes/users');
 const postRoutes     = require('./routes/posts');
 const friendRoutes   = require('./routes/friends');
 const messageRoutes  = require('./routes/messages');
+const aiRoutes       = require('./routes/ai');
 const Message        = require('./models/Message');
 const User           = require('./models/User');
 
@@ -47,6 +48,7 @@ app.use('/api/users',    userRoutes);
 app.use('/api/posts',    postRoutes);
 app.use('/api/friends',  friendRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api',          aiRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {

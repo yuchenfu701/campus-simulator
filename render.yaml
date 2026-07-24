@@ -25,3 +25,7 @@ services:
                       # 格式：mongodb+srv://<user>:<password>@cluster0.xxx.mongodb.net/campus_simulator
       - key: CORS_ORIGIN
         value: https://yuchenfu701.github.io  # 你的 GitHub Pages 域名
+      - key: GEMINI_API_KEY
+        sync: false   # 在 Render 控制台 Environment 手动填写，不能写进代码仓库
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
