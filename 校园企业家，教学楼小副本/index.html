@@ -14888,6 +14888,17 @@
             group.position.set(-8, 0, 103);
             group.rotation.y = Math.PI * 0.08;
 
+            const createCapsuleCompatGeometry = (radius, length, capSegments = 6, radialSegments = 10) => {
+                // Three.js r134 in this project does not include CapsuleGeometry.
+                // Use it when available, otherwise fall back to a light-weight rounded-looking cylinder
+                // so the guide model never breaks the whole scene during startup.
+                if (typeof THREE.CapsuleGeometry === 'function') {
+                    return new THREE.CapsuleGeometry(radius, length, capSegments, radialSegments);
+                }
+                const height = Math.max(0.01, length + radius * 2);
+                return new THREE.CylinderGeometry(radius, radius, height, radialSegments, 1);
+            };
+
             const coatMat = new THREE.MeshStandardMaterial({ color: 0x2d6cdf, roughness: 0.55, metalness: 0.04 });
             const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.6 });
             const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd1b8, roughness: 0.72 });
@@ -14895,7 +14906,7 @@
             const darkMat = new THREE.MeshStandardMaterial({ color: 0x1b2533, roughness: 0.65 });
             const accentMat = new THREE.MeshStandardMaterial({ color: 0x5eead4, roughness: 0.35, emissive: 0x123b36, emissiveIntensity: 0.25 });
 
-            const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.72, 6, 12), coatMat);
+            const body = new THREE.Mesh(createCapsuleCompatGeometry(0.34, 0.72, 6, 12), coatMat);
             body.position.y = 1.18;
             body.castShadow = true;
             group.add(body);
@@ -14921,7 +14932,7 @@
             bridge.position.set(0, 1.84, -0.205);
             group.add(bridge);
 
-            const armGeo = new THREE.CapsuleGeometry(0.055, 0.5, 5, 8);
+            const armGeo = createCapsuleCompatGeometry(0.055, 0.5, 5, 8);
             const leftArm = new THREE.Mesh(armGeo, skinMat);
             leftArm.position.set(-0.44, 1.26, -0.02);
             leftArm.rotation.z = -0.24;
@@ -14934,7 +14945,7 @@
             tablet.position.set(0.28, 1.08, -0.24);
             tablet.rotation.set(-0.35, 0.06, 0.05);
             group.add(tablet);
-            const legGeo = new THREE.CapsuleGeometry(0.07, 0.55, 5, 8);
+            const legGeo = createCapsuleCompatGeometry(0.07, 0.55, 5, 8);
             const leftLeg = new THREE.Mesh(legGeo, darkMat);
             leftLeg.position.set(-0.13, 0.46, 0);
             group.add(leftLeg);
