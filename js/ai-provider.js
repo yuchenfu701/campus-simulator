@@ -4,6 +4,45 @@
  * - 如需接入真实模型，建议把 key 放在自己的后端代理里，不要直接写到前端。
  */
 (function () {
+    const REQUEST_TIMEOUT_MS = 14000;
+    let serviceStatus = { state: 'idle', mode: 'unknown', message: '尚未检测在线AI' };
+
+    function setServiceStatus(state, mode, message) {
+        serviceStatus = { state, mode, message, updatedAt: Date.now() };
+        window.dispatchEvent(new CustomEvent('campus-ai-status', { detail: { ...serviceStatus } }));
+    }
+
+    function getServiceStatus() {
+        return { ...serviceStatus };
+    }
+
+    async function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT_MS) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    async function readResponseBody(res) {
+        const text = await res.text().catch(() => '');
+        if (!text) return {};
+        try { return JSON.parse(text); } catch (_) { return { error: text }; }
+    }
+
+    function describeProxyError(status, payload) {
+        const raw = String(payload?.error?.message || payload?.error || payload?.message || payload?.details?.error?.message || '').trim();
+        const normalized = raw.toLowerCase();
+        if (status === 540 || normalized.includes('project paused')) {
+            return 'AI后端已暂停，请先在 Supabase 恢复 campus-simulator 项目';
+        }
+        if (normalized.includes('denied access') || normalized.includes('permission_denied') || status === 403) {
+            return 'Gemini 项目或密钥无权访问，请在 Google AI Studio 检查项目状态';
+        }
+        return raw || `AI代理请求失败（HTTP ${status}）`;
+    }
     const DEFAULT_SYSTEM_PROMPT = [
         '你是“爱哲安民未来学校模拟器”里的AI导览老师。',
         '你的任务是帮助新同学认识校园、了解老师和同学、推荐可做任务。',
@@ -66,7 +105,7 @@
 
     function buildProxyHeaders(endpoint) {
         const headers = { 'Content-Type': 'application/json' };
-        const isSupabaseFunction = /^https:\/\/[^/]+\.supabase\.co\/functions\/v1\//i.test(String(endpoint || ''));
+        const isSupabaseFunction = /^https:\/\/(?:[^/]+\.supabase\.co\/functions\/v1\/|[^/]+\.functions\.supabase\.co\/)/i.test(String(endpoint || ''));
         const publishableKey = window.CAMPUS_SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_KEY || '';
         if (isSupabaseFunction && publishableKey) {
             headers.apikey = publishableKey;
@@ -133,25 +172,38 @@
 
         if (config.provider === 'scripted' || (!config.apiKey && !config.endpoint)) {
             const lastUser = [...messages].reverse().find(m => m?.role === 'user')?.content || '';
+            setServiceStatus('offline', 'scripted', '离线导览模式');
             return fallbackTeacherReply(lastUser, scene, teacherId);
         }
 
         if (config.provider === 'proxy') {
             const endpoint = config.endpoint || getDefaultProxyEndpoint();
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: buildProxyHeaders(endpoint),
-                body: JSON.stringify({
-                    model: config.model || provider.defaultModel,
-                    messages,
-                    systemPrompt: prompt,
-                    scene,
-                    teacherId
-                })
-            });
-            if (!res.ok) throw new Error(`AI代理请求失败：${res.status}`);
-            const json = await res.json();
-            return json?.reply || json?.text || fallbackTeacherReply('', scene, teacherId);
+            setServiceStatus('connecting', 'online', '正在连接 Gemini');
+            try {
+                const res = await fetchWithTimeout(endpoint, {
+                    method: 'POST',
+                    headers: buildProxyHeaders(endpoint),
+                    body: JSON.stringify({
+                        model: config.model || provider.defaultModel,
+                        messages,
+                        systemPrompt: prompt,
+                        scene,
+                        teacherId
+                    })
+                });
+                const json = await readResponseBody(res);
+                if (!res.ok) throw new Error(describeProxyError(res.status, json));
+                const reply = json?.reply || json?.text;
+                if (!reply) throw new Error('在线AI没有返回有效内容');
+                setServiceStatus('online', 'online', `Gemini · ${json?.model || config.model || provider.defaultModel}`);
+                return reply;
+            } catch (err) {
+                const message = err?.name === 'AbortError'
+                    ? '在线AI连接超时'
+                    : (err?.message || '在线AI网络连接失败');
+                setServiceStatus('error', 'fallback', message);
+                throw new Error(message);
+            }
         }
 
         if (config.provider === 'gemini') {
@@ -206,6 +258,7 @@
         DEFAULT_SYSTEM_PROMPT,
         providers: PROVIDERS,
         getConfig,
+        getServiceStatus,
         saveConfig,
         chat,
         fallbackTeacherReply

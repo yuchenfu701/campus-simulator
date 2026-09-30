@@ -3,5 +3,7 @@
  * 当前项目的真实部署方式是 GitHub Pages + Supabase，所以 AI 老师默认走 Supabase Edge Function。
  * Gemini Key 应放在 Supabase Function Secrets 里，而不是前端源码里。
  */
-window.CAMPUS_AI_PROXY_ENDPOINT = window.CAMPUS_AI_PROXY_ENDPOINT || 'https://qfoaoaggyfhkkvoxyxrb.supabase.co/functions/v1/ai-teacher';
+// Legacy Functions hostname is still supported by Supabase and is noticeably more
+// reachable on the exhibition network than the gateway /functions/v1 URL.
+window.CAMPUS_AI_PROXY_ENDPOINT = window.CAMPUS_AI_PROXY_ENDPOINT || 'https://qfoaoaggyfhkkvoxyxrb.functions.supabase.co/ai-teacher';
 window.CAMPUS_SUPABASE_PUBLISHABLE_KEY = window.CAMPUS_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_L7NXVjxZwzJgIV4FGu5MUA_PPLbkNUY';

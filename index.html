@@ -219,7 +219,7 @@
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h3>⚡ 快捷菜单</h3>
-                <button class="modal-close" onclick="window.closeModal('quick-menu-modal')">✖</button>
+                <button class="modal-close" onclick="window.setQuickMenuOpen(false)">✖</button>
             </div>
             <div class="modal-body">
                 <div class="quick-menu-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 10px;">
@@ -235,7 +235,7 @@
                         <div style="font-size: 36px; margin-bottom: 10px;">👤</div>
                         <div>虚拟形象</div>
                     </button>
-                    <button class="quick-menu-btn" onclick="openInGame('points-tasks.html', '📋 任务中心')">
+                    <button class="quick-menu-btn" onclick="openInGame('points-tasks.html?v=20260930', '📋 任务中心')">
                         <div style="font-size: 36px; margin-bottom: 10px;">📋</div>
                         <div>任务中心</div>
                     </button>
@@ -316,21 +316,53 @@
                 modal.classList.add('hidden');
             }
         };
+
+        // 统一控制暂停菜单。ESC 使用捕获阶段处理，保证在剧情对话、输入框和
+        // iframe 功能页打开时依然有效，不会再被游戏内部的键盘监听器截走。
+        window.setQuickMenuOpen = function(open) {
+            const quickMenu = document.getElementById('quick-menu-modal');
+            if (!quickMenu) return;
+            quickMenu.classList.toggle('hidden', !open);
+            const engine = window.simulator && window.simulator.engine;
+            if (engine) {
+                if (open && typeof engine.changeGameState === 'function') {
+                    engine.changeGameState('paused');
+                } else if (!open && typeof engine.changeGameState === 'function') {
+                    engine.changeGameState('playing');
+                }
+                engine.inputEnabled = !open;
+            }
+        };
+
+        window.closeInGamePage = function() {
+            const webContainer = document.getElementById('fullscreen-web-container');
+            const iframe = document.getElementById('fullscreen-iframe');
+            if (webContainer) webContainer.classList.add('hidden');
+            if (iframe) iframe.src = '';
+        };
         
         // 点击遮罩层关闭模态框
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('modal')) {
-                e.target.classList.add('hidden');
+                if (e.target.id === 'quick-menu-modal') window.setQuickMenuOpen(false);
+                else e.target.classList.add('hidden');
             }
         });
         
-        // ESC键关闭模态框
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const openModals = document.querySelectorAll('.modal:not(.hidden)');
-                openModals.forEach(modal => modal.classList.add('hidden'));
+        // ESC 始终打开/关闭暂停菜单；再次按下继续游戏。
+        window.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            const quickMenu = document.getElementById('quick-menu-modal');
+            const shouldOpen = !quickMenu || quickMenu.classList.contains('hidden');
+            if (shouldOpen) {
+                window.closeInGamePage();
+                document.querySelectorAll('.modal:not(.hidden)').forEach(modal => modal.classList.add('hidden'));
             }
-        });
+            window.setQuickMenuOpen(shouldOpen);
+        }, true);
         
         // 切换小地图显示/隐藏
         function toggleMiniMap() {
@@ -433,8 +465,7 @@
                     const iframe = document.getElementById('fullscreen-iframe');
                     
                     if (webContainer && iframe) {
-                        webContainer.classList.add('hidden');
-                        iframe.src = '';
+                        window.closeInGamePage();
                         
                         if (window.simulator && window.simulator.engine) {
                             window.simulator.engine.inputEnabled = true;
@@ -442,6 +473,20 @@
                     }
                 });
             }
+
+            // 焦点进入同源功能页后，键盘事件不会冒泡到外层页面。
+            const webFrame = document.getElementById('fullscreen-iframe');
+            if (webFrame) webFrame.addEventListener('load', function() {
+                try {
+                    webFrame.contentWindow.addEventListener('keydown', function(e) {
+                        if (e.key !== 'Escape') return;
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        window.closeInGamePage();
+                        window.setQuickMenuOpen(true);
+                    }, true);
+                } catch (_) { /* 外部页面不能读取，保留外层返回按钮 */ }
+            });
         });
         
         // 在游戏内打开功能页面（使用iframe）
@@ -451,7 +496,7 @@
             const titleEl = document.getElementById('web-page-title');
             
             if (container && iframe && titleEl) {
-                window.closeModal('quick-menu-modal');
+                window.setQuickMenuOpen(false);
                 titleEl.textContent = title;
                 iframe.src = url;
                 container.classList.remove('hidden');
@@ -465,7 +510,7 @@
         // 返回主菜单（保存数据）
         window.backToMenu = function() {
             if (confirm('返回主菜单？所有数据将自动保存。')) {
-                window.closeModal('quick-menu-modal');
+                window.setQuickMenuOpen(false);
                 window.location.href = 'main-menu.html';
             }
         };
@@ -473,7 +518,7 @@
         // 退出登录（保存数据）
         window.logoutFromGame = function() {
             if (confirm('确定要退出登录吗？所有数据将自动保存。')) {
-                window.closeModal('quick-menu-modal');
+                window.setQuickMenuOpen(false);
                 localStorage.removeItem('campus_user');
                 window.location.href = 'login.html';
             }
@@ -485,9 +530,7 @@
             if (e.key.toLowerCase() === 'q') {
                 e.preventDefault();
                 const quickMenu = document.getElementById('quick-menu-modal');
-                if (quickMenu) {
-                    quickMenu.classList.toggle('hidden');
-                }
+                if (quickMenu) window.setQuickMenuOpen(quickMenu.classList.contains('hidden'));
             }
             
             // I键打开背包

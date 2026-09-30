@@ -3,6 +3,14 @@
  * 管理学生积分、奖励兑换、虚拟形象等功能
  */
 
+const DEFAULT_ACHIEVEMENTS = [
+    { id: 'points_100', name: '积分新手', icon: '🌟', description: '累计获得100积分', requirement: 100 },
+    { id: 'points_500', name: '积分达人', icon: '⭐', description: '累计获得500积分', requirement: 500 },
+    { id: 'points_1000', name: '积分大师', icon: '💎', description: '累计获得1000积分', requirement: 1000 },
+    { id: 'exchange_first', name: '首次兑换', icon: '🎁', description: '完成第一次兑换', requirement: 1 },
+    { id: 'exchange_10', name: '兑换达人', icon: '🛍️', description: '累计兑换10次', requirement: 10 }
+];
+
 class PointsSystem {
     constructor() {
         this.currentUser = null;
@@ -181,13 +189,7 @@ class PointsSystem {
             ],
             
             // 成就配置
-            achievements: [
-                { id: 'points_100', name: '积分新手', icon: '🌟', description: '累计获得100积分', requirement: 100 },
-                { id: 'points_500', name: '积分达人', icon: '⭐', description: '累计获得500积分', requirement: 500 },
-                { id: 'points_1000', name: '积分大师', icon: '💎', description: '累计获得1000积分', requirement: 1000 },
-                { id: 'exchange_first', name: '首次兑换', icon: '🎁', description: '完成第一次兑换', requirement: 1 },
-                { id: 'exchange_10', name: '兑换达人', icon: '🛍️', description: '累计兑换10次', requirement: 10 }
-            ],
+            achievements: DEFAULT_ACHIEVEMENTS.map(achievement => ({ ...achievement })),
             
             // 排行榜数据
             leaderboard: []
@@ -296,6 +298,11 @@ class PointsSystem {
             });
         }
         
+        // 旧存档可能没有成就目录；补回目录而不改学生已解锁的记录。
+        if (!Array.isArray(data.achievements)) {
+            data.achievements = DEFAULT_ACHIEVEMENTS.map(achievement => ({ ...achievement }));
+        }
+
         // 使用最新的商品列表
         data.rewardItems = latestRewardItems;
         
@@ -713,4 +720,3 @@ class PointsSystem {
 
 // 导出为全局变量
 window.PointsSystem = PointsSystem;
-

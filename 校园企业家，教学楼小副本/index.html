@@ -201,22 +201,31 @@
     <!-- 退出按钮 -->
     <button type="button" id="exit-btn" onclick="exitGame()">✕ 退出</button>
 
+    <!-- ESC 暂停菜单 -->
+    <div id="pause-menu-3d" role="dialog" aria-modal="true" aria-label="游戏菜单" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(2,8,18,.72);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+        <div style="width:min(420px,calc(100vw - 36px));padding:26px;border-radius:20px;background:linear-gradient(155deg,rgba(15,35,57,.98),rgba(7,18,32,.98));border:1px solid rgba(125,211,252,.42);box-shadow:0 30px 80px rgba(0,0,0,.55);font-family:'Microsoft YaHei',sans-serif;color:#eef8ff;">
+            <div style="font-size:23px;font-weight:800;margin-bottom:5px;">校园漫游已暂停</div>
+            <div style="font-size:13px;color:#9cb4c8;margin-bottom:22px;">按 ESC 继续，或返回模拟器主页面</div>
+            <button type="button" onclick="toggle3DPauseMenu(false)" style="width:100%;padding:12px;border:0;border-radius:11px;background:#168bd2;color:white;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:10px;">继续探索</button>
+            <button type="button" onclick="exitGame()" style="width:100%;padding:12px;border:1px solid rgba(255,255,255,.16);border-radius:11px;background:rgba(255,255,255,.06);color:#eaf6ff;font-size:15px;cursor:pointer;">返回主页面</button>
+        </div>
+    </div>
+
     <!-- 楼层指示器 -->
     <div id="floor-indicator">1F</div>
 
     <!-- ══════════════════════════════════════════════════════════
-         三角洲级加载动画 - 循环叙事版
-         背景GIF自动循环，每次切换时淡入淡出并推进剧情文字
-         GIF就绪后将 assets/loading-bg.gif 放入即自动启用
+         高清校园加载页 - 循环叙事版
+         16:9 原生高清静帧配合轻微镜头运动，避免视频压缩和网络分段加载
     ════════════════════════════════════════════════════════════ -->
     <div id="map-loading">
 
-        <!-- ① 背景：AI生成的MP4（硬件解码，不卡；放入assets/loading-bg.mp4即生效） -->
-        <video id="load-bg-gif"
-               src="../assets/loading-bg.mp4"
-               autoplay muted loop playsinline
-               onerror="this.style.display='none'"
-               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;"></video>
+        <!-- ① 背景：16:9 高清校园主视觉（静帧无视频压缩、无分片加载卡顿） -->
+        <img id="load-bg-image"
+             src="../assets/loading-campus-hd-4k.png"
+             alt="爱哲安民未来学校校园"
+             decoding="async"
+             onerror="this.style.display='none'">
 
         <!-- ② 深色蒙版（确保文字可读，并作为无GIF时的备用背景） -->
         <div id="load-color-bg"></div>
@@ -248,7 +257,7 @@
         </div>
 
         <!-- ⑧ 右上角：年份标记 -->
-        <div id="load-year-tag">A · D · 3025</div>
+        <div id="load-year-tag">NEW TERM · DAY 1</div>
 
         <!-- ⑨ 左下角：剧情文字面板 -->
         <div id="load-story">
@@ -298,6 +307,21 @@
         overflow:hidden; cursor:default;
         /* 无GIF时的备用渐变背景 */
         background:linear-gradient(160deg,#03060f 0%,#050e24 35%,#071840 65%,#03060f 100%);
+    }
+
+    #load-bg-image {
+        position:absolute; inset:-2%; z-index:0;
+        width:104%; height:104%; object-fit:cover;
+        transform:scale(1.015);
+        filter:saturate(.96) contrast(1.04);
+        animation:loadKenBurns 18s ease-in-out infinite alternate;
+    }
+    @keyframes loadKenBurns {
+        from { transform:scale(1.015) translate3d(-.3%, 0, 0); }
+        to   { transform:scale(1.065) translate3d(.7%, -.5%, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        #load-bg-image { animation:none; }
     }
 
     /* ────────── 深色蒙版（保留GIF色调，同时保证文字可读） ────────── */
@@ -498,12 +522,12 @@
 
     <script>
     /* ════════════════════════════════════════════════
-       三角洲级加载动画控制器 v2
+       高清校园加载动画控制器 v3
        修复：游戏加载完后不自动关闭，改为"按任意键进入"
        台词循环持续播放直到玩家按键，不被加载速度打断
     ════════════════════════════════════════════════ */
     (function(){
-        /* ─── 0. 程序化极光备用背景（GIF不存在时自动启用）─── */
+        /* ─── 0. 程序化极光备用背景（高清图不存在时自动启用）─── */
         (function initAurora(){
             var cv = document.createElement('canvas');
             cv.id = 'load-aurora-cv';
@@ -557,33 +581,29 @@
                     ctx.fillStyle='rgba(80,160,255,.35)'; ctx.fill();
                 }
             }
-            // 若背景视频成功播放则隐藏极光canvas（video用loadeddata/canplay）
-            var bgv=document.getElementById('load-bg-gif');
-            if(bgv){
+            // 高清图片解码完成后隐藏备用极光，避免两层同时绘制造成加载卡顿。
+            var bgImage=document.getElementById('load-bg-image');
+            if(bgImage){
                 var _hideAurora=function(){
                     cv.style.display='none';
                     if(window._stopLoadAurora) window._stopLoadAurora();
                 };
-                bgv.addEventListener('loadeddata',_hideAurora);
-                bgv.addEventListener('canplay',_hideAurora);
-                // 自动播放保险：部分浏览器需手动触发play()
-                var _p=bgv.play&&bgv.play();
-                if(_p&&_p.catch) _p.catch(function(){});
+                bgImage.addEventListener('load',_hideAurora,{once:true});
+                if(bgImage.complete && bgImage.naturalWidth) _hideAurora();
             }
             frame(0);
         })();
 
         /* ─── 1. 台词 ─── */
-        var GIF_DURATION  = 20000; // GIF循环时长(ms)=20秒，仅用于第一次过渡时机
-        var STORY_INTERVAL = 4000; // 台词切换间隔(ms)：5段×4秒=20秒，与GIF一个循环对齐
+        var STORY_INTERVAL = 3600;
 
         var STORY = [
             { chapter:'',             body:'' },
-            { chapter:'公元 3025 年',  body:'文明与战争交织，世界已面目全非' },
-            { chapter:'神明降下神罚',  body:'世间美好，变成了斗争的游戏' },
-            { chapter:'在混乱之中',    body:'一所学校，屹立不倒' },
-            { chapter:'爱哲 · 安民',   body:'薪火相传，是这里永恒的信仰' },
-            { chapter:'你的故事',      body:'从今天，正式开始' },
+            { chapter:'新生报到',      body:'今天，是你第一次独自走进这所校园。' },
+            { chapter:'第一项任务',    body:'在上课铃响前找到教室，也顺便认清路线。' },
+            { chapter:'不只是参观',    body:'与老师、同学交谈；你的选择会改变之后的事件。' },
+            { chapter:'从校门出发',    body:'教学楼、食堂和操场，都有新的线索在等你。' },
+            { chapter:'校园生活',      body:'现在开始。' },
         ];
 
         var storyIdx = 0, _storyTimer=null, _storyLoopTimer=null;
@@ -1076,7 +1096,13 @@
         const TRANSITION_DUR = 16; // 天气切换时天空/雾等过渡时长（秒）——原6s太突兀，改长更自然
         const WEATHER_RANGE = 35;
         const SUN_ORBIT_R = 600;
-        let gameTime = (14 / 24) % 1; // 14:00
+        // URL 可带 ?time=18.5&weather=clear，便于展会预设画面与逐时段实机验收。
+        const _launchParams = new URLSearchParams(window.location.search);
+        const _launchHour = Number(_launchParams.get('time'));
+        const _freezeLaunchTime = _launchParams.get('freezeTime') === '1';
+        let gameTime = Number.isFinite(_launchHour)
+            ? (((Math.max(0, Math.min(23.999, _launchHour))) / 24) % 1)
+            : ((14 / 24) % 1); // 默认 14:00
         let totalSimulatedDays = 12.4; // 累计游戏日（朔望月周期用，与 gameTime 日循环独立）
         let _starsInst = null;
         let _moonMesh = null;
@@ -1090,14 +1116,16 @@
         const _skyHorizonColor = new THREE.Color();
         const _skyDayHorizonColor = new THREE.Color(0.68,0.78,0.90);
         const _skySunsetColor = new THREE.Color(0.92,0.48,0.12);
-        const SKY_CLEAR_LERP_TAU_SEC = 6;
+        const SKY_CLEAR_LERP_TAU_SEC = 2.4;
         let _cloudGroup = null;
         let _sunLight = null;
         let _hemiLight = null;
         let _ambientLight = null;
         let _fillLight = null;
 
-        let weatherType = 'clear';
+        let weatherType = ['clear', 'rain', 'snow', 'fog'].includes(_launchParams.get('weather'))
+            ? _launchParams.get('weather')
+            : 'clear';
         let weatherState = 'active';
         let fromWeather = 'clear';
         let toWeather = 'clear';
@@ -2525,6 +2553,12 @@
             
             // 添加事件监听器
             window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', function(e) {
+                if (e.key !== 'Escape') return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                toggle3DPauseMenu();
+            }, true);
             window.addEventListener('keydown', function(e) {
                 // T键和控制台键总是优先处理，不受任何状态影响
                 if (e.key.toLowerCase() === 't' || e.key === '`' || e.key === '~') {
@@ -3972,6 +4006,44 @@
             ];
             const tiles = _toiletTiles();
             const tGroup = new THREE.Group(); tGroup._noMerge = true; scene.add(tGroup);
+            // 洁具需在地图缓存恢复后重建；将它们按相同材质和顶点格式单独合批。
+            function mergeToiletStaticMeshes() {
+                const utils = THREE.BufferGeometryUtils;
+                const merge = utils && (utils.mergeGeometries || utils.mergeBufferGeometries);
+                if (!merge) return;
+                const groups = new Map();
+                tGroup.children.forEach(mesh => {
+                    if (!mesh.isMesh || mesh.isInstancedMesh || mesh._isMergedStatic || !mesh.geometry ||
+                        !mesh.material || Array.isArray(mesh.material)) return;
+                    const attrs = mesh.geometry.attributes;
+                    const format = (mesh.geometry.index ? 'i:' : 'n:') +
+                        Object.keys(attrs).sort().map(name => name + ':' + attrs[name].itemSize + ':' + attrs[name].normalized).join(',');
+                    const key = mesh.material.uuid + '|' + format + '|' + Number(mesh.castShadow) + Number(mesh.receiveShadow);
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push(mesh);
+                });
+                groups.forEach(meshes => {
+                    if (meshes.length < 2) return;
+                    const geos = meshes.map(mesh => {
+                        mesh.updateMatrix();
+                        const geo = mesh.geometry.clone();
+                        geo.applyMatrix4(mesh.matrix);
+                        return geo;
+                    });
+                    try {
+                        const geometry = merge(geos, false);
+                        if (geometry) {
+                            const batch = new THREE.Mesh(geometry, meshes[0].material);
+                            batch.castShadow = meshes[0].castShadow;
+                            batch.receiveShadow = meshes[0].receiveShadow;
+                            batch._isMergedStatic = true;
+                            tGroup.add(batch);
+                            meshes.forEach(mesh => { tGroup.remove(mesh); mesh.geometry.dispose(); });
+                        }
+                    } catch (err) { console.warn('厕所设施合批失败', err); }
+                    geos.forEach(geo => geo.dispose());
+                });
+            }
             function tileMat(tex, bumpTex, rw, rh, dbl, rough, envI) {
                 const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rw, rh);
                 const b = bumpTex.clone(); b.needsUpdate = true; b.repeat.set(rw, rh);
@@ -4122,6 +4194,7 @@
                         }
                     }
                 });
+                mergeToiletStaticMeshes();
             }
 
             function addSquatFixtures(items){
@@ -4177,6 +4250,7 @@
                         faucet.position.set(bx,yB+1.05,z-0.18); faucet._noMerge=true; tGroup.add(faucet);
                     }
                 });
+                mergeToiletStaticMeshes();
             }
 
             buildings.forEach(function(B){
@@ -4207,6 +4281,7 @@
                     }
                 }
             });
+            mergeToiletStaticMeshes();
             if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry||0, 0); d.scale.set((p.len||DCUB)/DCUB, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (loader) {
                 _loadFixture(loader, '../assets/models/urinals.glb', urinals, _TOILET_YAW.urinal, null, addUrinalRowFallback);
@@ -6097,20 +6172,24 @@
 
             // ── 白天云朵（昼夜系统控制显示/隐藏） ──
             _cloudGroup = new THREE.Group();
-            const cloudMat = new THREE.MeshLambertMaterial({color:0xd7e0e8,transparent:true,opacity:0.38,depthWrite:false,fog:true});
-            const allClouds=[[-72,55,-88,7],[-25,60,-110,8],[28,54,-92,6],[75,58,-118,8],[118,52,-82,7],[-120,57,-125,8],[5,64,-145,9]];
-            const cloudKeep=window._gfxTier==='high'?7:(window._gfxTier==='medium'?5:3);
-            const clouds=allClouds.slice(0,cloudKeep), lobes=[[-0.55,0,0,0.72],[0,0.08,0,1],[0.60,-0.02,0.1,0.68]];
-            const cloudGeo=new THREE.SphereGeometry(1,8,5);
-            const cloudInst=new THREE.InstancedMesh(cloudGeo,cloudMat,clouds.length*lobes.length);
-            const dummy=new THREE.Object3D(); let cloudIdx=0;
-            clouds.forEach(function(p){lobes.forEach(function(l){
-                dummy.position.set(p[0]+l[0]*p[3],p[1]+l[1]*p[3],p[2]+l[2]*p[3]);
-                dummy.scale.set(p[3]*l[3]*1.45,p[3]*l[3]*0.34,p[3]*l[3]*0.82);
-                dummy.updateMatrix();cloudInst.setMatrixAt(cloudIdx++,dummy.matrix);
-            });});
-            cloudInst.instanceMatrix.needsUpdate=true;cloudInst.frustumCulled=false;cloudInst._noMerge=true;
-            _cloudGroup.userData.vx=0.55;_cloudGroup.add(cloudInst);
+            const cloudCanvas=document.createElement('canvas'); cloudCanvas.width=256; cloudCanvas.height=96;
+            const cloudCtx=cloudCanvas.getContext('2d');
+            [[46,56,48],[83,47,54],[129,50,63],[175,58,52],[211,55,35]].forEach(function(p){
+                const grad=cloudCtx.createRadialGradient(p[0],p[1],2,p[0],p[1],p[2]);
+                grad.addColorStop(0,'rgba(244,248,252,0.60)');
+                grad.addColorStop(0.52,'rgba(240,245,250,0.38)');
+                grad.addColorStop(1,'rgba(235,243,250,0)');
+                cloudCtx.fillStyle=grad; cloudCtx.fillRect(0,0,256,96);
+            });
+            const cloudTexture=new THREE.CanvasTexture(cloudCanvas);
+            const allClouds=[[-75,58,-110,1],[-18,62,-145,1.15],[44,56,-118,0.9],[104,60,-155,1.2],[-130,64,-160,0.95]];
+            const cloudKeep=window._gfxTier==='low'?3:5;
+            allClouds.slice(0,cloudKeep).forEach(function(p,i){
+                const cloud=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTexture,color:0xffffff,transparent:true,opacity:0.62,depthWrite:false,fog:false}));
+                cloud.position.set(p[0],p[1],p[2]); cloud.scale.set(44*p[3],14*p[3],1);
+                cloud.userData.vx=0.12+i*0.035; cloud.userData.vz=0.015;
+                cloud._noMerge=true; _cloudGroup.add(cloud);
+            });
             _cloudGroup.visible = true;
             scene.add(_cloudGroup);
 
@@ -6125,26 +6204,49 @@
 
             // ── 渐变天穹（顶部到地平线双色渐变，取代 scene.background 实色）──
             if (!window._skyDome) {
-                const _sgeo = new THREE.SphereGeometry(480, 20, 14);
+                // 天穹只画连续的天空和银河；星点由独立的圆形粒子绘制。
+                const _sgeo = new THREE.SphereGeometry(480, 72, 40);
                 const _smat = new THREE.ShaderMaterial({
                     uniforms: {
                         topColor:     { value: new THREE.Color(0.02, 0.03, 0.10) },
                         horizonColor: { value: new THREE.Color(0.04, 0.06, 0.14) },
+                        nightMix:     { value: 1.0 }
                     },
                     vertexShader: [
                         'varying float vH;',
+                        'varying vec3 vSkyDir;',
                         'void main(){',
                         '  vH=normalize(position).y;',
+                        '  vSkyDir=normalize(position);',
                         '  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);',
                         '}'
                     ].join('\n'),
                     fragmentShader: [
                         'varying float vH;',
+                        'varying vec3 vSkyDir;',
                         'uniform vec3 topColor;',
                         'uniform vec3 horizonColor;',
+                        'uniform float nightMix;',
+                        'float hash21(vec2 p){',
+                        '  p=fract(p*vec2(123.34,456.21));',
+                        '  p+=dot(p,p+45.32);',
+                        '  return fract(p.x*p.y);',
+                        '}',
+                        'float noise21(vec2 p){',
+                        '  vec2 i=floor(p), f=fract(p);',
+                        '  f=f*f*(3.0-2.0*f);',
+                        '  return mix(mix(hash21(i),hash21(i+vec2(1.0,0.0)),f.x),mix(hash21(i+vec2(0.0,1.0)),hash21(i+vec2(1.0,1.0)),f.x),f.y);',
+                        '}',
                         'void main(){',
-                        '  float t=clamp(vH,0.0,1.0);',
-                        '  gl_FragColor=vec4(mix(horizonColor,topColor,pow(t,0.48)),1.0);',
+                        '  vec3 dir=normalize(vSkyDir);',
+                        '  float t=clamp(dir.y,0.0,1.0);',
+                        '  vec3 base=mix(horizonColor,topColor,pow(t,0.65));',
+                        '  float latitude=dot(dir,normalize(vec3(0.32,0.62,0.72)));',
+                        '  float band=exp(-pow(latitude/0.13,2.0))*smoothstep(0.0,0.22,t);',
+                        '  vec2 p=vec2(dir.x+dir.z*0.37,dir.y-dir.z*0.61);',
+                        '  float dust=0.55*noise21(p*18.0)+0.30*noise21(p*43.0)+0.15*noise21(p*95.0);',
+                        '  vec3 galaxy=vec3(0.10,0.13,0.23)*band*(0.25+0.75*dust);',
+                        '  gl_FragColor=vec4(base+galaxy*nightMix,1.0);',
                         '}'
                     ].join('\n'),
                     side: THREE.BackSide,
@@ -7045,18 +7147,26 @@
             window._optimizedCampusDetailsBuilt = true;
             {
                 const tier=window._gfxTier||'medium';
-                const count=tier==='high'?1600:(tier==='medium'?900:420);
+                const count=tier==='high'?2600:(tier==='medium'?1800:1000);
                 const pos=new Float32Array(count*3);
                 for(let i=0;i<count;i++){
                     const a=Math.random()*Math.PI*2;
-                    const r=180+Math.random()*360;
-                    const h=80+Math.random()*260;
+                    const h=0.04+Math.random()*0.96;
+                    const r=Math.sqrt(1-h*h)*440;
                     pos[i*3]=Math.cos(a)*r;
-                    pos[i*3+1]=h;
-                    pos[i*3+2]=Math.sin(a)*r+20;
+                    pos[i*3+1]=h*440;
+                    pos[i*3+2]=Math.sin(a)*r;
                 }
                 const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-                const mat=new THREE.PointsMaterial({color:0xffffff,size:tier==='low'?0.85:0.65,sizeAttenuation:true,transparent:true,opacity:0.9,depthWrite:false,fog:false});
+                const sprite=document.createElement('canvas'); sprite.width=sprite.height=32;
+                const ctx=sprite.getContext('2d');
+                const glow=ctx.createRadialGradient(16,16,0,16,16,16);
+                glow.addColorStop(0,'rgba(255,255,255,1)');
+                glow.addColorStop(0.24,'rgba(235,244,255,0.95)');
+                glow.addColorStop(0.55,'rgba(205,225,255,0.25)');
+                glow.addColorStop(1,'rgba(205,225,255,0)');
+                ctx.fillStyle=glow; ctx.fillRect(0,0,32,32);
+                const mat=new THREE.PointsMaterial({color:0xe4edff,map:new THREE.CanvasTexture(sprite),size:2.4,sizeAttenuation:false,transparent:true,opacity:0.9,depthWrite:false,fog:false});
                 const stars=new THREE.Points(geo,mat); stars.visible=false; stars.frustumCulled=false; stars.renderOrder=2; stars._noMerge=true;
                 _starsInst=stars; scene.add(stars);
                 console.log('✨ 轻量细节系统：Points星光×'+count+'（已移除旧楼错位吊顶/空调/压顶砖）');
@@ -7276,30 +7386,27 @@
             // （已删除所有室内PointLight，全部改由场景全局灯光覆盖）
 
             // ─────────────────────────────────────────────────────────────────
-            // 12. 天空星光粒子（InstancedMesh，22,000颗）
+            // 12. 天空星光粒子。旧版用 22,000 个立方体，夜空会变成满屏白色方块。
             // ─────────────────────────────────────────────────────────────────
             {
-              const geo=new THREE.BoxGeometry(0.34,0.34,0.34);
-              const mat=new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, depthWrite: false, transparent: true, opacity: 1 });
-              const SCNT=22000;
-              const inst=new THREE.InstancedMesh(geo,mat,SCNT);
-              inst.frustumCulled = false;
-              inst.renderOrder = 2;
-              const M=new THREE.Matrix4();
+              const SCNT=1800;
+              const pos=new Float32Array(SCNT*3);
               for(let i=0;i<SCNT;i++){
                 const θ=Math.random()*Math.PI*2;
                 const φ=Math.acos(1-Math.random()*0.92);
                 const r=160+Math.random()*420;
-                const x=r*Math.sin(φ)*Math.cos(θ);
-                const y=r*Math.cos(φ)+25;
-                const z=r*Math.sin(φ)*Math.sin(θ)+20;
-                M.makeTranslation(x,y,z);
-                inst.setMatrixAt(i,M);
+                pos[i*3]=r*Math.sin(φ)*Math.cos(θ);
+                pos[i*3+1]=r*Math.cos(φ)+25;
+                pos[i*3+2]=r*Math.sin(φ)*Math.sin(θ)+20;
               }
-              inst.instanceMatrix.needsUpdate=true;
-              _starsInst = inst; // 保存引用供昼夜系统使用
-              scene.add(inst);
-              console.log(`⭐ 天空星光: ${SCNT}`);
+              const geo=new THREE.BufferGeometry();
+              geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+              const mat=new THREE.PointsMaterial({ color:0xdcecff, size:0.65, sizeAttenuation:true, fog:false, depthWrite:false, transparent:true, opacity:0.92 });
+              const stars=new THREE.Points(geo,mat);
+              stars.frustumCulled=false; stars.renderOrder=2; stars._noMerge=true;
+              _starsInst = stars;
+              scene.add(stars);
+              console.log(`⭐ 天空星光: ${SCNT}（Points）`);
             }
 
               // ─────────────────────────────────────────────────────────────────
@@ -7394,7 +7501,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v125'; // v125：接入AI老师性格配置/Gemini命令，继续优化剧情互动与缓存刷新
+        const MAP_VER = 'campus_v128'; // v128：合并视觉参数一致的静态材质，减少每帧绘制批次
 
         function _dbOpen(cb) {
             try {
@@ -7430,8 +7537,7 @@
             });
         }
 
-        // 几何体合并：把 ~12000 个静态 Mesh 合并成按材质分组的 ~15-25 个大 Mesh
-        // 效果：WebGL draw call 从 12000+/帧 → ~25/帧，帧率从卡顿 → 流畅
+        // 将可缓存的静态网格按视觉材质和顶点格式合并，减少建筑绘制批次。
         function mergeStaticMeshes() {
             const BGU = THREE.BufferGeometryUtils;
             if (!BGU) { console.warn('BufferGeometryUtils未加载'); return []; }
@@ -7443,8 +7549,9 @@
              window._b3DoorL,   window._b3DoorR,
              window._b4DoorL,   window._b4DoorR].forEach(markNoMerge);
 
-            const groups = new Map(); // matUUID → {mat, geos[]}
-            const originals = [];
+            const groups = new Map(); // 视觉参数与顶点格式 → {mat, geos[], originals[]}
+            let candidateCount = 0;
+            const mergedOriginals = [];
             const collisionOnly = [];
 
             scene.traverse(obj => {
@@ -7452,19 +7559,33 @@
                 // 隐藏碰撞盒只有 bbox 有用。旧版把它们合并成可见白色几何体，既丑又浪费GPU。
                 if (obj.visible === false || obj._collisionOnly) { if(obj.bbox) collisionOnly.push(obj); return; }
                 const mat = obj.material;
-                if (!mat || mat.transparent) return;
+                if (!mat || Array.isArray(mat) || mat.transparent) return;
                 if (obj.geometry && obj.geometry.type === 'PlaneGeometry') return; // 大地面单独保留
-                if (!groups.has(mat.uuid)) groups.set(mat.uuid, { mat, geos: [] });
+                const attrs=obj.geometry && obj.geometry.attributes;
+                if (!attrs || !attrs.position) return;
+                const format=(obj.geometry.index?'indexed:':'plain:')+
+                    Object.keys(attrs).sort().map(name=>name+':'+attrs[name].itemSize+':'+attrs[name].normalized).join(',');
+                // 大量墙、楼板各自 new 了同色 Lambert 材质。按 UUID 分组会留下上千批绘制。
+                const sameLambert=mat.isMeshLambertMaterial && !mat.map && !mat.alphaMap &&
+                    !mat.lightMap && !mat.emissiveMap && !mat.vertexColors && !mat.wireframe;
+                const visualKey=sameLambert
+                    ? ['lambert',mat.color.getHex(),mat.emissive.getHex(),mat.emissiveIntensity,
+                       mat.side,mat.fog,mat.depthTest,mat.depthWrite].join(':')
+                    : mat.uuid;
+                const key=visualKey+'|'+format;
+                if (!groups.has(key)) groups.set(key, { mat, geos: [], originals: [] });
                 obj.updateWorldMatrix(true, false);
                 const g = obj.geometry.clone();
                 g.applyMatrix4(obj.matrixWorld);
-                groups.get(mat.uuid).geos.push(g);
-                originals.push(obj);
+                const group=groups.get(key);
+                group.geos.push(g);
+                group.originals.push(obj);
+                candidateCount++;
             });
 
             const result = [];
             let mergeErr = 0;
-            groups.forEach(({ mat, geos }) => {
+            groups.forEach(({ mat, geos, originals }) => {
                 if (!geos.length) return;
                 try {
                     const merged = (BGU.mergeGeometries || BGU.mergeBufferGeometries)(geos, false);
@@ -7475,21 +7596,22 @@
                     m.matrixAutoUpdate = false; m.updateMatrix();
                     scene.add(m);
                     result.push(m);
+                    mergedOriginals.push(...originals);
                 } catch(e) { mergeErr++; }
                 geos.forEach(g => g.dispose());
             });
 
             // 从场景移除原始Mesh（不只是隐藏！）——Three.js每帧仍会处理隐藏的对象
             // 保留在 walls[] 中用于碰撞检测，但彻底从场景图中移除
-            originals.forEach(m => {
-                scene.remove(m);
+            mergedOriginals.forEach(m => {
+                if (m.parent) m.parent.remove(m);
                 // 释放GPU几何体内存（碰撞用bbox已在walls[].bbox中，不依赖geometry）
                 if (m.geometry) m.geometry.dispose();
             });
-            collisionOnly.forEach(m=>{scene.remove(m);if(m.geometry)m.geometry.dispose();});
+            collisionOnly.forEach(m=>{if(m.parent)m.parent.remove(m);if(m.geometry)m.geometry.dispose();});
             // 所有 InstancedMesh 也关闭 matrixAutoUpdate（它们是静态的）
             scene.traverse(obj => { if (obj.isInstancedMesh) { obj.matrixAutoUpdate=false; } });
-            console.log(`✅ 几何体合并: ${originals.length}个可视Mesh → ${result.length}批，清理隐藏碰撞盒${collisionOnly.length}个${mergeErr?', '+mergeErr+'个合并失败':''}`);
+            console.log(`✅ 几何体合并: ${mergedOriginals.length}/${candidateCount}个可视Mesh → ${result.length}批，清理隐藏碰撞盒${collisionOnly.length}个${mergeErr?', '+mergeErr+'个合并失败并保留原物体':''}`);
             return result;
         }
 
@@ -8393,7 +8515,7 @@
             const xRW=xW+coreW, xRE=xRW+perSide*rW;   // 教室区X
             const zRoomSN=zS-rD, zCorrN=zRoomSN-corrD, zN=zCorrN-rD;
             const depth=zS-zN, zMid=(zS+zN)/2, zCorrMid=(zRoomSN+zCorrN)/2;
-            const col=0xeae6de, colC=0xf0ede6, floorC=0xc2bcb0, stairC=0xcac4ba, elevC=0x8c9aa8;
+            const col=0xc9c5bc, colC=0xe0dbd2, floorC=0xc2bcb0, stairC=0xcac4ba, elevC=0x8c9aa8;
             // 共享墙面材质(纯净色,不用那张会平铺成斜网格的丑纹理)；共享=可合并提速。精致靠墙裙/踢脚线几何，不靠贴图
             function _wallMat(hex){ return new THREE.MeshLambertMaterial({color:hex}); }
             const _wmExt=_wallMat(col), _wmInt=_wallMat(colC);
@@ -9660,7 +9782,7 @@
         function _initCampusExploration() {
             if(_campusExplore||!scene)return;
             var saved=[];try{saved=JSON.parse(localStorage.getItem('campus_explore_v1')||'[]')||[];}catch(e){}
-            var found=new Set(saved),geo=new THREE.TorusGeometry(1.1,.055,6,24),mat=new THREE.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:.72,depthWrite:false});
+            var found=new Set(saved),geo=new THREE.TorusGeometry(.48,.022,6,20),mat=new THREE.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:.34,depthWrite:false});
             var markers=new THREE.InstancedMesh(geo,mat,CAMPUS_CHECKPOINTS.length),dummy=new THREE.Object3D();markers.frustumCulled=false;markers.renderOrder=2;
             CAMPUS_CHECKPOINTS.forEach(function(cp,i){dummy.position.set(cp.x,.12,cp.z);dummy.rotation.x=-Math.PI/2;dummy.updateMatrix();markers.setMatrixAt(i,dummy.matrix);});
             markers.instanceMatrix.needsUpdate=true;scene.add(markers);
@@ -10485,6 +10607,7 @@
         
         // 鼠标锁定相关函数
         function lockPointer() {
+            if (window._pauseMenu3DOpen) return;
             if (typeof CampusSettings !== 'undefined' && CampusSettings.isMobileMode()) {
                 return;
             }
@@ -11053,6 +11176,13 @@
         // 修改moveSoldier函数，添加下蹲状态下的速度修改
         function moveSoldier(deltaTime) {
             if (!soldier) return;
+
+            if (window._pauseMenu3DOpen) {
+                isWalking = false;
+                targetWalkSpeed = 0;
+                walkSpeed = 0;
+                return;
+            }
             
             // 如果控制台打开，则不处理移动
             if (isConsoleOpen) return;
@@ -11864,8 +11994,10 @@
             // 更新FPS
             updateFPS(time);
 
-            gameTime = (gameTime + deltaTime / gameDayDurationSec) % 1;
-            totalSimulatedDays += deltaTime / gameDayDurationSec;
+            if (!_freezeLaunchTime) {
+                gameTime = (gameTime + deltaTime / gameDayDurationSec) % 1;
+                totalSimulatedDays += deltaTime / gameDayDurationSec;
+            }
             _environmentAccum += deltaTime;
             if (_environmentAccum >= 0.10) {
                 updateWeather(_environmentAccum);
@@ -12066,7 +12198,7 @@
 
             // ── 动态曝光：白天稍亮/夜间稍暗，增加电影感 ──
             if (window._dayFactor != null) {
-                const _expTarget = 0.76 + window._dayFactor * 0.12; // 夜0.76→白天0.88(降曝光,救回过曝白楼)
+                const _expTarget = 0.76 + window._dayFactor * 0.02; // 夜0.76→白天0.78，降低过曝
                 renderer.toneMappingExposure += (_expTarget - renderer.toneMappingExposure) * 0.018;
             }
 
@@ -12915,7 +13047,7 @@
             if (g > 0.17 && g < 0.33) wb = Math.max(wb, Math.max(0, 1 - Math.abs(g - 0.246) / 0.075));
             cold.lerp(warm, Math.min(1, wb * 0.82));
             _sunLight.color.copy(cold);
-            _sunLight.intensity = dayFactor * 1.35 + 0.12;
+            _sunLight.intensity = dayFactor * 1.02 + 0.12;
             // 日冕光晕强度：低日位（黄昏/黎明）最亮，正午略弱
             if (_sunVisual && _sunVisual.userData.coronaRings && _sunVisual.userData.coronaRings.length) {
                 const horizonGlow = Math.max(0, 1 - Math.abs(sunH - 0.18) / 0.45); // 接近地平线时强
@@ -12937,6 +13069,7 @@
             const hour=(((gameTime%1)+1)%1)*24;
             const starsOk = (hour<5.4||hour>19.3) && sunH < -0.08 && !sunDiskUp;
             if (_starsInst) {
+                if (camera) _starsInst.position.copy(camera.position);
                 _starsInst.visible = starsOk;
                 if (_starsInst.material) {
                     _starsInst.material.transparent = true;
@@ -13013,6 +13146,7 @@
                 if (window._skyDome) {
                     const _u = window._skyDome.material.uniforms;
                     _u.topColor.value.copy(_skyLerpColor);
+                    if (_u.nightMix) _u.nightMix.value = Math.pow(1 - Math.min(1, df * 1.8), 1.35);
                     const _hc = _skyHorizonColor.copy(_skyLerpColor);
                     // 白天：地平线偏白（大气散射）
                     _hc.lerp(_skyDayHorizonColor, df * 0.50);
@@ -13022,7 +13156,7 @@
                         Math.max(0, 1 - Math.abs(_g - 0.73) / 0.07),  // 傍晚
                         Math.max(0, 1 - Math.abs(_g - 0.246) / 0.075) // 黎明
                     );
-                    _hc.lerp(_skySunsetColor, _wb * 0.65 * Math.min(1, df * 5));
+                    _hc.lerp(_skySunsetColor, _wb * 0.80);
                     _u.horizonColor.value.copy(_hc);
                 }
             } else if (weatherState === 'active' && weatherType !== 'clear') {
@@ -13030,6 +13164,7 @@
                 if(window._skyDome&&scene.background&&scene.background.isColor){
                     window._skyDome.material.uniforms.topColor.value.copy(scene.background);
                     window._skyDome.material.uniforms.horizonColor.value.copy(scene.background);
+                    if (window._skyDome.material.uniforms.nightMix) window._skyDome.material.uniforms.nightMix.value = 0;
                 }
                 _skyLerpColor = null;
             }
@@ -13054,6 +13189,7 @@
                 if (window._skyDome) {
                     const _u = window._skyDome.material.uniforms;
                     _u.topColor.value.copy(_skyLerpColor);
+                    if (_u.nightMix) _u.nightMix.value = Math.pow(1 - Math.min(1, df * 1.8), 1.35);
                     const _hc = _skyHorizonColor.copy(_skyLerpColor);
                     _hc.lerp(_skyDayHorizonColor, df * 0.50);
                     const _g = ((gameTime % 1) + 1) % 1;
@@ -13061,11 +13197,12 @@
                         Math.max(0, 1 - Math.abs(_g - 0.73) / 0.07),
                         Math.max(0, 1 - Math.abs(_g - 0.246) / 0.075)
                     );
-                    _hc.lerp(_skySunsetColor, _wb * 0.65 * Math.min(1, df * 5));
+                    _hc.lerp(_skySunsetColor, _wb * 0.80);
                     _u.horizonColor.value.copy(_hc);
                 }
             } else {
                 applyWeatherInstant(weatherType);
+                if (window._skyDome?.material?.uniforms?.nightMix) window._skyDome.material.uniforms.nightMix.value = 0;
             }
             updateTimeHUD();
         }
@@ -13097,7 +13234,8 @@
             _weatherSnow = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xeeffff, size: 0.11, transparent: true, opacity: 0, depthWrite: false }));
             _weatherSnow.visible = false;
             scene.add(_weatherSnow);
-            weatherType = pickNextWeather('clear');
+            // 展会/首次进入始终给出稳定晴天；天气仍可用 G 或 weather 命令切换。
+            weatherType = 'clear';
             weatherState = 'active';
             weatherTimer = 0;
             weatherDuration = genWeatherDuration(weatherType);
@@ -14887,90 +15025,107 @@
             group.name = 'AI导览老师';
             group.position.set(-8, 0, 103);
             group.rotation.y = Math.PI * 0.08;
-
-            const createCapsuleCompatGeometry = (radius, length, capSegments = 6, radialSegments = 10) => {
-                // Three.js r134 in this project does not include CapsuleGeometry.
-                // Use it when available, otherwise fall back to a light-weight rounded-looking cylinder
-                // so the guide model never breaks the whole scene during startup.
-                if (typeof THREE.CapsuleGeometry === 'function') {
-                    return new THREE.CapsuleGeometry(radius, length, capSegments, radialSegments);
-                }
-                const height = Math.max(0.01, length + radius * 2);
-                return new THREE.CylinderGeometry(radius, radius, height, radialSegments, 1);
-            };
-
-            const coatMat = new THREE.MeshStandardMaterial({ color: 0x2d6cdf, roughness: 0.55, metalness: 0.04 });
-            const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.6 });
-            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd1b8, roughness: 0.72 });
-            const hairMat = new THREE.MeshStandardMaterial({ color: 0x2f211c, roughness: 0.85 });
-            const darkMat = new THREE.MeshStandardMaterial({ color: 0x1b2533, roughness: 0.65 });
-            const accentMat = new THREE.MeshStandardMaterial({ color: 0x5eead4, roughness: 0.35, emissive: 0x123b36, emissiveIntensity: 0.25 });
-
-            const body = new THREE.Mesh(createCapsuleCompatGeometry(0.34, 0.72, 6, 12), coatMat);
-            body.position.y = 1.18;
-            body.castShadow = true;
-            group.add(body);
-            const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.035), shirtMat);
-            shirt.position.set(0, 1.26, -0.33);
-            group.add(shirt);
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 14), skinMat);
-            head.position.y = 1.83;
-            head.castShadow = true;
-            group.add(head);
-            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.255, 12, 8), hairMat);
-            hair.position.set(0, 1.93, -0.02);
-            hair.scale.set(1.05, 0.52, 1.0);
-            group.add(hair);
-            const glasses = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.006, 6, 16), darkMat);
-            glasses.position.set(-0.075, 1.84, -0.205);
-            glasses.rotation.x = Math.PI / 2;
-            group.add(glasses);
-            const glassesR = glasses.clone();
-            glassesR.position.x = 0.075;
-            group.add(glassesR);
-            const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.01, 0.01), darkMat);
-            bridge.position.set(0, 1.84, -0.205);
-            group.add(bridge);
-
-            const armGeo = createCapsuleCompatGeometry(0.055, 0.5, 5, 8);
-            const leftArm = new THREE.Mesh(armGeo, skinMat);
-            leftArm.position.set(-0.44, 1.26, -0.02);
-            leftArm.rotation.z = -0.24;
-            group.add(leftArm);
-            const rightArm = new THREE.Mesh(armGeo, skinMat);
-            rightArm.position.set(0.44, 1.26, -0.02);
-            rightArm.rotation.z = 0.18;
-            group.add(rightArm);
-            const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.25, 0.035), accentMat);
-            tablet.position.set(0.28, 1.08, -0.24);
-            tablet.rotation.set(-0.35, 0.06, 0.05);
-            group.add(tablet);
-            const legGeo = createCapsuleCompatGeometry(0.07, 0.55, 5, 8);
-            const leftLeg = new THREE.Mesh(legGeo, darkMat);
-            leftLeg.position.set(-0.13, 0.46, 0);
-            group.add(leftLeg);
-            const rightLeg = new THREE.Mesh(legGeo, darkMat);
-            rightLeg.position.set(0.13, 0.46, 0);
-            group.add(rightLeg);
-
-            const marker = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.018, 8, 48), new THREE.MeshBasicMaterial({ color: 0x64d8ff, transparent: true, opacity: 0.62 }));
-            marker.position.y = 0.035;
-            marker.rotation.x = Math.PI / 2;
-            group.add(marker);
-
-            aiTeacherLabel = makeTextSprite('AI导览老师  按E咨询', { scaleX: 3.8, scaleY: 0.8, font: 'bold 32px Microsoft YaHei, sans-serif' });
-            aiTeacherLabel.position.set(0, 2.35, 0);
-            group.add(aiTeacherLabel);
             scene.add(group);
             aiTeacherModel = group;
+
+            // 标签先出现，真人模型在后台加载；加载期间不再显示积木假人。
+            aiTeacherLabel = makeTextSprite('AI导览老师  按E咨询', {
+                scaleX: 2.35, scaleY: 0.48, font: 'bold 28px Microsoft YaHei, sans-serif',
+                bg: 'rgba(10,30,48,.80)', border: 'rgba(125,211,252,.65)'
+            });
+            aiTeacherLabel.position.set(0, 2.02, 0);
+            group.add(aiTeacherLabel);
+            const shadow = new THREE.Mesh(
+                new THREE.CircleGeometry(.36, 28),
+                new THREE.MeshBasicMaterial({ color:0x09131d, transparent:true, opacity:.24, depthWrite:false })
+            );
+            shadow.rotation.x = -Math.PI / 2;
+            shadow.position.y = .012;
+            group.add(shadow);
+            group.userData.marker = shadow;
+
+            function installTeacherVrm(gltf) {
+                const vrmScene = gltf && gltf.scene;
+                if (!vrmScene) throw new Error('VRM场景为空');
+                vrmScene.rotation.y = 0;
+                vrmScene.updateMatrixWorld(true);
+                let bounds = new THREE.Box3().setFromObject(vrmScene);
+                const rawHeight = Math.max(.01, bounds.max.y - bounds.min.y);
+                const scale = 1.76 / rawHeight;
+                vrmScene.scale.setScalar(scale);
+                vrmScene.updateMatrixWorld(true);
+                bounds = new THREE.Box3().setFromObject(vrmScene);
+                vrmScene.position.y -= bounds.min.y;
+                vrmScene.traverse(function(obj) {
+                    if (!obj.isMesh) return;
+                    obj.castShadow = true;
+                    obj.receiveShadow = true;
+                    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+                    mats.forEach(function(mat) {
+                        if (!mat) return;
+                        if (mat.emissive) mat.emissive.setHex(0x000000);
+                        if (mat.emissiveIntensity != null) mat.emissiveIntensity = 0;
+                        mat.needsUpdate = true;
+                    });
+                });
+
+                const bones = {};
+                vrmScene.traverse(function(obj) {
+                    if (obj.name) bones[obj.name.toLowerCase()] = obj;
+                });
+                function bone(fragment) {
+                    const key = Object.keys(bones).find(k => k === fragment || k.includes(fragment));
+                    return key ? bones[key] : null;
+                }
+                const rig = {
+                    root: vrmScene,
+                    head: bone('j_bip_c_head') || bone('head'),
+                    chest: bone('j_bip_c_chest') || bone('chest'),
+                    leftArm: bone('j_bip_l_upperarm') || bone('leftupperarm'),
+                    rightArm: bone('j_bip_r_upperarm') || bone('rightupperarm'),
+                    leftForearm: bone('j_bip_l_lowerarm') || bone('leftlowerarm'),
+                    rightForearm: bone('j_bip_r_lowerarm') || bone('rightlowerarm')
+                };
+                // VRM0 原始骨骼姿势：把T-pose调整成自然站立、手持资料的教师姿态。
+                if (rig.leftArm) rig.leftArm.rotation.z = -1.18;
+                if (rig.rightArm) rig.rightArm.rotation.z = 1.18;
+                if (rig.leftForearm) rig.leftForearm.rotation.z = -0.12;
+                if (rig.rightForearm) rig.rightForearm.rotation.z = 0.12;
+                group.add(vrmScene);
+                group.userData.rig = rig;
+                console.log('✅ AI导览老师已加载真人VRM模型');
+            }
+
+            const teacherUrl = '../角色建模/女生.vrm';
+            _loadVrmCached(teacherUrl).then(function(blobUrl) {
+                const loader = new THREE.GLTFLoader();
+                loader.load(blobUrl, function(gltf) {
+                    URL.revokeObjectURL(blobUrl);
+                    installTeacherVrm(gltf);
+                }, undefined, function(err) {
+                    URL.revokeObjectURL(blobUrl);
+                    console.warn('AI老师VRM解析失败:', err);
+                });
+            }).catch(function() {
+                const loader = new THREE.GLTFLoader();
+                loader.load(teacherUrl, installTeacherVrm, undefined, function(err) {
+                    console.warn('AI老师VRM加载失败，仅保留姓名标识:', err);
+                });
+            });
         }
 
         function tickAITeacherGuide(deltaTime) {
             if (!aiTeacherModel) return;
             const t = _gameIdleT || 0;
             aiTeacherModel.rotation.y = Math.PI * 0.08 + Math.sin(t * 0.55) * 0.045;
-            const marker = aiTeacherModel.children.find(o => o.geometry && o.geometry.type === 'TorusGeometry');
-            if (marker) marker.material.opacity = 0.46 + Math.sin(t * 2.2) * 0.12;
+            const rig = aiTeacherModel.userData.rig;
+            if (rig) {
+                if (rig.head) rig.head.rotation.y = Math.sin(t * .52) * .045;
+                if (rig.chest) rig.chest.rotation.x = Math.sin(t * 1.25) * .008;
+                if (rig.leftArm) rig.leftArm.rotation.z = -1.18 + Math.sin(t * .72) * .012;
+                if (rig.rightArm) rig.rightArm.rotation.z = 1.18 - Math.sin(t * .72) * .012;
+            }
+            if (aiTeacherModel.userData.marker) aiTeacherModel.userData.marker.material.opacity = .22 + Math.sin(t * 1.4) * .02;
             if (aiTeacherLabel && soldier) {
                 const d = soldier.position.distanceTo(aiTeacherModel.position);
                 aiTeacherLabel.visible = d < 18;
@@ -14996,39 +15151,39 @@
                 group.name = '任务热点_' + def.label;
                 group.position.set(def.pos[0], def.pos[1], def.pos[2]);
                 const ring = new THREE.Mesh(
-                    new THREE.TorusGeometry(0.86, 0.022, 8, 56),
-                    new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.74 })
+                    new THREE.TorusGeometry(0.46, 0.012, 6, 28),
+                    new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.38, depthWrite: false })
                 );
                 ring.rotation.x = Math.PI / 2;
                 group.add(ring);
                 const dot = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.18, 0.22, 0.06, 16),
-                    new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.88 })
+                    new THREE.CylinderGeometry(0.09, 0.12, 0.035, 12),
+                    new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.58 })
                 );
                 dot.position.y = 0.02;
                 group.add(dot);
                 const postMat = new THREE.MeshStandardMaterial({ color: 0x53616f, roughness: 0.62 });
                 const boardMat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.48, metalness: 0.05, emissive: def.color, emissiveIntensity: 0.10 });
-                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.96, 8), postMat);
-                post.position.set(-0.58, 0.52, 0);
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.68, 8), postMat);
+                post.position.set(-0.34, 0.36, 0);
                 group.add(post);
-                const board = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.36, 0.055), boardMat);
-                board.position.set(-0.58, 1.04, 0);
+                const board = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.23, 0.04), boardMat);
+                board.position.set(-0.34, 0.76, 0);
                 board.rotation.y = Math.PI * 0.05;
                 group.add(board);
-                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.08, 12), postMat);
-                base.position.set(-0.58, 0.04, 0);
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.05, 12), postMat);
+                base.position.set(-0.34, 0.025, 0);
                 group.add(base);
                 const label = makeTextSprite(def.label + '  E', {
-                    scaleX: 2.6,
-                    scaleY: 0.58,
-                    width: 420,
-                    height: 96,
-                    font: 'bold 30px Microsoft YaHei, sans-serif',
+                    scaleX: 1.65,
+                    scaleY: 0.38,
+                    width: 360,
+                    height: 84,
+                    font: 'bold 27px Microsoft YaHei, sans-serif',
                     bg: 'rgba(8,20,38,0.78)',
                     border: 'rgba(255,255,255,0.68)'
                 });
-                label.position.set(0, 1.3, 0);
+                label.position.set(0, 0.98, 0);
                 group.add(label);
                 group.userData.quest = def;
                 group._noMerge = true;
@@ -15048,7 +15203,7 @@
                 const dist = soldier ? soldier.position.distanceTo(group.position) : 999;
                 group.visible = !done || dist < 10;
                 if (ring?.material) {
-                    ring.material.opacity = done ? 0.18 : 0.54 + Math.sin(t * 2.8 + group.position.x) * 0.16;
+                    ring.material.opacity = done ? 0.10 : 0.28 + Math.sin(t * 2.2 + group.position.x) * 0.07;
                     ring.scale.setScalar(done ? 0.82 : 1 + Math.sin(t * 2.2 + group.position.z) * 0.035);
                 }
                 if (label) label.visible = !done && dist < 16;
@@ -15133,7 +15288,10 @@
                 });
                 aiTeacherPanel.innerHTML = `
                     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;">
-                        <div data-ai-title style="font-weight:800;color:#7dd3fc;font-size:18px;">👩‍🏫 AI导览老师</div>
+                        <div>
+                            <div data-ai-title style="font-weight:800;color:#7dd3fc;font-size:18px;">👩‍🏫 AI导览老师</div>
+                            <div data-ai-status style="font-size:11px;color:#9fb5c7;margin-top:3px;">○ 尚未检测在线AI</div>
+                        </div>
                         <button data-ai-close style="background:rgba(255,255,255,0.12);color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;">关闭</button>
                     </div>
                     <div data-ai-teachers style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
@@ -15173,6 +15331,15 @@
                         e.target.value = '';
                     }
                 });
+                window.addEventListener('campus-ai-status', e => {
+                    if (!aiTeacherPanel) return;
+                    const status = aiTeacherPanel.querySelector('[data-ai-status]');
+                    const detail = e.detail || {};
+                    if (!status) return;
+                    const icon = detail.state === 'online' ? '●' : detail.state === 'connecting' ? '◌' : '●';
+                    status.style.color = detail.state === 'online' ? '#6ee7b7' : detail.state === 'connecting' ? '#fde68a' : '#fca5a5';
+                    status.textContent = `${icon} ${detail.message || '在线状态未知'}`;
+                });
                 document.body.appendChild(aiTeacherPanel);
             }
             updateAITeacherPanelTitle();
@@ -15199,7 +15366,12 @@
             const teacherId = aiTeacherActiveId || 'guide';
             const teacher = window.CampusAITeachers?.getTeacher?.(teacherId);
             const answer = aiTeacherPanel.querySelector('[data-ai-answer]');
-            answer.textContent = `${teacher?.displayName || 'AI老师'}正在思考……`;
+            const status = aiTeacherPanel.querySelector('[data-ai-status]');
+            answer.textContent = `${teacher?.displayName || 'AI老师'}正在连接 Gemini……`;
+            if (status) {
+                status.style.color = '#fde68a';
+                status.textContent = '◌ 正在连接在线AI';
+            }
             if (window.CampusQuests) {
                 const qres = window.CampusQuests.completeStep('ai_teacher');
                 if (qres.changed) showQuestToast('✅ AI老师咨询完成', qres.progress ? `${qres.progress.quest.title} ${qres.progress.completedCount}/${qres.progress.total}` : window.CampusQuests.getSummary());
@@ -15215,7 +15387,12 @@
                 answer.textContent = reply;
             } catch (err) {
                 console.warn('AI老师在线请求失败，使用脚本兜底', err);
-                answer.textContent = window.CampusAI?.fallbackTeacherReply?.(question, '3d-campus-teacher', teacherId) || '网络不稳定也没关系：先去教学楼正门、操场、食堂完成三个打卡点。';
+                const fallback = window.CampusAI?.fallbackTeacherReply?.(question, '3d-campus-teacher', teacherId) || '先去教学楼正门、操场、食堂完成三个打卡点。';
+                answer.textContent = `【离线导览】${fallback}`;
+                if (status) {
+                    status.style.color = '#fca5a5';
+                    status.textContent = `● ${err?.message || '在线AI连接失败'}`;
+                }
             }
         }
 
@@ -15356,24 +15533,30 @@
             standAnimation();
         }
         
-        // 退出游戏，返回主页面
+        function toggle3DPauseMenu(forceOpen) {
+            const menu = document.getElementById('pause-menu-3d');
+            if (!menu) return;
+            const open = typeof forceOpen === 'boolean' ? forceOpen : !window._pauseMenu3DOpen;
+            window._pauseMenu3DOpen = open;
+            menu.style.display = open ? 'flex' : 'none';
+            Object.keys(keyboard).forEach(key => { keyboard[key] = false; });
+            if (open && document.pointerLockElement) document.exitPointerLock();
+            if (!open && renderer && renderer.domElement) renderer.domElement.focus?.();
+        }
+
+        // 退出游戏，返回真正的主菜单页
         function exitGame() {
             if (document.pointerLockElement) {
                 document.exitPointerLock();
             }
-            if (window.parent && window.parent !== window) {
-                try {
-                    if (typeof window.parent.openInGame === 'function') {
-                        window.parent.openInGame('main-menu.html', '🏠 主菜单');
-                        return;
-                    }
-                    const closeBtn = window.parent.document.getElementById('close-web-btn');
-                    if (closeBtn) { closeBtn.click(); return; }
-                } catch (err) {
-                    console.error('退出失败:', err);
-                }
+            const mainMenuUrl = new URL('../main-menu.html', window.location.href).href;
+            try {
+                // 3D 可能运行在 2D 页的 iframe 中；必须让最外层页面真正回主菜单，
+                // 不能再把主菜单套进 iframe，造成“看起来没有返回”的错觉。
+                window.top.location.href = mainMenuUrl;
+            } catch (err) {
+                window.location.href = mainMenuUrl;
             }
-            window.location.href = '../main-menu.html';
         }
 
         // 新增：切换二段跳模式

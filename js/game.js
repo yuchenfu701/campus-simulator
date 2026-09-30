@@ -210,7 +210,9 @@ class SchoolSimulator {
         
         // 窗口获得焦点时恢复游戏
         window.addEventListener('focus', () => {
-            if (this.engine && this.engine.gameState === 'paused') {
+            const quickMenu = document.getElementById('quick-menu-modal');
+            if (this.engine && this.engine.gameState === 'paused' &&
+                (!quickMenu || quickMenu.classList.contains('hidden'))) {
                 this.resumeGame();
             }
         });
@@ -302,15 +304,10 @@ class SchoolSimulator {
     
     // 处理ESC键
     handleEscape() {
-        // 检查是否有打开的模态窗口
-        const openModal = document.querySelector('.modal:not(.hidden)');
-        if (openModal) {
-            this.hideModal(openModal.id);
-            return;
+        const quickMenu = document.getElementById('quick-menu-modal');
+        if (quickMenu && typeof window.setQuickMenuOpen === 'function') {
+            window.setQuickMenuOpen(quickMenu.classList.contains('hidden'));
         }
-        
-        // 切换游戏菜单
-        this.toggleModal('game-menu-modal');
     }
     
     // 显示帮助
@@ -671,4 +668,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('🎯 自动聚焦到游戏画布');
         }
     }, 2000);
-}); 
+});

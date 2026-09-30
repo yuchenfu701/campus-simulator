@@ -693,7 +693,10 @@ class UIManager {
         if (currentLine.speaker !== '我' && this.gameEngine) {
             const relationshipSystem = this.gameEngine.getSystem('relationship');
             if (relationshipSystem) {
-                const relationship = relationshipSystem.getRelationship(currentLine.speaker);
+                const relationshipData = relationshipSystem.getRelationship(currentLine.speaker);
+                const relationship = typeof relationshipData === 'number'
+                    ? relationshipData
+                    : Math.round(((Number(relationshipData?.friendship) || 50) + (Number(relationshipData?.trust) || 50)) / 2);
                 const level = this.getRelationshipLevel(relationship);
                 
                 ctx.fillStyle = this.getRelationshipColor(level);
@@ -1282,7 +1285,8 @@ class UIManager {
                         : Promise.resolve(window.CampusAI?.fallbackTeacherReply?.(question, '2d-map', teacherId)));
                 } catch (err) {
                     console.warn('2D AI老师请求失败，使用兜底回复', err);
-                    reply = window.CampusAI?.fallbackTeacherReply?.(question, '2d-map', teacherId) || '先完成新生导览，再去食堂、操场、教学楼各打卡一次。';
+                    const fallback = window.CampusAI?.fallbackTeacherReply?.(question, '2d-map', teacherId) || '先完成新生导览，再去食堂、操场、教学楼各打卡一次。';
+                    reply = `【离线导览】${fallback}\n在线AI状态：${err?.message || '网络连接失败'}`;
                 }
                 this.startDialog(teacherName, [
                     { speaker: teacherName, text: reply || teacher?.opening || '先看任务追踪器，完成最近的一步。', mood: 'happy' },
