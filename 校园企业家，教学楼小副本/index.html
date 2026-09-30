@@ -214,13 +214,10 @@
     <!-- 楼层指示器 -->
     <div id="floor-indicator">1F</div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         高清校园加载页 - 循环叙事版
-         16:9 原生高清静帧配合轻微镜头运动，避免视频压缩和网络分段加载
-    ════════════════════════════════════════════════════════════ -->
+    <!-- 地图构建时显示静态封面；就绪后切换到实时 3D 校园飞行开场。 -->
     <div id="map-loading">
 
-        <!-- ① 背景：16:9 高清校园主视觉（静帧无视频压缩、无分片加载卡顿） -->
+        <!-- ① 地图尚未构建完成时的封面 -->
         <img id="load-bg-image"
              src="../assets/loading-campus-dusk-v2.png"
              alt="爱哲安民未来学校校园"
@@ -308,20 +305,31 @@
         /* 无GIF时的备用渐变背景 */
         background:linear-gradient(160deg,#03060f 0%,#050e24 35%,#071840 65%,#03060f 100%);
     }
+    #campus-intro-ui {
+        position:fixed; inset:0; z-index:9000; pointer-events:none;
+        font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+        color:#fff; text-shadow:0 2px 14px rgba(0,0,0,.85);
+        background:linear-gradient(to bottom,rgba(0,0,0,.35),transparent 36%,transparent 73%,rgba(0,0,0,.45));
+    }
+    .campus-intro-title {
+        position:absolute; left:5vw; top:10vh; font-size:clamp(27px,4vw,62px);
+        font-weight:700; letter-spacing:.12em; animation:introTitleIn 1.2s ease-out both;
+    }
+    .campus-intro-title small { display:block; margin-top:12px; font-size:clamp(13px,1.3vw,20px); font-weight:400; letter-spacing:.22em; }
+    #campus-intro-skip {
+        position:absolute; right:4vw; bottom:8vh; pointer-events:auto;
+        border:1px solid rgba(255,255,255,.7); border-radius:999px;
+        background:rgba(5,18,34,.66); color:#fff; padding:12px 22px;
+        font:600 15px 'Microsoft YaHei',sans-serif; cursor:pointer;
+    }
+    #campus-intro-skip:hover { background:rgba(22,74,120,.9); }
+    @keyframes introTitleIn { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
 
     #load-bg-image {
         position:absolute; inset:-2%; z-index:0;
         width:104%; height:104%; object-fit:cover;
         transform:scale(1.015);
         filter:saturate(.96) contrast(1.04);
-        animation:loadKenBurns 18s ease-in-out infinite alternate;
-    }
-    @keyframes loadKenBurns {
-        from { transform:scale(1.015) translate3d(-.3%, 0, 0); }
-        to   { transform:scale(1.065) translate3d(.7%, -.5%, 0); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        #load-bg-image { animation:none; }
     }
 
     /* ────────── 深色蒙版（保留GIF色调，同时保证文字可读） ────────── */
@@ -662,12 +670,16 @@
             var sab=document.getElementById('skip-anim-btn'); if(sab) sab.style.display='none';
             wrap.style.transition='opacity .8s ease';
             wrap.style.opacity='0';
-            setTimeout(function(){ if(wrap) wrap.style.display='none'; }, 850);
+            setTimeout(function(){
+                if(wrap) wrap.style.display='none';
+                if(!window._skipCampusIntroRequested && window._startCampusIntro) window._startCampusIntro();
+            }, 850);
         }
 
         // 跳过动画：游戏已加载完、动画还没播完时点它 → 立即进入
         window._skipAnim = function(){
             _animPlayedOnce = true;
+            window._skipCampusIntroRequested = true;
             var sab=document.getElementById('skip-anim-btn'); if(sab) sab.style.display='none';
             _enterGame();
         };
@@ -10741,6 +10753,51 @@
                 camera.lookAt(lookAtTarget);
             }
         }
+
+        // 地图就绪后直接用当前 Three.js 场景拍一段真实的校园飞行镜头。
+        // 加载封面只负责遮住建图过程，不再用一张图片的缩放冒充开场动画。
+        let _campusIntro = null;
+        function finishCampusIntro() {
+            if (!_campusIntro) return;
+            const ui = _campusIntro.ui;
+            _campusIntro = null;
+            window._campusIntroActive = false;
+            if (ui) ui.remove();
+            updateCamera();
+        }
+        window._startCampusIntro = function(retry) {
+            if (!soldier && (retry || 0) < 30) {
+                setTimeout(() => window._startCampusIntro((retry || 0) + 1), 200);
+                return;
+            }
+            if (window._skipCampusIntroRequested || _campusIntro || !camera || !soldier || !renderer ||
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+                renderer.getContext().isContextLost()) return;
+            const ui = document.createElement('div');
+            ui.id = 'campus-intro-ui';
+            ui.innerHTML = '<div class="campus-intro-title">爱哲安民未来学校<small>从这里，开始你的校园生活</small></div>' +
+                '<button type="button" id="campus-intro-skip">跳过开场 ›</button>';
+            document.body.appendChild(ui);
+            ui.querySelector('button').addEventListener('click', finishCampusIntro);
+            const route = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-78, 26, 145),
+                new THREE.Vector3(-55, 22, 120),
+                new THREE.Vector3(-31, 17, 91),
+                new THREE.Vector3(-13, 11, 76),
+                new THREE.Vector3(-8, 5, 109)
+            ]);
+            _campusIntro = { start: performance.now(), duration: 8500, route, ui };
+            window._campusIntroActive = true;
+        };
+        window._skipCampusIntro = finishCampusIntro;
+        function tickCampusIntro(now) {
+            if (!_campusIntro) return;
+            const t = Math.min(1, (now - _campusIntro.start) / _campusIntro.duration);
+            const ease = t * t * (3 - 2 * t);
+            camera.position.copy(_campusIntro.route.getPoint(ease));
+            camera.lookAt(-4 + 4 * ease, 5 - 2 * ease, 66 + 37 * ease);
+            if (t >= 1) finishCampusIntro();
+        }
         
         // 处理跳跃和飞行功能
         function handleJump(deltaTime) {
@@ -12013,7 +12070,7 @@
                 window._gameVrm.update(window._gfxTier==='high'?deltaTime:Math.min(0.066,deltaTime*2));
 
             // 移动士兵（先算walkSpeed，再驱动骨骼）
-            moveSoldier(deltaTime);
+            if (!window._campusIntroActive) moveSoldier(deltaTime);
 
             // 更新第一人称肢体动画
             updateFPLimbs(deltaTime);
@@ -12204,8 +12261,10 @@
 
             // 渲染场景（后处理合成器优先，否则直接渲染）
             if (_ppComposer && window._gfxTier === 'high') {
+                tickCampusIntro(time);
                 _ppComposer.render();
             } else {
+                tickCampusIntro(time);
                 renderer.render(scene, camera);
             }
         }
@@ -15028,7 +15087,7 @@
             scene.add(group);
             aiTeacherModel = group;
 
-            // 标签先出现，真人模型在后台加载；加载期间不再显示积木假人。
+            // 导览交互与人物资源独立；绝不再复用学生的 VRM 冒充老师。
             aiTeacherLabel = makeTextSprite('AI导览老师  按E咨询', {
                 scaleX: 2.35, scaleY: 0.48, font: 'bold 28px Microsoft YaHei, sans-serif',
                 bg: 'rgba(10,30,48,.80)', border: 'rgba(125,211,252,.65)'
@@ -15044,73 +15103,36 @@
             group.add(shadow);
             group.userData.marker = shadow;
 
-            function installTeacherVrm(gltf) {
-                const vrmScene = gltf && gltf.scene;
-                if (!vrmScene) throw new Error('VRM场景为空');
-                vrmScene.rotation.y = 0;
-                vrmScene.updateMatrixWorld(true);
-                let bounds = new THREE.Box3().setFromObject(vrmScene);
+            function installTeacherModel(gltf) {
+                const model = gltf && gltf.scene;
+                if (!model) throw new Error('教师模型场景为空');
+                model.rotation.y = 0;
+                model.updateMatrixWorld(true);
+                let bounds = new THREE.Box3().setFromObject(model);
                 const rawHeight = Math.max(.01, bounds.max.y - bounds.min.y);
-                const scale = 1.76 / rawHeight;
-                vrmScene.scale.setScalar(scale);
-                vrmScene.updateMatrixWorld(true);
-                bounds = new THREE.Box3().setFromObject(vrmScene);
-                vrmScene.position.y -= bounds.min.y;
-                vrmScene.traverse(function(obj) {
+                const scale = 1.72 / rawHeight;
+                model.scale.setScalar(scale);
+                model.updateMatrixWorld(true);
+                bounds = new THREE.Box3().setFromObject(model);
+                model.position.y -= bounds.min.y;
+                model.traverse(function(obj) {
                     if (!obj.isMesh) return;
                     obj.castShadow = true;
                     obj.receiveShadow = true;
-                    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-                    mats.forEach(function(mat) {
-                        if (!mat) return;
-                        if (mat.emissive) mat.emissive.setHex(0x000000);
-                        if (mat.emissiveIntensity != null) mat.emissiveIntensity = 0;
-                        mat.needsUpdate = true;
-                    });
                 });
-
-                const bones = {};
-                vrmScene.traverse(function(obj) {
-                    if (obj.name) bones[obj.name.toLowerCase()] = obj;
-                });
-                function bone(fragment) {
-                    const key = Object.keys(bones).find(k => k === fragment || k.includes(fragment));
-                    return key ? bones[key] : null;
+                group.add(model);
+                if (gltf.animations && gltf.animations.length) {
+                    const mixer = new THREE.AnimationMixer(model);
+                    const idle = gltf.animations.find(clip => /idle|stand|talk/i.test(clip.name)) || gltf.animations[0];
+                    mixer.clipAction(idle).play();
+                    group.userData.mixer = mixer;
                 }
-                const rig = {
-                    root: vrmScene,
-                    head: bone('j_bip_c_head') || bone('head'),
-                    chest: bone('j_bip_c_chest') || bone('chest'),
-                    leftArm: bone('j_bip_l_upperarm') || bone('leftupperarm'),
-                    rightArm: bone('j_bip_r_upperarm') || bone('rightupperarm'),
-                    leftForearm: bone('j_bip_l_lowerarm') || bone('leftlowerarm'),
-                    rightForearm: bone('j_bip_r_lowerarm') || bone('rightlowerarm')
-                };
-                // VRM0 原始骨骼姿势：把T-pose调整成自然站立、手持资料的教师姿态。
-                if (rig.leftArm) rig.leftArm.rotation.z = -1.18;
-                if (rig.rightArm) rig.rightArm.rotation.z = 1.18;
-                if (rig.leftForearm) rig.leftForearm.rotation.z = -0.12;
-                if (rig.rightForearm) rig.rightForearm.rotation.z = 0.12;
-                group.add(vrmScene);
-                group.userData.rig = rig;
-                console.log('✅ AI导览老师已加载真人VRM模型');
+                console.log('✅ AI导览老师已加载独立GLB模型');
             }
 
-            const teacherUrl = '../角色建模/女生.vrm';
-            _loadVrmCached(teacherUrl).then(function(blobUrl) {
-                const loader = new THREE.GLTFLoader();
-                loader.load(blobUrl, function(gltf) {
-                    URL.revokeObjectURL(blobUrl);
-                    installTeacherVrm(gltf);
-                }, undefined, function(err) {
-                    URL.revokeObjectURL(blobUrl);
-                    console.warn('AI老师VRM解析失败:', err);
-                });
-            }).catch(function() {
-                const loader = new THREE.GLTFLoader();
-                loader.load(teacherUrl, installTeacherVrm, undefined, function(err) {
-                    console.warn('AI老师VRM加载失败，仅保留姓名标识:', err);
-                });
+            const teacherUrl = window.CAMPUS_AI_TEACHER_MODEL_URL || '../assets/models/ai-teacher.glb';
+            new THREE.GLTFLoader().load(teacherUrl, installTeacherModel, undefined, function(err) {
+                console.warn('独立教师模型尚未导入，导览交互仍可用:', err);
             });
         }
 
@@ -15118,13 +15140,7 @@
             if (!aiTeacherModel) return;
             const t = _gameIdleT || 0;
             aiTeacherModel.rotation.y = Math.PI * 0.08 + Math.sin(t * 0.55) * 0.045;
-            const rig = aiTeacherModel.userData.rig;
-            if (rig) {
-                if (rig.head) rig.head.rotation.y = Math.sin(t * .52) * .045;
-                if (rig.chest) rig.chest.rotation.x = Math.sin(t * 1.25) * .008;
-                if (rig.leftArm) rig.leftArm.rotation.z = -1.18 + Math.sin(t * .72) * .012;
-                if (rig.rightArm) rig.rightArm.rotation.z = 1.18 - Math.sin(t * .72) * .012;
-            }
+            if (aiTeacherModel.userData.mixer) aiTeacherModel.userData.mixer.update(deltaTime);
             if (aiTeacherModel.userData.marker) aiTeacherModel.userData.marker.material.opacity = .22 + Math.sin(t * 1.4) * .02;
             if (aiTeacherLabel && soldier) {
                 const d = soldier.position.distanceTo(aiTeacherModel.position);
