@@ -733,7 +733,7 @@
         <div>朝向: <span id="rotation">0 弧度</span></div>
         <div>动画: <span id="animation">空闲</span></div>
         <div>FPS: <span id="fps">0</span></div>
-        <div id="game-time-display" style="color:#ffcc55;font-size:11px;margin-top:2px;">🕐 14:00 (白天)</div>
+        <div id="game-time-display" style="color:#ffcc55;font-size:11px;margin-top:2px;">🕐 --:--（正在读取本地时间）</div>
         <div id="slide-text">滑铲冷却: <span id="slide-cooldown" style="display: none;">0s</span></div>
     </div>
     <div id="instructions">
@@ -1104,7 +1104,7 @@
         let historyIndex = -1;
 
         // ── 昼夜 / 天气系统（gameTime ∈ [0,1) = 一昼夜，见项目说明文档）──
-        let gameDayDurationSec = 600;
+        let gameDayDurationSec = 86400;
         const TRANSITION_DUR = 16; // 天气切换时天空/雾等过渡时长（秒）——原6s太突兀，改长更自然
         const WEATHER_RANGE = 35;
         const SUN_ORBIT_R = 600;
@@ -1113,10 +1113,12 @@
         const _timeParam = _launchParams.get('time');
         const _launchHour = _timeParam === null ? NaN : Number(_timeParam);
         const _freezeLaunchTime = _launchParams.get('freezeTime') === '1';
+        const _clockNow = new Date();
         let gameTime = Number.isFinite(_launchHour)
             ? (((Math.max(0, Math.min(23.999, _launchHour))) / 24) % 1)
-            : ((14 / 24) % 1); // 默认 14:00
-        let totalSimulatedDays = 12.4; // 累计游戏日（朔望月周期用，与 gameTime 日循环独立）
+            : ((_clockNow.getHours() + _clockNow.getMinutes() / 60) / 24); // 默认从本地当前时刻进入校园
+        // 以已知新月时刻作为历元，月相和每晚的星野方向会随日期推进，不再每次启动都重置。
+        let totalSimulatedDays = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000;
         let _starsInst = null;
         let _moonMesh = null;
         let _moonSourceImage = null;
@@ -1246,7 +1248,8 @@
             [0, 0.02, 0.03, 0.10], [0.15, 0.04, 0.06, 0.14], [0.20, 0.08, 0.10, 0.22],
             [0.23, 0.25, 0.18, 0.42], [0.25, 0.95, 0.42, 0.28], [0.28, 0.55, 0.68, 0.95],
             [0.35, 0.48, 0.72, 0.98], [0.5, 0.52, 0.78, 1.0], [0.62, 0.50, 0.70, 0.95],
-            [0.70, 0.55, 0.62, 0.88], [0.73, 0.92, 0.48, 0.32], [0.78, 0.14, 0.12, 0.28],
+            // 日落只让低地平线发暖；天顶转为暮蓝/紫色，避免整片天空像橙色背景板。
+            [0.70, 0.32, 0.25, 0.40], [0.73, 0.24, 0.16, 0.29], [0.78, 0.12, 0.12, 0.25],
             [0.85, 0.05, 0.06, 0.14], [0.95, 0.02, 0.03, 0.09]
         ];
         const WEATHER_PARAMS = {
@@ -1256,7 +1259,7 @@
             fog: { fogNear: 8, fogFar: 95, fogR: 0.52, fogG: 0.55, fogB: 0.60, rainOp: 0, snowOp: 0, skyR: 0.50, skyG: 0.53, skyB: 0.58 }
         };
         // 每种天气持续时长(秒)——原值偏短导致天气切换太频繁，整体拉长约2倍，变化更舒缓
-        const WEATHER_DURATION = { clear: [540, 780], rain: [260, 380], snow: [260, 380], fog: [200, 320] };
+        const WEATHER_DURATION = { clear: [3240, 4680], rain: [1560, 2280], snow: [1560, 2280], fog: [1200, 1920] };
         const WEATHER_PROBS = {
             morning: { clear: 40, rain: 20, snow: 15, fog: 25 },
             noon: { clear: 60, rain: 20, snow: 10, fog: 10 },
@@ -1417,7 +1420,7 @@
 <h4 style="margin:12px 0 6px;color:#8cf;">二、世界与时间</h4>
 <dl style="margin:0;padding-left:4px;line-height:1.55;">
 <dt><strong>time</strong> <code>[参数]</code></dt><dd>无参：打印当前游戏内时钟与内部 <code>gameTime</code>。有参：<code>dawn</code>/<code>日出</code>、<code>noon</code>/<code>正午</code>、<code>dusk</code>/<code>日落</code>、<code>midnight</code>/<code>午夜</code>；或 <code>14:30</code>；或 0～1 的归一化时刻；或 0～23 的小时数。</dd>
-<dt><strong>daylen</strong> / <strong>dayduration</strong> / <strong>昼夜</strong> <code>[秒|reset]</code></dt><dd>设定「游戏内完整一昼夜」对应多少<strong>现实秒</strong>（默认 600，即 10 分钟现实=一天）。例：<code>daylen 120</code> 加快；<code>daylen reset</code> 恢复 600。范围建议 30～86400。</dd>
+<dt><strong>daylen</strong> / <strong>dayduration</strong> / <strong>昼夜</strong> <code>[秒|reset]</code></dt><dd>设定「游戏内完整一昼夜」对应多少<strong>现实秒</strong>（默认 86400，即按现实速度运行）。例：<code>daylen 120</code> 加快；<code>daylen reset</code> 恢复 86400。范围建议 30～86400。</dd>
 <dt><strong>weather</strong> / <strong>we</strong> <code>[类型]</code></dt><dd>无参：显示用法。有参：<code>clear</code> 晴、<code>rain</code> 雨、<code>snow</code> 雪、<code>fog</code> 雾；切换带约数秒渐变过渡（与键盘 <kbd>G</kbd> 循环天气一致）。</dd>
 </dl>
 <p style="margin:6px 0 0;font-size:12px;opacity:.85;">说明：晴天地表与天空主要由时间驱动；雨雪雾会叠加雾效与粒子。时间流逝不影响天气随机，仅影响抽下一段天气时的时段权重。</p>
@@ -1561,14 +1564,14 @@
         function cmdDaylen(args) {
             const out = document.createElement('div');
             if (!args.length) {
-                out.textContent = '当前「游戏内一昼夜」= 现实 ' + gameDayDurationSec + ' 秒（默认 600，即 10 分钟一天）';
+                out.textContent = '当前「游戏内一昼夜」= 现实 ' + gameDayDurationSec + ' 秒（默认 86400，即现实速度）';
                 consoleOutput.appendChild(out);
                 return;
             }
             const a0 = String(args[0]).toLowerCase();
             if (a0 === 'reset' || a0 === '默认') {
-                gameDayDurationSec = 600;
-                out.textContent = '已恢复为 600 秒/昼夜（10 分钟/天）';
+                gameDayDurationSec = 86400;
+                out.textContent = '已恢复为 86400 秒/昼夜（现实速度）';
             } else {
                 const v = parseFloat(args[0]);
                 if (isNaN(v) || v < 30 || v > 86400) {
@@ -6209,26 +6212,39 @@
             _sunVisual.visible = true;
             scene.add(_sunVisual);
 
-            // ── 白天云朵（昼夜系统控制显示/隐藏） ──
+            // ── 多层柔边云系：布在环绕玩家的远景天幕上，白天、黄昏和夜间都能看到 ──
             _cloudGroup = new THREE.Group();
-            const cloudCanvas=document.createElement('canvas'); cloudCanvas.width=256; cloudCanvas.height=96;
+            const cloudCanvas=document.createElement('canvas'); cloudCanvas.width=512; cloudCanvas.height=224;
             const cloudCtx=cloudCanvas.getContext('2d');
-            [[46,56,48],[83,47,54],[129,50,63],[175,58,52],[211,55,35]].forEach(function(p){
-                const grad=cloudCtx.createRadialGradient(p[0],p[1],2,p[0],p[1],p[2]);
-                grad.addColorStop(0,'rgba(244,248,252,0.60)');
-                grad.addColorStop(0.52,'rgba(240,245,250,0.38)');
-                grad.addColorStop(1,'rgba(235,243,250,0)');
-                cloudCtx.fillStyle=grad; cloudCtx.fillRect(0,0,256,96);
-            });
+            let cloudSeed=18273;
+            const cloudRand=function(){cloudSeed=(cloudSeed*1664525+1013904223)>>>0;return cloudSeed/4294967296;};
+            cloudCtx.filter='blur(15px)';
+            for(let i=0;i<38;i++){
+                const x=54+cloudRand()*404, y=55+cloudRand()*112;
+                const rx=24+cloudRand()*58, ry=15+cloudRand()*28;
+                const grad=cloudCtx.createRadialGradient(x-rx*.14,y-ry*.18,2,x,y,Math.max(rx,ry));
+                grad.addColorStop(0,'rgba(255,255,255,0.44)');
+                grad.addColorStop(.48,'rgba(238,244,251,0.28)');
+                grad.addColorStop(1,'rgba(220,232,246,0)');
+                cloudCtx.fillStyle=grad; cloudCtx.beginPath(); cloudCtx.ellipse(x,y,rx,ry,0,0,Math.PI*2); cloudCtx.fill();
+            }
+            cloudCtx.filter='none';
             const cloudTexture=new THREE.CanvasTexture(cloudCanvas);
-            const allClouds=[[-75,58,-110,1],[-18,62,-145,1.15],[44,56,-118,0.9],[104,60,-155,1.2],[-130,64,-160,0.95]];
-            const cloudKeep=window._gfxTier==='low'?3:5;
-            allClouds.slice(0,cloudKeep).forEach(function(p,i){
-                const cloud=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTexture,color:0xffffff,transparent:true,opacity:0.62,depthWrite:false,fog:false}));
-                cloud.position.set(p[0],p[1],p[2]); cloud.scale.set(44*p[3],14*p[3],1);
-                cloud.userData.vx=0.12+i*0.035; cloud.userData.vz=0.015;
+            const cloudKeep=window._gfxTier==='low'?8:(window._gfxTier==='high'?16:12);
+            for(let i=0;i<cloudKeep;i++){
+                const angle=(i/cloudKeep)*Math.PI*2+(cloudRand()-.5)*.28;
+                const radius=170+cloudRand()*125;
+                const highLayer=i%5===0;
+                const cloud=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTexture,color:0xffffff,transparent:true,opacity:0.5,depthWrite:false,fog:false}));
+                cloud.position.set(Math.sin(angle)*radius,highLayer?72+cloudRand()*25:25+cloudRand()*32,-Math.cos(angle)*radius);
+                const width=(highLayer?62:48)+cloudRand()*(highLayer?44:38);
+                cloud.scale.set(width,highLayer?22+cloudRand()*10:17+cloudRand()*9,1);
+                cloud.userData.vx=0.5+cloudRand()*0.55;
+                cloud.userData.baseOpacity=0.38+cloudRand()*0.18;
+                cloud.renderOrder=3;
                 cloud._noMerge=true; _cloudGroup.add(cloud);
-            });
+            }
+            _cloudGroup.userData.windOffset=0;
             _cloudGroup.visible = true;
             scene.add(_cloudGroup);
 
@@ -6249,7 +6265,7 @@
                     uniforms: {
                         topColor:     { value: new THREE.Color(0.02, 0.03, 0.10) },
                         horizonColor: { value: new THREE.Color(0.04, 0.06, 0.14) },
-                        nightMix:     { value: 1.0 },
+                        nightMix:     { value: 0.0 },
                         galaxyMap:    { value: null },
                         galaxyReady:  { value: 0.0 }
                     },
@@ -6671,7 +6687,14 @@
             const _cf = window._dtex;
             const cityRoofMat = new THREE.MeshLambertMaterial({ color: 0x4e5864, fog: true });
             const cityBaseMat = new THREE.MeshLambertMaterial({ color: 0x6a7482, fog: true });
-            const cityWinMat = new THREE.MeshBasicMaterial({ color: 0xbfe4ff, transparent: true, opacity: 0.9, fog: true, depthWrite: false });
+            const cityWinMat = new THREE.MeshLambertMaterial({ color: 0x8eaebe, emissive: 0x17232a, transparent: true, opacity: 0.88, fog: true, depthWrite: false, side: THREE.DoubleSide });
+            const cityWindowMatrices = [];
+            const cityWindowUnit = new THREE.PlaneGeometry(1, 1);
+            function addCityWindow(x, y, z, ry, w, h) {
+                const pos = new THREE.Vector3(x, y, z);
+                const rot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry);
+                cityWindowMatrices.push(new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(w, h, 1)));
+            }
             for (let k = 0; k < 36; k++) {
                 const bx = -128 + (k % 12) * 22 + Math.random() * 7;
                 const bw = 3.8 + Math.random() * 7.5;
@@ -6696,17 +6719,39 @@
                 scene.add(base);
                 const nZ = bz - bd * 0.5 - 0.06;
                 const cols = Math.max(2, Math.floor(bw / 2.1));
-                for (let ci = 0; ci < cols; ci++) {
-                    if (Math.random() > 0.62) continue;
-                    const colW = (bw * 0.82) / cols;
-                    const wx = bx - bw * 0.41 + (ci + 0.5) * (bw * 0.82 / cols);
-                    const wh = 1.2 + Math.random() * 2.8;
-                    const wy = podium + 1.2 + Math.random() * Math.max(0.5, bh - wh - 2.4);
-                    const wn = new THREE.Mesh(new THREE.PlaneGeometry(colW * 0.88, wh), cityWinMat);
-                    wn.position.set(wx, wy, nZ);
-                    wn.rotation.x = Math.PI;
-                    scene.add(wn);
+                // Ordered window bays on every facade: the older random handful of panes left
+                // most camera angles looking at blank gray boxes. Keep all panes in one draw call.
+                const levels = Math.max(2, Math.floor((bh - 2.1) / 3.0));
+                for (let floor = 0; floor < levels; floor++) {
+                    const wy = podium + 1.45 + floor * ((bh - 2.0) / levels);
+                    const winH = Math.min(1.55, (bh - 2.0) / levels * 0.57);
+                    for (let ci = 0; ci < cols; ci++) {
+                        const colW = (bw * 0.82) / cols;
+                        const wx = bx - bw * 0.41 + (ci + 0.5) * colW;
+                        const winW = Math.min(1.42, colW * 0.62);
+                        if (Math.random() > 0.10) {
+                            addCityWindow(wx, wy, bz + bd * 0.5 + 0.045, 0, winW, winH);
+                            addCityWindow(wx, wy, bz - bd * 0.5 - 0.045, Math.PI, winW, winH);
+                        }
+                    }
+                    const sideCols = Math.max(2, Math.floor(bd / 1.8));
+                    for (let ci = 0; ci < sideCols; ci++) {
+                        const sideW = bd / (sideCols + 1);
+                        const wz = bz - bd * 0.5 + (ci + 1) * sideW;
+                        const winW = Math.min(1.18, sideW * 0.58);
+                        if (Math.random() > 0.10) {
+                            addCityWindow(bx + bw * 0.5 + 0.045, wy, wz, Math.PI / 2, winW, winH);
+                            addCityWindow(bx - bw * 0.5 - 0.045, wy, wz, -Math.PI / 2, winW, winH);
+                        }
+                    }
                 }
+            }
+            if (cityWindowMatrices.length) {
+                const cityWindows = new THREE.InstancedMesh(cityWindowUnit, cityWinMat, cityWindowMatrices.length);
+                cityWindowMatrices.forEach(function(matrix, i) { cityWindows.setMatrixAt(i, matrix); });
+                cityWindows.instanceMatrix.needsUpdate = true;
+                cityWindows._noMerge = true;
+                scene.add(cityWindows);
             }
 
             // ── 远景树林（同近景：二十面体簇 + 略深绿以融雾）──
@@ -10273,6 +10318,8 @@
             // 初始化士兵（无论模型是否加载成功）
             function initializeSoldier(soldierModel) {
                 soldier = soldierModel;
+                // VRM 网格本身已是米制人体；子节点为兼容旧姿势保留 2x，因此根节点需固定 0.5x 抵消，避免玩家变成约3.4m高。
+                if (_isVrm) soldier.scale.set(0.5, 0.5, 0.5);
                 soldier.castShadow = true;
                 soldier.receiveShadow = true;
                 scene.add(soldier);
@@ -12601,15 +12648,16 @@
                     const twistSimple = cSimple * (0.022 + 0.030 * runMixSimple) * pumpSimple;
                     const leanSimple = 0.045 + 0.125 * runMixSimple - backSimple * 0.040 + contactPulseSimple * (0.008 + 0.012 * runMixSimple);
                     const legAmpSimple = (0.30 + 0.32 * runMixSimple) * (1 - sidAbsSimple * 0.22);
-                    const armAmpSimple = (0.24 + 0.30 * runMixSimple) * pumpSimple;
+                    // 学生角色摆臂保持在自然步幅，跑步只比走路略大，避免肩肘甩得像机械摆锤。
+                    const armAmpSimple = (0.20 + 0.22 * runMixSimple) * pumpSimple;
                     const _s2Simple = _vrmArmRzSign, _s3Simple = _vrmArmRxSign, _sLSimple = _vrmLegRxSign;
                     _animBones('j_bip_c_hips', leanSimple, twistSimple, sideSimple, al);
                     _animBones('j_bip_c_spine', -leanSimple * 0.34, -twistSimple * 0.62, -sideSimple * 0.72, al);
                     _animBones('j_bip_c_chest', -leanSimple * 0.22, -twistSimple * 0.52, -sideSimple * 0.44, al);
                     _animBones('j_bip_c_neck', -0.030 - 0.018 * runMixSimple, 0, 0, al);
                     _animBones('j_bip_c_head', -0.018 - 0.012 * runMixSimple, -twistSimple * 0.18, -sideSimple * 0.12, al);
-                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple - 0.035 - 0.050 * runMixSimple, -0.020 * cSimple + sidSimple * 0.020, _s2Simple * (-0.82 + 0.070 * liftPulseRSimple), al);
-                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple - 0.035 - 0.050 * runMixSimple, 0.020 * cSimple + sidSimple * 0.020, _s2Simple * (0.82 - 0.070 * liftPulseLSimple), al);
+                    _animBones('j_bip_l_upperarm', _s3Simple * sSimple * armAmpSimple * spd01Simple - 0.030 - 0.040 * runMixSimple, -0.018 * cSimple + sidSimple * 0.015, _s2Simple * (-0.96 + 0.055 * liftPulseRSimple), al);
+                    _animBones('j_bip_r_upperarm', _s3Simple * -sSimple * armAmpSimple * spd01Simple - 0.030 - 0.040 * runMixSimple, 0.018 * cSimple + sidSimple * 0.015, _s2Simple * (0.96 - 0.055 * liftPulseLSimple), al);
                     _animBones('j_bip_l_lowerarm', 0.070 + 0.190 * liftPulseRSimple + 0.085 * runMixSimple, 0, _s2Simple * (-0.19 - 0.12 * runMixSimple), al);
                     _animBones('j_bip_r_lowerarm', 0.070 + 0.190 * liftPulseLSimple + 0.085 * runMixSimple, 0, _s2Simple * (0.19 + 0.12 * runMixSimple), al);
                     _animBones('j_bip_l_upperleg', _sLSimple * (-sSimple * legAmpSimple * spd01Simple - pushPulseLSimple * (0.08 + 0.08 * runMixSimple)), 0.018 * cSimple + sidSimple * 0.018, -0.020 * sSimple + sidSimple * 0.020, al);
@@ -12689,22 +12737,29 @@
                 } else {
                     // 待机：与humanoid API坐标系相同
                     const breath    = Math.sin(it * 1.7) * 0.035;
-                    const weight    = Math.sin(it * 0.82) * 0.030;
+                    const weight    = Math.sin(it * 0.72) * 0.055;
                     const headTurn  = Math.sin(it * 0.55) * 0.075;
                     const headNod   = Math.sin(it * 0.48 + 1.2) * 0.025;
-                    const armDL     = Math.sin(it * 0.45 + 0.8) * 0.035;
-                    const armDR     = Math.sin(it * 0.38) * 0.035;
-                    const spineLean = 0.030 + Math.sin(it * 0.44 + 0.3) * 0.010;
+                    const armDL     = Math.sin(it * 0.45 + 0.8) * 0.070;
+                    const armDR     = Math.sin(it * 0.38) * 0.060;
+                    const spineLean = 0.025 + Math.sin(it * 0.44 + 0.3) * 0.010;
+                    const settle    = Math.sin(it * 0.72 + 0.8);
+                    const kneeL     = Math.max(0, settle) * 0.075;
+                    const kneeR     = Math.max(0, -settle) * 0.075;
                     // 手臂向下（rz符号随VRM版本自适应）
                     const _si = _vrmArmRzSign;
-                    _animBones('j_bip_l_upperarm', -0.055 + breath * 0.25, 0, _si * -(0.84 - armDL), al);
-                    _animBones('j_bip_r_upperarm', -0.055 + breath * 0.25, 0, _si * +(0.84 - armDR), al);
-                    _animBones('j_bip_l_lowerarm',  0.06, 0, _si * (-0.18 + armDL * 0.20), al);
-                    _animBones('j_bip_r_lowerarm',  0.06, 0, _si * (+0.18 - armDR * 0.20), al);
-                    _animBones('j_bip_l_upperleg',  0, 0, +weight * 0.04, al);
-                    _animBones('j_bip_r_upperleg',  0, 0, -weight * 0.04, al);
-                    _animBones('j_bip_l_lowerleg',  0, 0, 0, al);
-                    _animBones('j_bip_r_lowerleg',  0, 0, 0, al);
+                    _animBones('j_bip_l_upperarm', -0.035 + breath * 0.22, -armDL * 0.12, _si * -(0.98 - armDL), al);
+                    _animBones('j_bip_r_upperarm', -0.035 + breath * 0.22, armDR * 0.12, _si * +(0.98 - armDR), al);
+                    _animBones('j_bip_l_lowerarm',  0.07 + Math.sin(it * 0.62 + 1.0) * 0.018, 0, _si * (-0.25 + armDL * 0.30), al);
+                    _animBones('j_bip_r_lowerarm',  0.07 + Math.sin(it * 0.55 + 2.0) * 0.016, 0, _si * (+0.25 - armDR * 0.30), al);
+                    _animBones('j_bip_l_hand', -Math.sin(it * 0.62 + 1.0) * 0.012, 0, armDL * 0.12, al);
+                    _animBones('j_bip_r_hand', -Math.sin(it * 0.55 + 2.0) * 0.010, 0, -armDR * 0.12, al);
+                    _animBones('j_bip_l_upperleg', -settle * 0.025, 0, +weight * 0.10, al);
+                    _animBones('j_bip_r_upperleg', settle * 0.025, 0, -weight * 0.10, al);
+                    _animBones('j_bip_l_lowerleg', _vrmLegRxSign * kneeL, 0, 0, al);
+                    _animBones('j_bip_r_lowerleg', _vrmLegRxSign * kneeR, 0, 0, al);
+                    _animBones('j_bip_l_foot', _vrmLegRxSign * (-kneeL * 0.55 + settle * 0.012), 0, 0, al);
+                    _animBones('j_bip_r_foot', _vrmLegRxSign * (-kneeR * 0.55 - settle * 0.012), 0, 0, al);
                     _animBones('j_bip_c_head',      headNod - 0.05, headTurn, 0, al);
                     _animBones('j_bip_c_neck',      0, headTurn * 0.35, 0, al);
                     _animBones('j_bip_c_chest',     0.05 + breath * 0.5, 0, weight * 0.35, al);
@@ -12731,6 +12786,8 @@
             const rArm  = humanoid.getRawBoneNode('rightUpperArm');
             const lFa   = humanoid.getRawBoneNode('leftLowerArm');
             const rFa   = humanoid.getRawBoneNode('rightLowerArm');
+            const lHand = humanoid.getRawBoneNode('leftHand');
+            const rHand = humanoid.getRawBoneNode('rightHand');
             const lLeg  = humanoid.getRawBoneNode('leftUpperLeg');
             const rLeg  = humanoid.getRawBoneNode('rightUpperLeg');
             const lKnee = humanoid.getRawBoneNode('leftLowerLeg');
@@ -12796,7 +12853,8 @@
                 const twistSimpleH = cSimpleH * (0.022 + 0.030 * runMixSimpleH) * pumpSimpleH;
                 const leanSimpleH = 0.045 + 0.125 * runMixSimpleH - backSimpleH * 0.040 + contactPulseH * (0.008 + 0.012 * runMixSimpleH);
                 const legAmpSimpleH = (0.30 + 0.32 * runMixSimpleH) * (1 - sidAbsSimpleH * 0.22);
-                const armAmpSimpleH = (0.24 + 0.30 * runMixSimpleH) * pumpSimpleH;
+                // 让肩臂放松垂落；走路小幅摆动，跑步增加幅度但不甩肩。
+                const armAmpSimpleH = (0.20 + 0.22 * runMixSimpleH) * pumpSimpleH;
                 const _s4SimpleH = _vrmArmRxSign, _sRzSimpleH = _vrmArmRzSign, _sL2SimpleH = _vrmLegRxSign;
                 bl(hips, leanSimpleH, twistSimpleH, sideSimpleH);
                 bl(spine, -leanSimpleH * 0.34, -twistSimpleH * 0.62, -sideSimpleH * 0.72);
@@ -12809,10 +12867,12 @@
 
                 const leftArmSwingH = _s4SimpleH * sSimpleH * armAmpSimpleH * spd01SimpleH;
                 const rightArmSwingH = _s4SimpleH * -sSimpleH * armAmpSimpleH * spd01SimpleH;
-                bl(lArm, leftArmSwingH - 0.035 - 0.050 * runMixSimpleH, -0.020 * cSimpleH + sidSimpleH * 0.020, _sRzSimpleH * (-0.82 + 0.070 * liftPulseRH));
-                bl(rArm, rightArmSwingH - 0.035 - 0.050 * runMixSimpleH, 0.020 * cSimpleH + sidSimpleH * 0.020, _sRzSimpleH * (0.82 - 0.070 * liftPulseLH));
+                bl(lArm, leftArmSwingH - 0.030 - 0.040 * runMixSimpleH, -0.018 * cSimpleH + sidSimpleH * 0.015, _sRzSimpleH * (-0.96 + 0.055 * liftPulseRH));
+                bl(rArm, rightArmSwingH - 0.030 - 0.040 * runMixSimpleH, 0.018 * cSimpleH + sidSimpleH * 0.015, _sRzSimpleH * (0.96 - 0.055 * liftPulseLH));
                 bl(lFa, 0.070 + 0.190 * liftPulseRH + 0.085 * runMixSimpleH, 0, _sRzSimpleH * (-0.19 - 0.12 * runMixSimpleH));
                 bl(rFa, 0.070 + 0.190 * liftPulseLH + 0.085 * runMixSimpleH, 0, _sRzSimpleH * (0.19 + 0.12 * runMixSimpleH));
+                bl(lHand, -0.025 - 0.035 * runMixSimpleH, 0, -sSimpleH * 0.025);
+                bl(rHand, -0.025 - 0.035 * runMixSimpleH, 0, sSimpleH * 0.025);
 
                 const leftLegSwingH = -sSimpleH * legAmpSimpleH * spd01SimpleH - pushPulseLH * (0.08 + 0.08 * runMixSimpleH);
                 const rightLegSwingH = sSimpleH * legAmpSimpleH * spd01SimpleH - pushPulseRH * (0.08 + 0.08 * runMixSimpleH);
@@ -12882,18 +12942,20 @@
                 // 头部点头：~11秒周期
                 const headNod  = Math.sin(it * 0.48 + 1.2) * 0.025;
                 // 手臂微漂：L/R各自不同频率
-                const armDL    = Math.sin(it * 0.45 + 0.8) * 0.035;
-                const armDR    = Math.sin(it * 0.38) * 0.035;
+                const armDL    = Math.sin(it * 0.45 + 0.8) * 0.045;
+                const armDR    = Math.sin(it * 0.38) * 0.040;
                 // 脊柱前后晃动
                 const spineLean = 0.030 + Math.sin(it * 0.44 + 0.3) * 0.010;
 
                 // 手臂：自然垂下 + 微漂 + 呼吸起伏
                 const _sIRz = _vrmArmRzSign;
-                bl(lArm, -0.055 + breath * 0.25, 0, _sIRz * (-0.84 + armDL));
-                bl(rArm, -0.055 + breath * 0.25, 0, _sIRz * (+0.84 - armDR));
+                bl(lArm, -0.045 + breath * 0.25, -armDL * 0.12, _sIRz * (-0.96 + armDL));
+                bl(rArm, -0.045 + breath * 0.25, armDR * 0.12, _sIRz * (+0.96 - armDR));
                 // 小臂：自然弯曲，跟随手臂漂移
-                bl(lFa,  0.06, 0, _sIRz * (-0.18 + armDL * 0.20));
-                bl(rFa,  0.06, 0, _sIRz * (+0.18 - armDR * 0.20));
+                bl(lFa,  0.07 + Math.sin(it * 0.62 + 1.0) * 0.018, 0, _sIRz * (-0.22 + armDL * 0.28));
+                bl(rFa,  0.07 + Math.sin(it * 0.55 + 2.0) * 0.016, 0, _sIRz * (+0.22 - armDR * 0.28));
+                bl(lHand, -Math.sin(it * 0.62 + 1.0) * 0.012, 0, armDL * 0.12);
+                bl(rHand, -Math.sin(it * 0.55 + 2.0) * 0.010, 0, -armDR * 0.12);
                 // 腿自然站立
                 bl(lLeg,  0, 0,  weight * 0.04);
                 bl(rLeg,  0, 0, -weight * 0.04);
@@ -12924,6 +12986,22 @@
         }
         function getDayFactor(gt) {
             return Math.max(0, Math.sin(getSunAngle(gt)));
+        }
+        function getMoonPhase() {
+            const d = ((totalSimulatedDays % LUNAR_SYNODIC_DAYS) + LUNAR_SYNODIC_DAYS) % LUNAR_SYNODIC_DAYS;
+            return d / LUNAR_SYNODIC_DAYS;
+        }
+        function getMoonIllumination(phase) {
+            return (1 - Math.cos((phase == null ? getMoonPhase() : phase) * Math.PI * 2)) * 0.5;
+        }
+        // 银河只在天文暮光结束后显现；城市校园的光污染与月光都会显著洗淡银河。
+        function getMilkyWayVisibility(sunH) {
+            // 天文暮光结束：太阳高度低于 -18°。在此之前严格为零，避免橙色黄昏叠出银河照片。
+            const dark = THREE.MathUtils.smoothstep(-sunH, 0.31, 0.42);
+            const moonWash = getMoonIllumination() * 0.96;
+            const weatherVisibility = weatherType === 'clear' ? 1 : (weatherType === 'fog' ? 0.08 : 0.015);
+            const campusLightPollution = 0.62;
+            return dark * (1 - moonWash) * weatherVisibility * campusLightPollution;
         }
         function clockToGameTime(hour, minute) {
             const h = Math.min(23, Math.max(0, Number(hour) || 0));
@@ -13209,37 +13287,40 @@
             }
             if (_ambientLight) _ambientLight.intensity = 0.028 + 0.095 * dayFactor + indoorBoost * (0.045 + (1 - dayFactor) * 0.055);
             if (_fillLight) _fillLight.intensity = 0.03 + (1 - dayFactor) * 0.055 + indoorBoost * (0.035 + (1 - dayFactor) * 0.035);
-            const nightEnough = sunH < -0.22;
             const sunDiskUp = _sunVisual && _sunVisual.visible;
             const hour=(((gameTime%1)+1)%1)*24;
-            const starsOk = (hour<5.4||hour>19.3) && sunH < -0.08 && !sunDiskUp;
+            const phase = getMoonPhase();
+            const illumination = getMoonIllumination(phase);
+            const twilightStars = THREE.MathUtils.smoothstep(-sunH, 0.045, 0.22);
+            const starsOk = sunH < -0.04 && !sunDiskUp;
+            const weatherStarFactor = weatherType === 'clear' ? 1 : (weatherType === 'fog' ? 0.10 : 0.015);
+            const starOpacity = twilightStars * (1 - illumination * 0.48) * weatherStarFactor;
+            const dayAngleOffset = ((totalSimulatedDays % 365.2422) + 365.2422) % 365.2422 * (Math.PI * 2 / 365.2422);
+            const skyRotation = gameTime * Math.PI * 2 + dayAngleOffset;
             if (_starsInst) {
                 if (camera) _starsInst.position.copy(camera.position);
-                // 连续的天球旋转：每个游戏日的夜空方向都会变化，白天也照常推进。
-                _starsInst.rotation.y = gameTime * Math.PI * 2 + (totalSimulatedDays - 12.4) * 0.22;
-                _starsInst.visible = starsOk;
+                // 星点与银河共用同一恒星天球；日周运动随游戏时钟，年周方向每天只漂移约1°。
+                _starsInst.rotation.y = skyRotation;
+                _starsInst.visible = starsOk && starOpacity > 0.005;
                 if (_starsInst.material) {
                     _starsInst.material.uniforms.uTime.value = performance.now() * 0.001;
-                    _starsInst.material.uniforms.uOpacity.value = Math.min(1, Math.max(0.35, (-sunH - 0.06) * 1.85));
+                    _starsInst.material.uniforms.uOpacity.value = starOpacity;
                 }
             }
             if (window._skyDome && camera) {
                 window._skyDome.position.copy(camera.position);
-                window._skyDome.rotation.y = gameTime * Math.PI * 2 + (totalSimulatedDays - 12.4) * 0.22;
+                window._skyDome.rotation.y = skyRotation;
             }
             if (_moonMesh) {
-                const nightProgress = ((hour + 6) % 24) / 12;
-                const moonAzimuth = (nightProgress - 0.5) * 1.20 + (totalSimulatedDays - 12.4) * 0.22 - 0.15;
+                // 以月相的日月角距近似月出月落：新月贴近太阳，满月与太阳相对，弦月只在部分夜晚出现。
+                const moonAngle = th - phase * Math.PI * 2;
+                const moonAltitude = Math.sin(moonAngle);
                 const moonDir = new THREE.Vector3(
-                    Math.sin(moonAzimuth) * 0.85,
-                    0.22 + 0.08 * Math.sin(Math.PI * Math.min(1, nightProgress)),
-                    -Math.cos(moonAzimuth) * 0.85
+                    Math.cos(moonAngle) * 0.85,
+                    moonAltitude * 0.58,
+                    Math.sin(moonAngle) * 0.85
                 ).normalize();
-                let phaseDays = totalSimulatedDays % LUNAR_SYNODIC_DAYS;
-                if (phaseDays < 0) phaseDays += LUNAR_SYNODIC_DAYS;
-                const phase = phaseDays / LUNAR_SYNODIC_DAYS;
-                const illumination = (1 - Math.cos(phase * Math.PI * 2)) * 0.5;
-                const vis = starsOk && illumination > 0.04;
+                const vis = illumination > 0.04 && moonAltitude > -0.08 && sunH < 0.10;
                 _moonMesh.visible = vis;
                 if (camera) _moonMesh.position.copy(camera.position).addScaledVector(moonDir, 340);
                 if (Math.abs(phase - _lastMoonPhaseDraw) > 0.0008) {
@@ -13248,11 +13329,21 @@
                 }
             }
             if (_cloudGroup) {
-                _cloudGroup.visible = dayFactor > 0.12;
-                // 单批次云层整体缓慢漂移，避免几十个独立云Mesh draw call。
+                _cloudGroup.visible = !_isPlayerIndoors();
                 const _cdt = (typeof dtSec === 'number' && dtSec > 0 && dtSec < 2) ? dtSec : 0.016;
-                _cloudGroup.position.x += (_cloudGroup.userData.vx||0.55)*_cdt;
-                if(_cloudGroup.position.x>190)_cloudGroup.position.x=-190;
+                if (camera) _cloudGroup.position.copy(camera.position);
+                const dusk = Math.max(0, 1 - Math.abs(sunH) / 0.24);
+                const cloudLight = Math.min(1, 0.18 + dayFactor * 0.76 + dusk * 0.28);
+                const cloudColor = dayFactor > 0.22 ? 0xffffff : (dusk > 0.08 ? 0xd8a995 : 0x64738d);
+                const weatherCloudFactor = weatherType === 'clear' ? 1 : 1.18;
+                _cloudGroup.children.forEach(function(cloud){
+                    cloud.position.x += (cloud.userData.vx || 0.5) * _cdt;
+                    if (cloud.position.x > 350) cloud.position.x = -350;
+                    if (cloud.material) {
+                        cloud.material.color.setHex(cloudColor);
+                        cloud.material.opacity = cloud.userData.baseOpacity * cloudLight * weatherCloudFactor;
+                    }
+                });
             }
             if (window._fantasyDome) {
                 window._fantasyDome.visible = dayFactor > 0.14;
@@ -13286,7 +13377,7 @@
                 if (window._skyDome) {
                     const _u = window._skyDome.material.uniforms;
                     _u.topColor.value.copy(_skyLerpColor);
-                    if (_u.nightMix) _u.nightMix.value = Math.pow(1 - Math.min(1, df * 1.8), 1.35);
+                    if (_u.nightMix) _u.nightMix.value = getMilkyWayVisibility(Math.sin(getSunAngle(gameTime)));
                     const _hc = _skyHorizonColor.copy(_skyLerpColor);
                     // 白天：地平线偏白（大气散射）
                     _hc.lerp(_skyDayHorizonColor, df * 0.50);
@@ -13329,7 +13420,7 @@
                 if (window._skyDome) {
                     const _u = window._skyDome.material.uniforms;
                     _u.topColor.value.copy(_skyLerpColor);
-                    if (_u.nightMix) _u.nightMix.value = Math.pow(1 - Math.min(1, df * 1.8), 1.35);
+                    if (_u.nightMix) _u.nightMix.value = getMilkyWayVisibility(Math.sin(getSunAngle(gameTime)));
                     const _hc = _skyHorizonColor.copy(_skyLerpColor);
                     _hc.lerp(_skyDayHorizonColor, df * 0.50);
                     const _g = ((gameTime % 1) + 1) % 1;
@@ -14888,7 +14979,7 @@
             slideDistance = 0;
             normalHeight = FIRST_PERSON_HEIGHT;
             playerMoveSpeedMul = 1;
-            gameDayDurationSec = 600;
+            gameDayDurationSec = 86400;
             
             // 清空所有键盘状态
             keyboard = {};

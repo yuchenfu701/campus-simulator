@@ -1366,6 +1366,8 @@ function reloadCharacter(){
                     window._menuVrmArmSign = _isVRM0x ? -1 : 1;
                     console.log('✅ VRM版本检测: ' + (_isVRM0x ? 'VRM0.x(男生)' : 'VRM1.x(女生)') + ' armSign=' + window._menuVrmArmSign);
                     vrm.scene.position.set(0, 0, 0);
+                    // 默认学生网格高约1.6–1.7m；整体略缩并轻微压低纵向比例，避免首页显得过高。
+                    vrm.scene.scale.set(0.96, 0.94, 0.96);
                     scene.add(vrm.scene);
                     console.log('✅ VRM 加载成功（armSign=' + window._menuVrmArmSign + '）');
                 }, p => {
@@ -1446,6 +1448,8 @@ let _menuLastFrame = 0;
             const rArm  = _nb('rightUpperArm');
             const lFa   = _nb('leftLowerArm');
             const rFa   = _nb('rightLowerArm');
+            const lHand = _nb('leftHand');
+            const rHand = _nb('rightHand');
             const head  = _nb('head');
             const neck  = _nb('neck');
             const chest = _nb('upperChest') || _nb('chest');
@@ -1453,13 +1457,17 @@ let _menuLastFrame = 0;
             const hips  = _nb('hips');
             const lLeg  = _nb('leftUpperLeg');
             const rLeg  = _nb('rightUpperLeg');
+            const lKnee = _nb('leftLowerLeg');
+            const rKnee = _nb('rightLowerLeg');
+            const lFoot = _nb('leftFoot');
+            const rFoot = _nb('rightFoot');
 
             const it = _idleT;
             // 呼吸：~3秒周期，慢调制（~31秒一次深吸）
             const breathMod  = 0.8 + Math.sin(it * 0.20) * 0.35;
             const breath     = Math.sin(it * 2.1) * 0.055 * breathMod;
             // 重心转移：~6秒周期
-            const weight     = Math.sin(it * 1.05) * 0.048;
+            const weight     = Math.sin(it * 0.72) * 0.060;
             // 头部张望：慢速 + 偶发快速"扫视"分量 + 鼠标
             const lookBase   = Math.sin(it * 0.7) * 0.18;
             const lookSnap   = Math.sin(it * 0.23) * Math.max(0, Math.sin(it * 0.11)) * 0.14;
@@ -1467,24 +1475,31 @@ let _menuLastFrame = 0;
             // 头部点头：两频叠加，偶尔低头
             const headNod    = Math.sin(it * 0.57 + 1.2) * 0.04 + Math.sin(it * 0.19 + 0.7) * 0.025;
             // 手臂微漂 + 肩部前后滚（不对称）
-            const armDL      = Math.sin(it * 0.45 + 0.8) * 0.018;
-            const armDR      = Math.sin(it * 0.38) * 0.018;
-            const shoulderFB = Math.sin(it * 0.33 + 0.5) * 0.012;
+            const armDL      = Math.sin(it * 0.45 + 0.8) * 0.040;
+            const armDR      = Math.sin(it * 0.38) * 0.034;
+            const shoulderFB = Math.sin(it * 0.33 + 0.5) * 0.022;
             // 小臂/腕微扭
-            const wristL     = Math.sin(it * 0.62 + 1.0) * 0.009;
-            const wristR     = Math.sin(it * 0.55 + 2.0) * 0.009;
+            const wristL     = Math.sin(it * 0.62 + 1.0) * 0.018;
+            const wristR     = Math.sin(it * 0.55 + 2.0) * 0.016;
             // 脊柱晃动 + 骨盆侧摇
-            const spineLean  = 0.05 + Math.sin(it * 0.44 + 0.3) * 0.018;
-            const hipSway    = Math.sin(it * 0.52 + 1.5) * 0.015;
+            const spineLean  = 0.035 + Math.sin(it * 0.44 + 0.3) * 0.012;
+            const hipSway    = Math.sin(it * 0.52 + 1.5) * 0.022;
+            // 站久后自然换支撑腿：膝盖微屈，脚踝反向补偿以维持脚底贴地。
+            const settle     = Math.sin(it * 0.72 + 0.8);
+            const kneeL      = Math.max(0, settle) * 0.085;
+            const kneeR      = Math.max(0, -settle) * 0.085;
 
             // 手臂：自然垂下 + 微漂 + 肩部前后 + 呼吸
             // _menuVrmArmSign: VRM0.x=-1（rz正=垂手），VRM1.x=+1（rz负=垂手）
             const _as = window._menuVrmArmSign || 1;
-            if(lArm){ lArm.rotation.z=_as*(-1.28)+armDL; lArm.rotation.x=-0.03+breath*0.12+shoulderFB; }
-            if(rArm){ rArm.rotation.z=_as*( 1.28)-armDR; rArm.rotation.x=-0.03+breath*0.12-shoulderFB; }
+            if(lArm){ lArm.rotation.z=_as*(-1.16)+armDL; lArm.rotation.x=-0.02+breath*0.10+shoulderFB; }
+            if(rArm){ rArm.rotation.z=_as*( 1.16)-armDR; rArm.rotation.x=-0.02+breath*0.10-shoulderFB; }
             // 小臂：弯曲 + 腕部微扭
-            if(lFa){ lFa.rotation.z=_as*(-0.08)+armDL*0.2; lFa.rotation.x=0.025+wristL; lFa.rotation.y=wristL*0.5; }
-            if(rFa){ rFa.rotation.z=_as*( 0.08)-armDR*0.2; rFa.rotation.x=0.025+wristR; rFa.rotation.y=-wristR*0.5; }
+            if(lFa){ lFa.rotation.z=_as*(-0.22)+armDL*0.36; lFa.rotation.x=0.025+wristL; lFa.rotation.y=wristL*0.5; }
+            if(rFa){ rFa.rotation.z=_as*( 0.22)-armDR*0.36; rFa.rotation.x=0.025+wristR; rFa.rotation.y=-wristR*0.5; }
+            // 手掌跟着腕部轻微放松，避免站立时手指像挂在手臂末端一样僵直。
+            if(lHand){ lHand.rotation.x=-wristL*0.35; lHand.rotation.z=armDL*0.16; }
+            if(rHand){ rHand.rotation.x=-wristR*0.35; rHand.rotation.z=-armDR*0.16; }
             // 头部：张望 + 鼠标 + 低头
             if(head){ head.rotation.y=headTurn; head.rotation.x=headNod-0.05; }
             if(neck){ neck.rotation.y=headTurn*0.35; neck.rotation.x=headNod*0.3; }
@@ -1495,8 +1510,12 @@ let _menuLastFrame = 0;
             // 骨盆：反向平衡 + 侧摇
             if(hips){ hips.rotation.z=-weight*0.28-hipSway*0.6; }
             // 腿：重心分配
-            if(lLeg){ lLeg.rotation.z=weight*0.04; lLeg.rotation.x=hipSway*0.15; }
-            if(rLeg){ rLeg.rotation.z=-weight*0.04; rLeg.rotation.x=-hipSway*0.15; }
+            if(lLeg){ lLeg.rotation.z=weight*0.10; lLeg.rotation.x=hipSway*0.30; }
+            if(rLeg){ rLeg.rotation.z=-weight*0.10; rLeg.rotation.x=-hipSway*0.30; }
+            if(lKnee){ lKnee.rotation.x=kneeL; }
+            if(rKnee){ rKnee.rotation.x=kneeR; }
+            if(lFoot){ lFoot.rotation.x=-kneeL*0.55+settle*0.012; }
+            if(rFoot){ rFoot.rotation.x=-kneeR*0.55-settle*0.012; }
             // 猫耳：首次找到后缓存静止旋转，后续只叠加Z轴delta
             if(!_catEarFound && vrm.scene){
                 vrm.scene.traverse(function(o){
