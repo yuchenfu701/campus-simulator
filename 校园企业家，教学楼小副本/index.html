@@ -2070,17 +2070,17 @@
         window._gpuIsDiscrete = false;
         let _gfxLastTierChange = 0;
         let _gfxStartupGraceUntil = 0;
+        let _lastRenderedFrameTime = 0;
         function _isDiscreteGpuName(name) {
             return /NVIDIA|GeForce|RTX|GTX|Quadro|AMD|Radeon|\bRX\b|Intel\(R\) Arc|Intel Arc|Apple M/i.test(name || '');
         }
         function _tierPixelRatioCap(tier) {
             const dpr = window.devicePixelRatio || 1;
-            const native = Math.max(1, dpr);
-            const dgpu = !!window._gpuIsDiscrete;
-            // 桌面端不再低于原生分辨率渲染；性能优化只关特效/阴影，不牺牲清晰度。
-            if (tier === 'low') return Math.min(dgpu ? 1.10 : 1.00, native);
-            if (tier === 'medium') return Math.min(dgpu ? 1.35 : 1.18, Math.max(native, dgpu ? 1.20 : 1.08));
-            return Math.min(dgpu ? 1.75 : 1.35, Math.max(native, dgpu ? 1.50 : 1.20));
+            // 按实际绘制像素数定预算；超宽屏/高 DPI 不再把 3D 画面无节制放大。
+            const pixels = Math.max(1, window.innerWidth * window.innerHeight);
+            const budget = tier === 'high' ? 3200000 : tier === 'medium' ? 2400000 : 1500000;
+            const cap = tier === 'high' ? 1.25 : tier === 'medium' ? 1.1 : 1;
+            return Math.max(0.65, Math.min(dpr, cap, Math.sqrt(budget / pixels)));
         }
         function _applyGfxTier(tier, reason) {
             if (!renderer) return;
@@ -2090,7 +2090,7 @@
             [window._lampPointLights, window._fieldFloodlights].forEach(function(arr){
                 if (!arr) return;
                 arr.forEach(function(light){
-                    light.visible = dynamicLightsOn;
+                    light.visible = dynamicLightsOn && light.intensity > 0.04;
                     if (!dynamicLightsOn) light.intensity = 0;
                 });
             });
@@ -2101,6 +2101,7 @@
                 if (window._birdInst) window._birdInst.visible = false;
             } else {
                 renderer.shadowMap.enabled = true;
+                renderer.shadowMap.needsUpdate = true;
                 if (_sunLight) {
                     _sunLight.castShadow = true;
                     if (_sunLight.shadow) _sunLight.shadow.mapSize.set(tier === 'high' ? 1024 : 512, tier === 'high' ? 1024 : 512);
@@ -2134,9 +2135,10 @@
             window._gfxTier = tier;
             if (sunDirLight) _sunLight = sunDirLight;
             if (tier === 'high') {
-                // 独显可用更高DPR，避免高FPS时画面仍然发糊。
+                // 高档也遵守像素预算，避免高 DPI 屏幕把整张画面超采样到数倍面积。
                 renderer.setPixelRatio(_tierPixelRatioCap('high'));
                 renderer.shadowMap.enabled = true;
+                renderer.shadowMap.needsUpdate = true;
                 if (sunDirLight && sunDirLight.shadow) {
                     sunDirLight.castShadow = true;
                     sunDirLight.shadow.mapSize.width  = 1024;
@@ -2219,6 +2221,9 @@
                 renderer.toneMappingExposure = 1.08;
             }
             renderer.shadowMap.enabled = true;
+            // 静态校园不必每帧重算整张阴影贴图；动画循环按固定间隔刷新。
+            renderer.shadowMap.autoUpdate = false;
+            renderer.shadowMap.needsUpdate = true;
             if (THREE.PCFSoftShadowMap !== undefined)
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             
@@ -12041,6 +12046,9 @@
 
             // 标签页隐藏时完全跳过渲染
             if (_renderPaused) return;
+            // 高刷新率屏幕限制在约 60 帧，给输入、物理及浏览器主线程留余量。
+            if (_lastRenderedFrameTime && time - _lastRenderedFrameTime < 15.5) return;
+            _lastRenderedFrameTime = time;
 
             // 计算时间增量（以秒为单位）
             const deltaTime = Math.min((time - lastTime) / 1000, 0.1); // 限制最大帧时间，防止大延迟
@@ -12104,6 +12112,7 @@
                     _sc.left = -_sr; _sc.right = _sr; _sc.top = _sr; _sc.bottom = -_sr;
                     _sc.updateProjectionMatrix();
                 }
+                if (_visualFrame % 6 === 0) renderer.shadowMap.needsUpdate = true;
             }
 
             // ── 喷泉动画（水花弹跳 + 涟漪扩散）──
@@ -12217,7 +12226,12 @@
                 // 路灯真实点光源（夜间亮起，与光晕同步）
                 if (window._lampPointLights) {
                     var _lampInt = (_indoorsForGlow ? 0 : Math.max(0, 1 - _df * 2.8) * 1.35);
-                    window._lampPointLights.forEach(function(pl){ pl.intensity = _lampInt; });
+                    window._lampPointLights.forEach(function(pl){
+                        const dx = soldier ? pl.position.x - soldier.position.x : 0;
+                        const dz = soldier ? pl.position.z - soldier.position.z : 0;
+                        pl.visible = window._gfxTier === 'high' && _lampInt > 0.04 && dx*dx + dz*dz < 900;
+                        pl.intensity = pl.visible ? _lampInt : 0;
+                    });
                 }
                 // 路灯地面光池（夜间亮起，模拟灯光照到地面）
                 if (window._lampPools) {
@@ -12229,7 +12243,12 @@
             if ((_visualFrame % 4 === 0) && window._fieldFloodlights) {
                 var _ffd=window._dayFactor!=null?window._dayFactor:0;
                 var _fInt=Math.max(0,1-_ffd*3.5)*1.8;
-                window._fieldFloodlights.forEach(function(fl){ fl.intensity=_fInt; });
+                window._fieldFloodlights.forEach(function(fl){
+                    const dx = soldier ? fl.position.x - soldier.position.x : 0;
+                    const dz = soldier ? fl.position.z - soldier.position.z : 0;
+                    fl.visible = window._gfxTier === 'high' && _fInt > 0.04 && dx*dx + dz*dz < 10000;
+                    fl.intensity = fl.visible ? _fInt : 0;
+                });
             }
 
             // ── 雨天地面湿润反光（天空色 + 轻微涟漪闪烁）──
@@ -15123,8 +15142,10 @@
                 group.add(model);
                 if (gltf.animations && gltf.animations.length) {
                     const mixer = new THREE.AnimationMixer(model);
-                    const idle = gltf.animations.find(clip => /idle|stand|talk/i.test(clip.name)) || gltf.animations[0];
-                    mixer.clipAction(idle).play();
+                    const lecture = gltf.animations.find(clip => /talk_relaxed/i.test(clip.name))
+                        || gltf.animations.find(clip => /talk|idle|stand/i.test(clip.name))
+                        || gltf.animations[0];
+                    mixer.clipAction(lecture).play();
                     group.userData.mixer = mixer;
                 }
                 console.log('✅ AI导览老师已加载独立GLB模型');

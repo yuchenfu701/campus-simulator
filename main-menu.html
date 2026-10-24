@@ -708,6 +708,115 @@
             .mobile-bottom-nav{display:block;}
             body{padding-bottom:72px;}
         }
+
+        /* 校园主菜单：把旧的霓虹网格改为安静、清晰的校园展厅。 */
+        :root{
+            --orange:#d8a75b;
+            --orange-dim:rgba(216,167,91,.35);
+            --cyan:#8ac6bd;
+            --cyan-dim:rgba(138,198,189,.24);
+            --purple:#8795b7;
+            --bg:#101b28;
+            --panel:rgba(15,28,41,.84);
+            --border:rgba(225,222,204,.16);
+            --text-hi:#f7f4e9;
+            --text-mid:rgba(247,244,233,.76);
+            --text-lo:rgba(247,244,233,.48);
+        }
+        html,body{
+            background:#101b28;
+            color:var(--text-hi);
+        }
+        #bgCanvas{
+            background:
+                radial-gradient(ellipse at 54% 25%,rgba(218,184,118,.16),transparent 43%),
+                linear-gradient(155deg,#152b37 0%,#122231 52%,#0d1724 100%);
+        }
+        .scanlines{display:none;}
+        .vignette{background:linear-gradient(90deg,rgba(8,18,28,.25),transparent 32%,transparent 68%,rgba(8,18,28,.25));}
+        .layout{grid-template-columns:260px minmax(0,1fr) 280px;grid-template-rows:76px minmax(0,1fr) 94px;}
+        .topbar,.bottom-bar,.left-nav,.right-panel{backdrop-filter:blur(10px);}
+        .topbar{background:rgba(12,25,38,.88);padding:0 26px;}
+        .logo-badge,.nav-avatar{
+            background:linear-gradient(145deg,#38665f,#1c4748);
+            border-color:rgba(156,214,192,.35);
+            box-shadow:0 8px 24px rgba(0,0,0,.18);
+        }
+        .logo-name{font-size:17px;letter-spacing:.06em;text-shadow:none;}
+        .logo-sub{color:var(--text-lo);letter-spacing:.12em;}
+        .season-tag{background:rgba(218,167,91,.10);border-color:rgba(218,167,91,.24);color:#e8c98e;}
+        .left-nav,.right-panel{background:rgba(12,26,38,.79);}
+        .left-nav{padding:14px 0;}
+        .nav-item{margin:2px 0;border:1px solid transparent;padding:10px 14px;}
+        .nav-item:hover{padding-left:14px;background:rgba(138,198,189,.10);border-color:rgba(138,198,189,.19);}
+        .nav-item::before{background:#9ac8b7;}
+        .nav-icon{background:rgba(240,234,210,.06);border-color:rgba(240,234,210,.10);}
+        .nav-tag{background:#315c58;color:#e5faf1;}
+        .nav-tag.new{background:#35695d;}
+        .center-area{
+            background:
+                radial-gradient(ellipse at 50% 75%,rgba(173,190,181,.10),transparent 42%),
+                linear-gradient(180deg,rgba(33,63,69,.58),rgba(16,30,43,.18) 50%,rgba(10,20,31,.90));
+        }
+        .center-area::before{
+            content:'';position:absolute;inset:13px;
+            border:1px solid rgba(239,232,206,.14);border-radius:20px;
+            pointer-events:none;z-index:2;
+        }
+        .center-area::after{
+            content:'';position:absolute;left:50%;bottom:58px;transform:translateX(-50%);
+            width:min(70%,500px);height:78px;
+            background:radial-gradient(ellipse,rgba(213,191,145,.18),transparent 70%);
+            pointer-events:none;
+        }
+        .center-overlay::before{background:linear-gradient(to bottom,rgba(13,28,40,.35),transparent);}
+        .center-overlay::after{background:linear-gradient(to top,#0e1b2a 0%,transparent 100%);}
+        .center-title{
+            left:46px;top:42px;transform:none;
+            max-width:360px;font-size:clamp(23px,3vw,38px);
+            line-height:1.2;letter-spacing:.05em;font-weight:750;
+            color:#f6f3e8;text-transform:none;text-shadow:0 2px 15px rgba(0,0,0,.3);
+        }
+        .center-title::before{
+            content:'欢迎来到爱哲校园';display:block;
+            font-size:11px;line-height:1.8;letter-spacing:.24em;
+            color:#b9d9cf;margin-bottom:10px;font-weight:600;
+        }
+        .center-title::after{
+            content:'探索校园 · 认识老师 · 开始今天的故事';display:block;
+            margin-top:13px;font-size:12px;line-height:1.6;
+            letter-spacing:.04em;font-weight:400;color:rgba(247,244,233,.7);
+        }
+        .char-name{font-size:23px;letter-spacing:.06em;text-shadow:0 2px 12px rgba(0,0,0,.55);}
+        .char-class{color:#b5d9cb;letter-spacing:.19em;text-shadow:none;}
+        .char-plate{left:46px;bottom:38px;transform:none;text-align:left;}
+        .skin-btn{border-color:rgba(255,255,255,.15);background:rgba(21,42,53,.66);}
+        .skin-btn.active{border-color:#b9d9c5;background:rgba(75,126,113,.28);box-shadow:0 0 0 3px rgba(185,217,197,.10);}
+        .rp-card,.stat-cell,.rank-row{background:rgba(238,235,216,.045);border-color:rgba(238,235,216,.10);}
+        .rp-title{color:#d8c39a;letter-spacing:.09em;}
+        .rp-title::before{background:#95beb0;}
+        .stat-val{color:#f1d696;text-shadow:none;}
+        .notice-line{background:rgba(238,235,216,.045);border-left-color:#9dcab5;}
+        .bottom-bar{background:rgba(12,25,38,.92);}
+        .btn-enter,.muc-enter,.party-start-btn{
+            background:linear-gradient(125deg,#c5aa72,#e3c98e);
+            color:#192c33;box-shadow:0 8px 30px rgba(0,0,0,.22);
+        }
+        .btn-enter:hover{box-shadow:0 12px 34px rgba(0,0,0,.27);}
+        .bottom-bar > .btn-main:not(.btn-enter){background:rgba(138,198,189,.12)!important;border:1px solid rgba(138,198,189,.25)!important;color:#d4eee1!important;}
+        .btn-logout{background:rgba(242,238,218,.07);color:var(--text-mid);}
+        .avatar-big{background:linear-gradient(145deg,rgba(70,110,102,.5),rgba(31,60,66,.4));border-color:rgba(174,218,198,.3);box-shadow:none;}
+        .avatar-edit{background:rgba(138,198,189,.10);border-color:rgba(138,198,189,.28);}
+        @media(max-width:1100px){.layout{grid-template-columns:225px minmax(0,1fr) 245px;}}
+        @media(max-width:900px){
+            .layout{grid-template-columns:1fr;grid-template-rows:56px minmax(0,1fr) auto;}
+            .center-title{left:25px;top:80px;font-size:23px;max-width:230px;}
+            .center-title::after{font-size:10px;max-width:220px;}
+            .char-plate{left:24px;bottom:80px;transform:none;text-align:left;}
+            .center-area::before{inset:6px;border-radius:14px;}
+            .mobile-bottom-nav{background:rgba(12,25,38,.97);border-top-color:var(--border);}
+            .mobile-user-card{background:rgba(12,25,38,.9);border-color:var(--border);}
+        }
     </style>
 </head>
 <body>
@@ -827,10 +936,10 @@
             </div>
             <button class="muc-enter" onclick="startGame()">▶ 进入游戏</button>
         </div>
-        <div class="center-title">操作员</div>
+        <div class="center-title">今天，校园见</div>
         <div class="char-plate">
             <div class="char-name" id="charDisplayName">玩家</div>
-            <div class="char-class">CAMPUS OPERATOR</div>
+            <div class="char-class">校园学生 · 我的角色</div>
         </div>
         <!-- party member cards rendered here -->
         <div class="party-members-row" id="partyMembersRow"></div>
@@ -1002,58 +1111,7 @@
 <script src="js/api-client.js"></script>
 <script src="js/message-notifier.js"></script>
 <script>
-/* ═══════════════════════════════════════
-   BACKGROUND CANVAS (animated grid + particles)
-═══════════════════════════════════════ */
-(function initBg(){
-    const canvas = document.getElementById('bgCanvas');
-    const ctx = canvas.getContext('2d');
-    let W,H;
-    function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}
-    resize(); window.addEventListener('resize',resize);
-
-    // grid lines
-    function drawGrid(){
-        ctx.save();
-        ctx.strokeStyle='rgba(249,115,22,.06)';
-        ctx.lineWidth=1;
-        const sz=60;
-        for(let x=0;x<W;x+=sz){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-        for(let y=0;y<H;y+=sz){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-        ctx.restore();
-    }
-
-    // particles
-    const PTS=[];
-    for(let i=0;i<80;i++) PTS.push({
-        x:Math.random()*2000, y:Math.random()*1200,
-        r:Math.random()*1.5+.3,
-        vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
-        a:Math.random()*.5+.1
-    });
-
-    function animBg(){
-        ctx.clearRect(0,0,W,H);
-        // deep bg
-        const grd=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,Math.max(W,H)*.7);
-        grd.addColorStop(0,'#0d1428'); grd.addColorStop(1,'#070b17');
-        ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
-
-        drawGrid();
-
-        // particles
-        PTS.forEach(p=>{
-            p.x+=p.vx; p.y+=p.vy;
-            if(p.x<0)p.x=W; if(p.x>W)p.x=0;
-            if(p.y<0)p.y=H; if(p.y>H)p.y=0;
-            ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-            ctx.fillStyle=`rgba(249,115,22,${p.a})`;ctx.fill();
-        });
-
-        requestAnimationFrame(animBg);
-    }
-    animBg();
-})();
+// 背景交给 CSS 绘制，避免整屏 Canvas 与角色预览同时持续刷新。
 
 window.setSkin=function(i){
     if(window._vrmMode) return;
@@ -1072,9 +1130,10 @@ import * as THREE from './js/three.module.min.js';
 const canvas = document.getElementById('charCanvas');
 if(!canvas) throw new Error('charCanvas not found');
 
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'high-performance'});
+// 主菜单只是角色预览，不需要按 2x DPR 连续渲染整块屏幕。
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
@@ -1090,7 +1149,7 @@ camera.lookAt(0, 1.0, 0);
 const ambientLight = new THREE.AmbientLight(0xfff5e0, 1.2);
 scene.add(ambientLight);
 const main = new THREE.DirectionalLight(0xffffff, 1.8);
-main.position.set(2,6,4); main.castShadow=true; scene.add(main);
+main.position.set(2,6,4); main.castShadow=false; scene.add(main);
 const rim = new THREE.DirectionalLight(0x8b5cf6, 0.8);
 rim.position.set(-3,3,-2); scene.add(rim);
 const fill = new THREE.DirectionalLight(0x93c5fd, 0.6);
@@ -1103,16 +1162,19 @@ const ring = new THREE.Mesh(
     new THREE.MeshBasicMaterial({color:0x818cf8,transparent:true,opacity:.3,side:THREE.DoubleSide})
 );
 ring.rotation.x=-Math.PI/2; scene.add(ring);
+ring.visible=false;
 const ring2 = new THREE.Mesh(
     new THREE.RingGeometry(.55,.72,64),
     new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.25,side:THREE.DoubleSide})
 );
 ring2.rotation.x=-Math.PI/2; ring2.position.y=.01; scene.add(ring2);
+ring2.visible=false;
 const platform = new THREE.Mesh(
     new THREE.CylinderGeometry(1.8,1.8,.02,64),
     new THREE.MeshStandardMaterial({color:0x0d1428,roughness:1})
 );
 platform.position.y=-.01; platform.receiveShadow=true; scene.add(platform);
+platform.visible=false;
 
 function resize(){
     const parent = canvas.parentElement;
@@ -1322,8 +1384,12 @@ let t=0, mx=0, my=0;
 let _idleT=0; // 基于delta的真实时间，用于待机动画频率计算
 let _vrmBaseRotY=0; // VRM0.x加载后scene.rotation.y=π，VRM1.0保持0；需叠加鼠标偏移
 document.addEventListener('mousemove', e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
-(function tick(){
+let _menuLastFrame = 0;
+(function tick(now){
     requestAnimationFrame(tick);
+    if(document.hidden){ clock.getDelta(); return; }
+    if(_menuLastFrame && now - _menuLastFrame < 30) return;
+    _menuLastFrame = now;
     const delta=clock.getDelta();
     t+=.01;
     _idleT+=delta;
