@@ -817,6 +817,45 @@
             .mobile-bottom-nav{background:rgba(12,25,38,.97);border-top-color:var(--border);}
             .mobile-user-card{background:rgba(12,25,38,.9);border-color:var(--border);}
         }
+        /* 首页结构：上方品牌栏，中间故事入口与角色，底部校园功能区。 */
+        @media(min-width:901px){
+            .layout{grid-template-columns:minmax(0,1fr) 272px;grid-template-rows:70px minmax(0,1fr) 146px;}
+            .topbar{grid-column:1/-1;grid-row:1;padding:0 clamp(24px,3vw,54px);}
+            .season-tag{margin-left:auto;margin-right:20px;}
+            .center-area{grid-column:1;grid-row:2;background:radial-gradient(ellipse at 74% 60%,rgba(155,188,171,.16),transparent 42%),linear-gradient(120deg,#142936,#1b343c 55%,#101f2e);}
+            .center-area::before{inset:18px;border-radius:18px;}
+            .center-area::after{left:73%;bottom:36px;width:45%;}
+            .character-stage{position:absolute;inset:0 0 0 43%;pointer-events:none;}
+            #charCanvas{position:absolute;inset:0;width:100%;height:100%;}
+            .center-overlay{left:0;}
+            .center-title{left:clamp(38px,4vw,78px);top:clamp(48px,11vh,132px);max-width:440px;font-size:clamp(38px,4.1vw,68px);line-height:1.15;letter-spacing:.02em;}
+            .center-title::before{font-size:12px;letter-spacing:.28em;margin-bottom:22px;}
+            .center-title::after{font-size:15px;max-width:350px;margin-top:25px;line-height:1.8;}
+            .char-plate{left:auto;right:46px;bottom:36px;transform:none;text-align:right;white-space:nowrap;}
+            .skin-row{left:73%;bottom:28px;}
+            .party-members-row{left:56%;}
+            .bottom-bar{grid-column:1;grid-row:2;z-index:5;align-self:end;justify-self:start;width:auto;height:auto;margin:0 0 58px clamp(38px,4vw,78px);padding:0;display:flex;flex-wrap:wrap;gap:12px;background:none;border:none;box-shadow:none;}
+            .bottom-bar .btn-enter{order:-1;min-width:190px;min-height:56px;font-size:17px;}
+            .bottom-bar .btn-main:not(.btn-enter),.bottom-bar .btn-logout{min-height:56px;padding:0 20px;}
+            .bottom-bar .btn-logout{order:3;}
+            .left-nav{grid-column:1/-1;grid-row:3;padding:0;border-right:none;border-top:1px solid var(--border);background:rgba(9,23,34,.96);}
+            .nav-user{display:none;}
+            .nav-list{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(2,58px);gap:7px;padding:11px clamp(16px,3vw,48px);overflow:visible;}
+            .nav-item{height:58px;margin:0;padding:7px 10px;gap:8px;border:1px solid rgba(238,235,216,.11);background:rgba(238,235,216,.045);border-radius:10px;}
+            .nav-item:hover{padding-left:10px;transform:translateY(-2px);}
+            .nav-icon{width:30px;height:30px;font-size:16px;}
+            .nav-label{font-size:12px;white-space:nowrap;}
+            .nav-tag,.nav-sep{display:none;}
+            .right-panel{grid-column:2;grid-row:2;padding:18px 12px;overflow-y:auto;border-left:1px solid var(--border);border-right:none;}
+        }
+        @media(min-width:901px) and (max-width:1180px){
+            .layout{grid-template-columns:minmax(0,1fr) 225px;}
+            .center-title{font-size:clamp(32px,3.7vw,48px);max-width:340px;}
+            .center-title::after{font-size:12px;max-width:270px;}
+            .character-stage{left:46%;}
+            .nav-label{font-size:11px;}
+        }
+        @media(max-width:900px){.character-stage{position:absolute;inset:0;pointer-events:none;}}
     </style>
 </head>
 <body>
@@ -925,7 +964,7 @@
 
     <!-- ═══ CENTER (3D CHARACTER) ═══ -->
     <div class="center-area">
-        <canvas id="charCanvas"></canvas>
+        <div class="character-stage"><canvas id="charCanvas"></canvas></div>
         <div class="center-overlay"></div>
         <!-- 手机专用用户名片（左面板隐藏时显示） -->
         <div class="mobile-user-card" id="mobileUserCard">
@@ -1293,7 +1332,7 @@ function reloadCharacter(){
     if(!vrmFile){
         const _eq = JSON.parse(localStorage.getItem('campus_equipped')||'{}');
         const _skin = _eq.skin || 'skin_vrm_girl'; // getEquippedSkin 的默认值
-        const _DEF_VRM = { skin_vrm_girl:'角色建模/女生.vrm', skin_vrm_boy:'角色建模/男的.vrm' };
+        const _DEF_VRM = { skin_vrm_girl:'assets/models/student-girl-lite.vrm', skin_vrm_boy:'assets/models/student-boy-lite.vrm' };
         if(_DEF_VRM[_skin]){
             vrmFile = _DEF_VRM[_skin];
             localStorage.setItem('equipped_vrm_file', vrmFile);
@@ -1302,6 +1341,7 @@ function reloadCharacter(){
         }
     }
     if(vrmFile){
+        vrmFile = ({'角色建模/女生.vrm':'assets/models/student-girl-lite.vrm','角色建模/男的.vrm':'assets/models/student-boy-lite.vrm'})[vrmFile] || vrmFile;
         window._vrmMode = true;
         if(skinRowEl) skinRowEl.style.display='none';
         import('./js/GLTFLoader.js').then(({GLTFLoader}) =>
@@ -1427,12 +1467,12 @@ let _menuLastFrame = 0;
             // 头部点头：两频叠加，偶尔低头
             const headNod    = Math.sin(it * 0.57 + 1.2) * 0.04 + Math.sin(it * 0.19 + 0.7) * 0.025;
             // 手臂微漂 + 肩部前后滚（不对称）
-            const armDL      = Math.sin(it * 0.45 + 0.8) * 0.07;
-            const armDR      = Math.sin(it * 0.38) * 0.07;
-            const shoulderFB = Math.sin(it * 0.33 + 0.5) * 0.04;
+            const armDL      = Math.sin(it * 0.45 + 0.8) * 0.018;
+            const armDR      = Math.sin(it * 0.38) * 0.018;
+            const shoulderFB = Math.sin(it * 0.33 + 0.5) * 0.012;
             // 小臂/腕微扭
-            const wristL     = Math.sin(it * 0.62 + 1.0) * 0.03;
-            const wristR     = Math.sin(it * 0.55 + 2.0) * 0.03;
+            const wristL     = Math.sin(it * 0.62 + 1.0) * 0.009;
+            const wristR     = Math.sin(it * 0.55 + 2.0) * 0.009;
             // 脊柱晃动 + 骨盆侧摇
             const spineLean  = 0.05 + Math.sin(it * 0.44 + 0.3) * 0.018;
             const hipSway    = Math.sin(it * 0.52 + 1.5) * 0.015;
@@ -1440,11 +1480,11 @@ let _menuLastFrame = 0;
             // 手臂：自然垂下 + 微漂 + 肩部前后 + 呼吸
             // _menuVrmArmSign: VRM0.x=-1（rz正=垂手），VRM1.x=+1（rz负=垂手）
             const _as = window._menuVrmArmSign || 1;
-            if(lArm){ lArm.rotation.z=_as*(-1.0)+armDL; lArm.rotation.x=-0.04+breath*0.3+shoulderFB; }
-            if(rArm){ rArm.rotation.z=_as*( 1.0)-armDR; rArm.rotation.x=-0.04+breath*0.3-shoulderFB; }
+            if(lArm){ lArm.rotation.z=_as*(-1.28)+armDL; lArm.rotation.x=-0.03+breath*0.12+shoulderFB; }
+            if(rArm){ rArm.rotation.z=_as*( 1.28)-armDR; rArm.rotation.x=-0.03+breath*0.12-shoulderFB; }
             // 小臂：弯曲 + 腕部微扭
-            if(lFa){ lFa.rotation.z=_as*(-0.15)+armDL*0.25; lFa.rotation.x=0.08+wristL; lFa.rotation.y=wristL*0.5; }
-            if(rFa){ rFa.rotation.z=_as*( 0.15)-armDR*0.25; rFa.rotation.x=0.08+wristR; rFa.rotation.y=-wristR*0.5; }
+            if(lFa){ lFa.rotation.z=_as*(-0.08)+armDL*0.2; lFa.rotation.x=0.025+wristL; lFa.rotation.y=wristL*0.5; }
+            if(rFa){ rFa.rotation.z=_as*( 0.08)-armDR*0.2; rFa.rotation.x=0.025+wristR; rFa.rotation.y=-wristR*0.5; }
             // 头部：张望 + 鼠标 + 低头
             if(head){ head.rotation.y=headTurn; head.rotation.x=headNod-0.05; }
             if(neck){ neck.rotation.y=headTurn*0.35; neck.rotation.x=headNod*0.3; }

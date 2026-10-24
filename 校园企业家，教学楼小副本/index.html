@@ -1110,7 +1110,8 @@
         const SUN_ORBIT_R = 600;
         // URL 可带 ?time=18.5&weather=clear，便于展会预设画面与逐时段实机验收。
         const _launchParams = new URLSearchParams(window.location.search);
-        const _launchHour = Number(_launchParams.get('time'));
+        const _timeParam = _launchParams.get('time');
+        const _launchHour = _timeParam === null ? NaN : Number(_timeParam);
         const _freezeLaunchTime = _launchParams.get('freezeTime') === '1';
         let gameTime = Number.isFinite(_launchHour)
             ? (((Math.max(0, Math.min(23.999, _launchHour))) / 24) % 1)
@@ -1118,6 +1119,7 @@
         let totalSimulatedDays = 12.4; // 累计游戏日（朔望月周期用，与 gameTime 日循环独立）
         let _starsInst = null;
         let _moonMesh = null;
+        let _moonSourceImage = null;
         let _moonPhaseCanvas = null;
         let _moonPhaseTex = null;
         let _lastMoonPhaseDraw = -999;
@@ -1156,11 +1158,14 @@
             if (!_moonPhaseCanvas || !_moonPhaseTex) return;
             const ctx = _moonPhaseCanvas.getContext('2d');
             const w = _moonPhaseCanvas.width, h = _moonPhaseCanvas.height;
-            const cx = w * 0.5, cy = h * 0.5, R = w * 0.40;
+            const cx = w * 0.5, cy = h * 0.5, R = w * 0.455;
             const ang = ((phase % 1) + 1) % 1 * Math.PI * 2;
             // 不要用整幅深蓝底：CircleGeometry 外缘 UV 会采到画布四角，游戏里会看到一圈「蓝边」
             ctx.clearRect(0, 0, w, h);
             ctx.globalCompositeOperation = 'source-over';
+            if (_moonSourceImage && _moonSourceImage.complete && _moonSourceImage.naturalWidth) {
+                ctx.drawImage(_moonSourceImage, 0, 0, w, h);
+            } else {
             const grd = ctx.createRadialGradient(cx - R * 0.26, cy - R * 0.22, R * 0.05, cx, cy, R);
             grd.addColorStop(0, '#fffaf0');
             grd.addColorStop(0.34, '#d8d6cf');
@@ -1198,6 +1203,7 @@
             ctx.beginPath();
             ctx.ellipse(cx + R * 0.28, cy - R * 0.18, R * 0.22, R * 0.2, -0.2, 0, Math.PI * 2);
             ctx.fill();
+            }
             ctx.globalCompositeOperation = 'destination-out';
             ctx.beginPath();
             ctx.arc(cx - R * (1 - Math.cos(ang)), cy, R + 1.5, 0, Math.PI * 2);
@@ -6107,40 +6113,56 @@
             if (!_moonPhaseTex) {
             // ── 月亮（月相纹理，昼夜与朔望月系统更新） ──
             _moonPhaseCanvas = document.createElement('canvas');
-            _moonPhaseCanvas.width = _moonPhaseCanvas.height = 256;
+            _moonPhaseCanvas.width = _moonPhaseCanvas.height = 512;
             _moonPhaseTex = new THREE.CanvasTexture(_moonPhaseCanvas);
             _moonPhaseTex.wrapS = _moonPhaseTex.wrapT = THREE.ClampToEdgeWrapping;
             if (THREE.SRGBColorSpace) _moonPhaseTex.colorSpace = THREE.SRGBColorSpace;
+            _moonSourceImage = new Image();
+            _moonSourceImage.onload = function(){
+                const phase = ((totalSimulatedDays % LUNAR_SYNODIC_DAYS) + LUNAR_SYNODIC_DAYS) % LUNAR_SYNODIC_DAYS / LUNAR_SYNODIC_DAYS;
+                paintMoonPhaseTexture(phase);
+            };
+            _moonSourceImage.src = '../assets/models/moon-nasa-disc.png';
             if (_moonMesh) { scene.remove(_moonMesh); _moonMesh = null; }
             _moonMesh = new THREE.Group();
-            const moonGlow = new THREE.Mesh(
-                new THREE.CircleGeometry(18.5, 64),
-                new THREE.MeshBasicMaterial({
-                    color: 0xc9dcff,
+            _moonMesh.renderOrder = 3;
+            const glowCanvas = document.createElement('canvas');
+            glowCanvas.width = glowCanvas.height = 128;
+            const glowCtx = glowCanvas.getContext('2d');
+            const halo = glowCtx.createRadialGradient(64, 64, 29, 64, 64, 64);
+            halo.addColorStop(0, 'rgba(188,210,245,0.32)');
+            halo.addColorStop(0.58, 'rgba(150,186,235,0.11)');
+            halo.addColorStop(1, 'rgba(150,186,235,0)');
+            glowCtx.fillStyle = halo; glowCtx.fillRect(0,0,128,128);
+            const moonGlow = new THREE.Sprite(
+                new THREE.SpriteMaterial({
+                    map: new THREE.CanvasTexture(glowCanvas),
                     transparent: true,
-                    opacity: 0.18,
                     blending: THREE.AdditiveBlending,
                     depthWrite: false,
+                    depthTest: true,
                     fog: false,
-                    side: THREE.DoubleSide
                 })
             );
+            moonGlow.scale.set(43,43,1);
+            moonGlow.renderOrder = 2;
             _moonMesh.add(moonGlow);
-            const moonDisc = new THREE.Mesh(
-                new THREE.CircleGeometry(13, 56),
-                new THREE.MeshBasicMaterial({
+            const moonDisc = new THREE.Sprite(
+                new THREE.SpriteMaterial({
                     map: _moonPhaseTex,
                     transparent: true,
                     alphaTest: 0.08,
                     depthWrite: false,
+                    depthTest: true,
                     fog: false,
-                    side: THREE.DoubleSide
                 })
             );
+            moonDisc.scale.set(34,34,1);
+            moonDisc.renderOrder = 4;
             _moonMesh.add(moonDisc);
             _moonMesh.userData.disc = moonDisc;
             _moonMesh.userData.glow = moonGlow;
-            _moonMesh.position.set(80, 65, -120);
+            _moonMesh.position.set(70, 170, -320);
             _moonMesh.visible = false;
             scene.add(_moonMesh);
             let lp0 = (totalSimulatedDays % LUNAR_SYNODIC_DAYS) / LUNAR_SYNODIC_DAYS;
@@ -6227,23 +6249,30 @@
                     uniforms: {
                         topColor:     { value: new THREE.Color(0.02, 0.03, 0.10) },
                         horizonColor: { value: new THREE.Color(0.04, 0.06, 0.14) },
-                        nightMix:     { value: 1.0 }
+                        nightMix:     { value: 1.0 },
+                        galaxyMap:    { value: null },
+                        galaxyReady:  { value: 0.0 }
                     },
                     vertexShader: [
                         'varying float vH;',
                         'varying vec3 vSkyDir;',
+                        'varying vec2 vUvSky;',
                         'void main(){',
                         '  vH=normalize(position).y;',
                         '  vSkyDir=normalize(position);',
+                        '  vUvSky=uv;',
                         '  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);',
                         '}'
                     ].join('\n'),
                     fragmentShader: [
                         'varying float vH;',
                         'varying vec3 vSkyDir;',
+                        'varying vec2 vUvSky;',
                         'uniform vec3 topColor;',
                         'uniform vec3 horizonColor;',
                         'uniform float nightMix;',
+                        'uniform sampler2D galaxyMap;',
+                        'uniform float galaxyReady;',
                         'float hash21(vec2 p){',
                         '  p=fract(p*vec2(123.34,456.21));',
                         '  p+=dot(p,p+45.32);',
@@ -6262,7 +6291,11 @@
                         '  float band=exp(-pow(latitude/0.13,2.0))*smoothstep(0.0,0.22,t);',
                         '  vec2 p=vec2(dir.x+dir.z*0.37,dir.y-dir.z*0.61);',
                         '  float dust=0.55*noise21(p*18.0)+0.30*noise21(p*43.0)+0.15*noise21(p*95.0);',
-                        '  vec3 galaxy=vec3(0.10,0.13,0.23)*band*(0.25+0.75*dust);',
+                        '  vec3 fallbackGalaxy=vec3(0.10,0.13,0.23)*band*(0.25+0.75*dust);',
+                        '  vec3 photo=texture2D(galaxyMap,vUvSky).rgb;',
+                        '  vec3 mappedGalaxy=max(photo-vec3(0.105),vec3(0.0))*1.05;',
+                        '  mappedGalaxy*=smoothstep(-0.04,0.15,dir.y);',
+                        '  vec3 galaxy=mix(fallbackGalaxy,mappedGalaxy,galaxyReady);',
                         '  gl_FragColor=vec4(base+galaxy*nightMix,1.0);',
                         '}'
                     ].join('\n'),
@@ -6278,6 +6311,14 @@
                 _sdome.frustumCulled = false;
                 scene.add(_sdome);
                 window._skyDome = _sdome;
+                new THREE.TextureLoader().load('../assets/models/milkyway-nasa-2k.jpg', function(tex){
+                    if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+                    else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+                    tex.wrapS = THREE.RepeatWrapping;
+                    tex.needsUpdate = true;
+                    _smat.uniforms.galaxyMap.value = tex;
+                    _smat.uniforms.galaxyReady.value = 1;
+                });
             }
 
             // ── 喷泉水体 + 涟漪动画元素（每次都重建，不受缓存影响；石质结构在 skipMergedExtras 后的 addFountain 中）──
@@ -6830,8 +6871,20 @@
         // Canvas 纹理工厂（一次生成，全局缓存，供所有建筑复用）
         // ══════════════════════════════════════════════════════════════════════
         function buildDetailTextures() {
-            if (window._dtex && window._dtex._buildId === 'tex20') return window._dtex;
+            if (window._dtex && window._dtex._buildId === 'tex21') return window._dtex;
             const T = {};
+            { const cv=document.createElement('canvas');cv.width=cv.height=128;
+              const c=cv.getContext('2d'), pixels=c.createImageData(128,128);
+              for(let i=0;i<128*128;i++){
+                  const x=i%128,y=Math.floor(i/128),g=Math.sin(x*17.7+y*61.3)*43758.5453;
+                  const n=g-Math.floor(g),shade=Math.round(242+(n-0.5)*15-(y%32===0?7:0));
+                  pixels.data[i*4]=shade;pixels.data[i*4+1]=shade;pixels.data[i*4+2]=Math.min(255,shade+2);pixels.data[i*4+3]=255;
+              }
+              c.putImageData(pixels,0,0);
+              T.facade=new THREE.CanvasTexture(cv);
+              T.facade.wrapS=T.facade.wrapT=THREE.RepeatWrapping;
+              T.facade.repeat.set(3,1);
+            }
 
             // ── 1. 外墙砖墙纹理 ──
             { const cv=document.createElement('canvas'); cv.width=512; cv.height=256;
@@ -7147,7 +7200,7 @@
                 });
             } catch(e) {}
 
-            T._buildId = 'tex20'; // tex20：各向异性过滤
+            T._buildId = 'tex21'; // tex21：新增可缓存的教学楼混凝土肌理
             window._dtex = T;
             return T;
         }
@@ -7166,6 +7219,8 @@
                 const tier=window._gfxTier||'medium';
                 const count=tier==='high'?2600:(tier==='medium'?1800:1000);
                 const pos=new Float32Array(count*3);
+                const phases=new Float32Array(count);
+                const sizes=new Float32Array(count);
                 for(let i=0;i<count;i++){
                     const a=Math.random()*Math.PI*2;
                     const h=0.04+Math.random()*0.96;
@@ -7173,17 +7228,18 @@
                     pos[i*3]=Math.cos(a)*r;
                     pos[i*3+1]=h*440;
                     pos[i*3+2]=Math.sin(a)*r;
+                    phases[i]=Math.random()*Math.PI*2;
+                    sizes[i]=1.5+Math.random()*2.0;
                 }
                 const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-                const sprite=document.createElement('canvas'); sprite.width=sprite.height=32;
-                const ctx=sprite.getContext('2d');
-                const glow=ctx.createRadialGradient(16,16,0,16,16,16);
-                glow.addColorStop(0,'rgba(255,255,255,1)');
-                glow.addColorStop(0.24,'rgba(235,244,255,0.95)');
-                glow.addColorStop(0.55,'rgba(205,225,255,0.25)');
-                glow.addColorStop(1,'rgba(205,225,255,0)');
-                ctx.fillStyle=glow; ctx.fillRect(0,0,32,32);
-                const mat=new THREE.PointsMaterial({color:0xe4edff,map:new THREE.CanvasTexture(sprite),size:2.4,sizeAttenuation:false,transparent:true,opacity:0.9,depthWrite:false,fog:false});
+                geo.setAttribute('twinklePhase',new THREE.BufferAttribute(phases,1));
+                geo.setAttribute('starSize',new THREE.BufferAttribute(sizes,1));
+                const mat=new THREE.ShaderMaterial({
+                    uniforms:{uTime:{value:0},uOpacity:{value:0.9}},
+                    vertexShader:'attribute float twinklePhase; attribute float starSize; varying float vPhase; void main(){ vPhase=twinklePhase; gl_PointSize=starSize; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+                    fragmentShader:'uniform float uTime; uniform float uOpacity; varying float vPhase; void main(){ float edge=1.0-smoothstep(0.10,0.50,length(gl_PointCoord-vec2(0.5))); float twinkle=0.72+0.28*sin(uTime*(0.7+0.15*vPhase)+vPhase); gl_FragColor=vec4(0.87,0.93,1.0,edge*twinkle*uOpacity); }',
+                    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false
+                });
                 const stars=new THREE.Points(geo,mat); stars.visible=false; stars.frustumCulled=false; stars.renderOrder=2; stars._noMerge=true;
                 _starsInst=stars; scene.add(stars);
                 console.log('✨ 轻量细节系统：Points星光×'+count+'（已移除旧楼错位吊顶/空调/压顶砖）');
@@ -7518,7 +7574,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v128'; // v128：合并视觉参数一致的静态材质，减少每帧绘制批次
+        const MAP_VER = 'campus_v129'; // v129：教学楼墙面新材质；旧缓存需重建一次
 
         function _dbOpen(cb) {
             try {
@@ -8533,9 +8589,10 @@
             const zRoomSN=zS-rD, zCorrN=zRoomSN-corrD, zN=zCorrN-rD;
             const depth=zS-zN, zMid=(zS+zN)/2, zCorrMid=(zRoomSN+zCorrN)/2;
             const col=0xc9c5bc, colC=0xe0dbd2, floorC=0xc2bcb0, stairC=0xcac4ba, elevC=0x8c9aa8;
-            // 共享墙面材质(纯净色,不用那张会平铺成斜网格的丑纹理)；共享=可合并提速。精致靠墙裙/踢脚线几何，不靠贴图
+            // 共享的低对比度混凝土肌理，打破大片完全均匀的白模墙面。
             function _wallMat(hex){ return new THREE.MeshLambertMaterial({color:hex}); }
-            const _wmExt=_wallMat(col), _wmInt=_wallMat(colC);
+            const _wmExt=new THREE.MeshLambertMaterial({color:col,map:buildDetailTextures().facade}), _wmInt=_wallMat(colC);
+            _wmExt._cacheTexKey='facade';
             function W(x,y,z,w,h,d,c){ // 竖墙：可视+碰撞。col/colC 用共享带贴图材质(可合并)，其它(楼梯/电梯/洁具)用纯色
                 if(window._skipVisualMesh) return null;
                 const mat=(c===undefined||c===col)?_wmExt:(c===colC?_wmInt:new THREE.MeshLambertMaterial({color:c}));
@@ -8795,8 +8852,13 @@
                 const geo=new THREE.BoxGeometry(2.72,Math.max(1.12,fh-2.42),0.035);
                 const wins=new THREE.InstancedMesh(geo,_winMat,_windowInstances.length);
                 const wm=new THREE.Matrix4();
-                _windowInstances.forEach(function(p,i){wm.makeTranslation(p[0],p[1],p[2]);wins.setMatrixAt(i,wm);});
+                _windowInstances.forEach(function(p,i){
+                    wm.makeTranslation(p[0],p[1],p[2]); wins.setMatrixAt(i,wm);
+                    const shade = 0.78 + ((i * 73 + Math.floor(p[0]) * 17) % 11) / 36;
+                    wins.setColorAt(i,new THREE.Color().setRGB(shade,shade * 0.98,shade * 0.94));
+                });
                 wins.instanceMatrix.needsUpdate=true;wins._noMerge=true;wins.castShadow=false;wins.receiveShadow=false;scene.add(wins);
+                if(wins.instanceColor) wins.instanceColor.needsUpdate=true;
 
                 // 夜间窗户发光必须跟随新版教学楼窗户本身；旧版按 BLDG_Z1/Z2 生成的光片会悬空。
                 const glowGeo=new THREE.PlaneGeometry(2.06,Math.max(0.82,fh-2.92));
@@ -8809,10 +8871,14 @@
                 _windowInstances.forEach(function(p,i){
                     const side = p[2] > zMid ? 1 : -1;
                     gp.set(p[0],p[1],p[2]+side*0.018);
+                    const roomHash = Math.abs(Math.sin((Math.floor(p[0]/3)+1)*31.71 + Math.floor(p[1]/fh)*11.39 + zS*0.17));
+                    gs.setScalar(roomHash > 0.68 ? 1 : 0.001);
                     gm.compose(gp,gq,gs);
                     glows.setMatrixAt(i,gm);
+                    glows.setColorAt(i,new THREE.Color(roomHash > 0.84 ? 0xfff1cc : 0xffcf87));
                 });
                 glows.instanceMatrix.needsUpdate=true;glows._noMerge=true;glows.castShadow=false;glows.receiveShadow=false;glows.renderOrder=2;scene.add(glows);
+                if(glows.instanceColor) glows.instanceColor.needsUpdate=true;
                 window._winGlowMeshes = window._winGlowMeshes || [];
                 window._winGlowMeshes.push(glows);
                 window._winGlowInited = true;
@@ -10258,7 +10324,8 @@
             
             // 优先加载玩家在主菜单装备的VRM模型（使用@pixiv/three-vrm以保证骨骼坐标系一致）
             if (equippedVrmFile && typeof THREE.GLTFLoader !== 'undefined') {
-                const vrmUrl = equippedVrmFile.startsWith('http') ? equippedVrmFile : '../' + equippedVrmFile;
+                const _optimizedVrm = ({'角色建模/女生.vrm':'assets/models/student-girl-lite.vrm','角色建模/男的.vrm':'assets/models/student-boy-lite.vrm'})[equippedVrmFile] || equippedVrmFile;
+                const vrmUrl = _optimizedVrm.startsWith('http') ? _optimizedVrm : '../' + _optimizedVrm;
                 console.log('🔄 尝试加载玩家VRM模型:', vrmUrl);
 
                 // 复用主加载遮罩显示VRM加载进度（防止提前消失并复位显示）
@@ -10357,7 +10424,7 @@
             // 未装备VRM时，优先加载本地男生默认VRM（与女生一致：2x缩放+骨骼动画）
             if (typeof THREE.GLTFLoader !== 'undefined') {
                 const loader = new THREE.GLTFLoader();
-                const defaultMaleVrm = '../角色建模/男的.vrm';
+                const defaultMaleVrm = '../assets/models/student-boy-lite.vrm';
 
                 console.log('🔄 加载默认男生VRM模型:', defaultMaleVrm);
 
@@ -13148,41 +13215,36 @@
             const starsOk = (hour<5.4||hour>19.3) && sunH < -0.08 && !sunDiskUp;
             if (_starsInst) {
                 if (camera) _starsInst.position.copy(camera.position);
+                // 连续的天球旋转：每个游戏日的夜空方向都会变化，白天也照常推进。
+                _starsInst.rotation.y = gameTime * Math.PI * 2 + (totalSimulatedDays - 12.4) * 0.22;
                 _starsInst.visible = starsOk;
                 if (_starsInst.material) {
-                    _starsInst.material.transparent = true;
-                    _starsInst.material.opacity = Math.min(1, Math.max(0.35, (-sunH - 0.06) * 1.85));
+                    _starsInst.material.uniforms.uTime.value = performance.now() * 0.001;
+                    _starsInst.material.uniforms.uOpacity.value = Math.min(1, Math.max(0.35, (-sunH - 0.06) * 1.85));
                 }
             }
+            if (window._skyDome && camera) {
+                window._skyDome.position.copy(camera.position);
+                window._skyDome.rotation.y = gameTime * Math.PI * 2 + (totalSimulatedDays - 12.4) * 0.22;
+            }
             if (_moonMesh) {
-                const moonGm = ((gameTime + 0.5) % 1 + 1) % 1;
-                const mth = getSunAngle(moonGm);
-                const moonH = Math.sin(mth);
-                const moonX = Math.cos(mth) * R;
-                const moonZ = Math.sin(mth) * R + 20;
-                const moonY = Math.max(5, moonH * R * 0.56 + 28);
-                const vis = nightEnough && !sunDiskUp && moonH > -0.28;
+                const nightProgress = ((hour + 6) % 24) / 12;
+                const moonAzimuth = (nightProgress - 0.5) * 1.20 + (totalSimulatedDays - 12.4) * 0.22 - 0.15;
+                const moonDir = new THREE.Vector3(
+                    Math.sin(moonAzimuth) * 0.85,
+                    0.22 + 0.08 * Math.sin(Math.PI * Math.min(1, nightProgress)),
+                    -Math.cos(moonAzimuth) * 0.85
+                ).normalize();
+                let phaseDays = totalSimulatedDays % LUNAR_SYNODIC_DAYS;
+                if (phaseDays < 0) phaseDays += LUNAR_SYNODIC_DAYS;
+                const phase = phaseDays / LUNAR_SYNODIC_DAYS;
+                const illumination = (1 - Math.cos(phase * Math.PI * 2)) * 0.5;
+                const vis = starsOk && illumination > 0.04;
                 _moonMesh.visible = vis;
-                if (_moonMesh.userData.disc) _moonMesh.userData.disc.visible = vis;
-                _moonMesh.position.set(moonX, moonY, moonZ);
-                if (camera && vis) {
-                    const md = Math.hypot(moonX-camera.position.x,moonY-camera.position.y,moonZ-camera.position.z);
-                    const ms = THREE.MathUtils.clamp(md * 0.0108, 0.95, 2.35);
-                    _moonMesh.scale.setScalar(ms);
-                } else {
-                    _moonMesh.scale.setScalar(1);
-                }
-                let lp = totalSimulatedDays % LUNAR_SYNODIC_DAYS;
-                if (lp < 0) lp += LUNAR_SYNODIC_DAYS;
-                lp /= LUNAR_SYNODIC_DAYS;
-                if (Math.abs(lp - _lastMoonPhaseDraw) > 0.0008) {
-                    paintMoonPhaseTexture(lp);
-                    _lastMoonPhaseDraw = lp;
-                }
-                if (_moonMesh.userData.disc && camera) {
-                    _moonMesh.updateMatrixWorld(true);
-                    _moonMesh.userData.disc.lookAt(camera.position);
-                    if (_moonMesh.userData.glow) _moonMesh.userData.glow.lookAt(camera.position);
+                if (camera) _moonMesh.position.copy(camera.position).addScaledVector(moonDir, 340);
+                if (Math.abs(phase - _lastMoonPhaseDraw) > 0.0008) {
+                    paintMoonPhaseTexture(phase);
+                    _lastMoonPhaseDraw = phase;
                 }
             }
             if (_cloudGroup) {
@@ -15151,7 +15213,7 @@
                 console.log('✅ AI导览老师已加载独立GLB模型');
             }
 
-            const teacherUrl = window.CAMPUS_AI_TEACHER_MODEL_URL || '../assets/models/ai-teacher.glb';
+            const teacherUrl = window.CAMPUS_AI_TEACHER_MODEL_URL || '../assets/models/ai-teacher-lite.glb';
             new THREE.GLTFLoader().load(teacherUrl, installTeacherModel, undefined, function(err) {
                 console.warn('独立教师模型尚未导入，导览交互仍可用:', err);
             });
