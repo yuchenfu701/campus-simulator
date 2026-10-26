@@ -1313,6 +1313,15 @@
                 case 'view':
                     toggleView();
                     break;
+                case 'look':
+                    if (args.length >= 1 && Number.isFinite(Number(args[0]))) {
+                        cameraHorizontalAngle = Number(args[0]) * Math.PI / 180;
+                        cameraVerticalAngle = args.length >= 2 && Number.isFinite(Number(args[1]))
+                            ? THREE.MathUtils.clamp(Number(args[1]) * Math.PI / 180, -1.25, 1.25) : 0;
+                        if (soldier) soldier.rotation.y = cameraHorizontalAngle;
+                        updateCameraRotation();
+                    }
+                    break;
                 case 'resetlegs':
                     resetLegs();
                     break;
@@ -1414,6 +1423,7 @@
 <dt><strong>noclip</strong></dt><dd>切换穿墙模式，可穿过建筑碰撞。</dd>
 <dt><strong>mode 1</strong> / <strong>mode 3</strong></dt><dd>强制第一人称 / 第三人称。</dd>
 <dt><strong>camera</strong> / <strong>view</strong></dt><dd>在第一、三人称之间切换（与键盘 <kbd>X</kbd> 类似）。</dd>
+<dt><strong>look</strong> <code>水平角 [仰角]</code></dt><dd>按角度设置视角，例如 <code>look 180 25</code> 转向南方并仰望天空。</dd>
 <dt><strong>reset</strong></dt><dd>回到一楼走廊默认出生点，并清除飞行、穿墙、无敌、速度倍率、昼夜流逝速度等调试项，重置键盘与动画状态。</dd>
 </dl>
 
@@ -6309,7 +6319,7 @@
                         '  float dust=0.55*noise21(p*18.0)+0.30*noise21(p*43.0)+0.15*noise21(p*95.0);',
                         '  vec3 fallbackGalaxy=vec3(0.10,0.13,0.23)*band*(0.25+0.75*dust);',
                         '  vec3 photo=texture2D(galaxyMap,vUvSky).rgb;',
-                        '  vec3 mappedGalaxy=max(photo-vec3(0.105),vec3(0.0))*1.05;',
+                        '  vec3 mappedGalaxy=clamp((photo-vec3(0.055))*1.28,vec3(0.0),vec3(0.68));',
                         '  mappedGalaxy*=smoothstep(-0.04,0.15,dir.y);',
                         '  vec3 galaxy=mix(fallbackGalaxy,mappedGalaxy,galaxyReady);',
                         '  gl_FragColor=vec4(base+galaxy*nightMix,1.0);',
@@ -6603,6 +6613,8 @@
                 window._birdInst=bInst;
             }
 
+            // 远景楼群含实例化窗格，不能从旧的合并几何体缓存还原；每次直接生成。
+            addCitySkyline();
             if (skipMergedExtras) return;
 
             function makeTree(x, z, h, cr, cc) { addLowPolyTree(x, z, h, cr, cc); }
@@ -6682,40 +6694,48 @@
                 addRollingHill(x, z);
             });
 
-            // ── 南侧远景建筑群（校门以南、操场跑道以南留白；幕墙贴图 + 冠顶/基座 + 朝校园立面窗）
+            // ── 南侧远景建筑群：楼体与窗格同批生成，缓存命中时也不会丢失立面。
+            function addCitySkyline() {
             buildDetailTextures();
             const _cf = window._dtex;
             const cityRoofMat = new THREE.MeshLambertMaterial({ color: 0x4e5864, fog: true });
             const cityBaseMat = new THREE.MeshLambertMaterial({ color: 0x6a7482, fog: true });
-            const cityWinMat = new THREE.MeshLambertMaterial({ color: 0x8eaebe, emissive: 0x17232a, transparent: true, opacity: 0.88, fog: true, depthWrite: false, side: THREE.DoubleSide });
+            const cityWinMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: true, side: THREE.DoubleSide });
             const cityWindowMatrices = [];
+            const cityWindowColors = [];
             const cityWindowUnit = new THREE.PlaneGeometry(1, 1);
             function addCityWindow(x, y, z, ry, w, h) {
                 const pos = new THREE.Vector3(x, y, z);
                 const rot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry);
                 cityWindowMatrices.push(new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(w, h, 1)));
+                cityWindowColors.push(new THREE.Color(cityRand() < 0.12 ? 0xbca77e : 0x30465b));
             }
-            for (let k = 0; k < 36; k++) {
-                const bx = -128 + (k % 12) * 22 + Math.random() * 7;
-                const bw = 3.8 + Math.random() * 7.5;
-                const bh = 11 + Math.random() * 40;
-                const bd = 4.2 + Math.random() * 5.5;
-                const bz = 150 + Math.random() * 42;
+            let citySeed = 82719;
+            const cityRand = () => ((citySeed = (1664525 * citySeed + 1013904223) >>> 0) / 4294967296);
+            for (let k = 0; k < 24; k++) {
+                const bx = -132 + (k % 12) * 24 + cityRand() * 5;
+                const bw = 8 + cityRand() * 8;
+                const bh = 13 + cityRand() * 23;
+                const bd = 7 + cityRand() * 7;
+                const bz = 218 + Math.floor(k / 12) * 18 + cityRand() * 7;
                 const podium = 0.5;
                 const facMap = _cf.cityFacade.clone();
                 facMap.repeat.set(Math.max(0.9, bw / 3.8), Math.max(1.1, bh / 9.5));
-                const facMat = new THREE.MeshLambertMaterial({ map: facMap, color: 0xeeeeee, fog: true });
+                const facMat = new THREE.MeshLambertMaterial({ map: facMap, color: 0xc5d1da, fog: true });
                 const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facMat);
                 body.position.set(bx, podium + bh * 0.5, bz);
                 body.castShadow = false;
+                body._noMerge = true;
                 scene.add(body);
                 const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.35, 0.5, bd + 0.35), cityRoofMat);
                 roof.position.set(bx, podium + bh + 0.25, bz);
                 roof.castShadow = false;
+                roof._noMerge = true;
                 scene.add(roof);
                 const base = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.2, podium, bd + 0.15), cityBaseMat);
                 base.position.set(bx, podium * 0.5, bz);
                 base.castShadow = false;
+                base._noMerge = true;
                 scene.add(base);
                 const nZ = bz - bd * 0.5 - 0.06;
                 const cols = Math.max(2, Math.floor(bw / 2.1));
@@ -6729,7 +6749,7 @@
                         const colW = (bw * 0.82) / cols;
                         const wx = bx - bw * 0.41 + (ci + 0.5) * colW;
                         const winW = Math.min(1.42, colW * 0.62);
-                        if (Math.random() > 0.10) {
+                        if (cityRand() > 0.10) {
                             addCityWindow(wx, wy, bz + bd * 0.5 + 0.045, 0, winW, winH);
                             addCityWindow(wx, wy, bz - bd * 0.5 - 0.045, Math.PI, winW, winH);
                         }
@@ -6739,7 +6759,7 @@
                         const sideW = bd / (sideCols + 1);
                         const wz = bz - bd * 0.5 + (ci + 1) * sideW;
                         const winW = Math.min(1.18, sideW * 0.58);
-                        if (Math.random() > 0.10) {
+                        if (cityRand() > 0.10) {
                             addCityWindow(bx + bw * 0.5 + 0.045, wy, wz, Math.PI / 2, winW, winH);
                             addCityWindow(bx - bw * 0.5 - 0.045, wy, wz, -Math.PI / 2, winW, winH);
                         }
@@ -6748,10 +6768,15 @@
             }
             if (cityWindowMatrices.length) {
                 const cityWindows = new THREE.InstancedMesh(cityWindowUnit, cityWinMat, cityWindowMatrices.length);
-                cityWindowMatrices.forEach(function(matrix, i) { cityWindows.setMatrixAt(i, matrix); });
+                cityWindowMatrices.forEach(function(matrix, i) {
+                    cityWindows.setMatrixAt(i, matrix);
+                    cityWindows.setColorAt(i, cityWindowColors[i]);
+                });
                 cityWindows.instanceMatrix.needsUpdate = true;
+                if (cityWindows.instanceColor) cityWindows.instanceColor.needsUpdate = true;
                 cityWindows._noMerge = true;
                 scene.add(cityWindows);
+            }
             }
 
             // ── 远景树林（同近景：二十面体簇 + 略深绿以融雾）──
@@ -6916,7 +6941,7 @@
         // Canvas 纹理工厂（一次生成，全局缓存，供所有建筑复用）
         // ══════════════════════════════════════════════════════════════════════
         function buildDetailTextures() {
-            if (window._dtex && window._dtex._buildId === 'tex21') return window._dtex;
+            if (window._dtex && window._dtex._buildId === 'tex22') return window._dtex;
             const T = {};
             { const cv=document.createElement('canvas');cv.width=cv.height=128;
               const c=cv.getContext('2d'), pixels=c.createImageData(128,128);
@@ -7129,20 +7154,20 @@
             // ── 8b. 远景办公楼幕墙（竖窗 + 层间带，校外剪影楼用）──
             { const cv=document.createElement('canvas'); cv.width=256; cv.height=512;
               const c=cv.getContext('2d');
-              c.fillStyle='#7a8492'; c.fillRect(0,0,256,512);
+              c.fillStyle='#485561'; c.fillRect(0,0,256,512);
               for(let row=0;row<8;row++){
                 const y0=row*64;
-                c.fillStyle='#5d6674'; c.fillRect(0,y0,256,7);
-                c.fillStyle='#8f99a8'; c.fillRect(0,y0+7,256,50);
-                c.fillStyle='#4e5662'; c.fillRect(0,y0+57,256,7);
+                c.fillStyle='#2c3946'; c.fillRect(0,y0,256,7);
+                c.fillStyle='#65717c'; c.fillRect(0,y0+7,256,50);
+                c.fillStyle='#344250'; c.fillRect(0,y0+57,256,7);
                 for(let col=0;col<4;col++){
                   const x=col*64+9, yy=y0+11, w=47, h=34;
                   const g=c.createLinearGradient(x,yy,x+w,yy+h);
-                  g.addColorStop(0,'#d8eef8'); g.addColorStop(0.45,'#a4c4dc'); g.addColorStop(1,'#5f7a94');
+                  g.addColorStop(0,'#738e9d'); g.addColorStop(0.45,'#506b7e'); g.addColorStop(1,'#263d50');
                   c.fillStyle=g; c.fillRect(x,yy,w,h);
                   c.strokeStyle='rgba(30,38,48,0.5)'; c.lineWidth=1;
                   c.strokeRect(x+0.5,yy+0.5,w-1,h-1);
-                  c.fillStyle='rgba(255,255,255,0.28)'; c.fillRect(x+3,yy+3,w*0.14,h*0.38);
+                  c.fillStyle='rgba(220,235,245,0.16)'; c.fillRect(x+3,yy+3,w*0.14,h*0.38);
                 }
               }
               const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; T.cityFacade=t; }
@@ -7245,7 +7270,7 @@
                 });
             } catch(e) {}
 
-            T._buildId = 'tex21'; // tex21：新增可缓存的教学楼混凝土肌理
+            T._buildId = 'tex22'; // tex22：远景楼群改为深色立面
             window._dtex = T;
             return T;
         }
@@ -7619,7 +7644,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v129'; // v129：教学楼墙面新材质；旧缓存需重建一次
+        const MAP_VER = 'campus_v130'; // v130：移除旧缓存中的白模远景楼体
 
         function _dbOpen(cb) {
             try {
@@ -12996,11 +13021,11 @@
         }
         // 银河只在天文暮光结束后显现；城市校园的光污染与月光都会显著洗淡银河。
         function getMilkyWayVisibility(sunH) {
-            // 天文暮光结束：太阳高度低于 -18°。在此之前严格为零，避免橙色黄昏叠出银河照片。
+            // 天文暮光结束：太阳高度低于 -18°。月圆时减弱银河，但不把它完全抹掉。
             const dark = THREE.MathUtils.smoothstep(-sunH, 0.31, 0.42);
-            const moonWash = getMoonIllumination() * 0.96;
+            const moonWash = getMoonIllumination() * 0.56;
             const weatherVisibility = weatherType === 'clear' ? 1 : (weatherType === 'fog' ? 0.08 : 0.015);
-            const campusLightPollution = 0.62;
+            const campusLightPollution = 0.82;
             return dark * (1 - moonWash) * weatherVisibility * campusLightPollution;
         }
         function clockToGameTime(hour, minute) {
