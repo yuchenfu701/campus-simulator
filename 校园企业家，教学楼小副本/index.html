@@ -773,6 +773,7 @@
     <script src="../js/OrbitControls.js"></script>
     <script src="../js/BufferGeometryUtils.js"></script>
     <script src="../js/campus-skyline.js?v=1"></script>
+    <script src="../js/campus-masonry.js?v=1"></script>
     <!-- 后处理：FXAA 抗锯齿 + 微量 Bloom -->
     <script src="../js/EffectComposer.js"></script>
     <script src="../js/RenderPass.js"></script>
@@ -4342,7 +4343,7 @@
             function addPl(cx, cy, cz, w, d, hex) {
                 const m = new THREE.Mesh(
                     new THREE.PlaneGeometry(w, d),
-                    new THREE.MeshLambertMaterial({ color: hex })
+                    hex === 0xcc5022 && window.campusTrackMaterial ? window.campusTrackMaterial(THREE, w, d) : new THREE.MeshLambertMaterial({ color: hex })
                 );
                 m.rotation.x = -Math.PI / 2;
                 m.position.set(cx, cy, cz);
@@ -4413,7 +4414,9 @@
             }
             function plane(x,y,z,w,d,col){
                 if (window._skipVisualMesh) return;
-                const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),campusMat(col, 1));
+                const mat = col === 0xcc5022 && window.campusTrackMaterial
+                    ? window.campusTrackMaterial(THREE, w, d) : campusMat(col, 1);
+                const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat);
                 m.rotation.x=-Math.PI/2; m.position.set(x,y,z); m.receiveShadow=true; m.castShadow=false; scene.add(m); return m;
             }
 
@@ -4484,7 +4487,7 @@
 
             const CX1=-150, CX2=150, CZ1=-78, CZ2=118; // 校园东西向放大 ±100→±150（给长排教学楼留地）
             const wallH=3.0, wallT=0.45;
-            const wallColor=0xe8e0d0, wallTopColor=0x3a6eb5;
+            const wallColor=0x8e908c, wallTopColor=0x505956;
 
             // 室外地面纹理（非教室）
             buildDetailTextures();
@@ -5452,7 +5455,7 @@
             // ── 校门（真实大门设计：宏伟石柱 + 铁艺门扇 + E键开关 + 碰撞箱） ──
             (function(){
                 const gZ = CZ2;         // Z=118 南围墙Z
-                const gH = 9.0;         // 主柱高度
+                const gH = 6.0;         // 主柱高度
                 const gGap = 14;        // 门洞宽（对应南围墙缺口 x=-7~7）
                 const halfW = gGap / 2; // 7.0
                 const pW = 2.4;         // 柱宽
@@ -5463,7 +5466,7 @@
                 [-1,1].forEach(function(side){
                     const px = side * (halfW + pW/2 - 0.3); // 与南围墙端部衔接
                     const pillar = new THREE.Mesh(new THREE.BoxGeometry(pW, gH, pT), pMat);
-                    pillar.position.set(px, gH/2, gZ); scene.add(pillar);
+                    pillar.position.set(px, gH/2, gZ); pillar._noMerge=true; scene.add(pillar);
                     pillar.bbox = new THREE.Box3().setFromObject(pillar); walls.push(pillar);
                     // 柱顶盖石
                     box(px, gH+0.38, gZ, pW+0.5, 0.75, pT+0.5, 0xb8a898);
@@ -5488,14 +5491,14 @@
                 const beamW = gGap + pW*2 - 0.6;
                 box(0, gH-0.6, gZ, beamW, 1.2, wallT+0.5, 0xccc0b0);
                 // 深色牌匾底板
-                box(0, gH-0.18, gZ+wallT*0.5+0.28, 7.2, 0.62, 0.12, 0x1a2c5a);
+                box(0, gH-0.6, gZ, 12, 0.84, 1.02, 0x253438);
                 // 金色牌匾面板
-                box(0, gH-0.18, gZ+wallT*0.5+0.35, 6.6, 0.44, 0.09, 0xe8c840);
+                // The school lettering sits on the beam, with no floating gold plate.
                 // 横梁底面装饰线条
                 box(0, gH-1.25, gZ, beamW*0.88, 0.12, wallT+0.3, 0xb8aa9a);
 
                 // 铁艺门扇（两扇，E键联动，关门时有碰撞屏障）
-                if(!window._skipVisualMesh){
+                {
                     const iMat=new THREE.MeshLambertMaterial({color:0x253348});
                     const sMat=new THREE.MeshLambertMaterial({color:0x1c2839});
                     const leafH = 2.3;  // 门叶高度（矮门，门上方敞开——不再像监狱铁栏）
@@ -5512,16 +5515,14 @@
                         const midR=new THREE.Mesh(new THREE.BoxGeometry(leafW,0.09,0.07),iMat);
                         midR.position.set(0, -leafH*0.35, 0); g.add(midR);
                         // 竖杆（间距约0.5m）
-                        const nV=Math.max(3, Math.round(leafW/0.92));
+                        const nV=Math.max(3, Math.round(leafW/0.32));
                         for(let i=0;i<nV;i++){
                             const bx=-leafW/2+(i+0.5)*(leafW/nV);
                             const vBar=new THREE.Mesh(new THREE.BoxGeometry(0.08,leafH,0.08),sMat);
                             vBar.position.set(bx,-leafH/2,0); g.add(vBar);
-                            // 矛尖
-                            const tip=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.38,4),iMat);
-                            tip.rotation.y=Math.PI/4;
-                            tip.position.set(bx,0.19,0); g.add(tip);
                         }
+                        // Animated leaves must stay out of the static map cache.
+                        g.traverse(function(o){ if(o.isMesh) o._noMerge=true; });
                         return g;
                     }
 
@@ -5935,33 +5936,7 @@
                 })();
 
                 // ③ 校门铭牌（Canvas纹理：深红底+金框+白字）
-                (function addGateSign(){
-                    var cv=document.createElement('canvas');
-                    cv.width=512; cv.height=96;
-                    var c=cv.getContext('2d');
-                    var gr=c.createLinearGradient(0,0,512,0);
-                    gr.addColorStop(0,'#6e0a0a'); gr.addColorStop(0.5,'#c41010'); gr.addColorStop(1,'#6e0a0a');
-                    c.fillStyle=gr; c.fillRect(0,0,512,96);
-                    // 双层金色边框
-                    c.strokeStyle='#e8c840'; c.lineWidth=4;
-                    c.strokeRect(5,5,502,86); c.strokeRect(10,10,492,76);
-                    // 白色校名文字
-                    c.fillStyle='#ffffff';
-                    c.font='bold 38px Arial,"Microsoft YaHei",sans-serif';
-                    c.textAlign='center'; c.textBaseline='middle';
-                    c.shadowColor='rgba(0,0,0,0.5)'; c.shadowBlur=4;
-                    c.fillText('爱哲安民未来学校',256,48);
-                    var tex=new THREE.CanvasTexture(cv);
-                    var GZSIGN=CAMPUS_LAYOUT.gate.z;
-                    var sGeo=new THREE.PlaneGeometry(11.6,0.48);
-                    // 南面（正对来访者方向）
-                    var sf=new THREE.Mesh(sGeo,new THREE.MeshBasicMaterial({map:tex,transparent:false}));
-                    sf.position.set(0,5.14,GZSIGN+0.32); sf._noMerge=true; scene.add(sf);
-                    // 北面
-                    var sb=new THREE.Mesh(sGeo,new THREE.MeshBasicMaterial({map:tex,side:THREE.BackSide}));
-                    sb.position.set(0,5.14,GZSIGN-0.32); sb._noMerge=true; scene.add(sb);
-                    console.log('🏫 校门铭牌已挂');
-                })();
+                // Gate lettering is rebuilt by campus-masonry on cached loads too.
 
                 // ④ 操场泛光灯×4（西侧2根+东侧2根，夜间亮灯）
                 (function addFieldFloodlights(){
@@ -6618,6 +6593,7 @@
 
             // 远景楼群含实例化窗格，不能从旧的合并几何体缓存还原；每次直接生成。
             addCitySkyline();
+            if (window.buildCampusMasonry) window.buildCampusMasonry(THREE, scene);
             if (skipMergedExtras) return;
 
             function makeTree(x, z, h, cr, cc) { addLowPolyTree(x, z, h, cr, cc); }
@@ -7567,7 +7543,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v130'; // v130：移除旧缓存中的白模远景楼体
+        const MAP_VER = 'campus_v131'; // v131：重建校门、围墙和地面材质缓存
 
         function _dbOpen(cb) {
             try {
@@ -7809,7 +7785,7 @@
                         sm.normalMap = detailNormal;
                         // 白墙/浅色面几乎不要法线（之前0.45在室内大平墙上呈"绗缝菱格"很假）；
                         // 沥青/砖/木保留微观凹凸
-                        const ns = isGreen ? 0.18 : (isDkMet ? 0.6 : (isLight ? 0.08 : 0.4));
+                        const ns = isGreen ? 0.025 : (isDkMet ? 0.04 : (isLight ? 0.015 : 0.035));
                         sm.normalScale = new THREE.Vector2(ns, ns);
                     }
                     sm.userData.baseEnv = useEnv ? 0.85 : 0;
@@ -7862,8 +7838,11 @@
                     if (isGreen && T.grassField) {
                         const tex = T.grassField.clone();
                         // 超大地面（700m）用大tiling；小地面用小tiling
-                        const sz = obj.geometry.parameters ? obj.geometry.parameters.width || 256 : 256;
-                        tex.repeat.set(Math.round(sz / 5), Math.round(sz / 5));
+                        const params = obj.geometry.parameters || {};
+                        const width = params.width || 256;
+                        const depth = params.height || width;
+                        tex.repeat.set(Math.max(1, width / 5), Math.max(1, depth / 5));
+                        tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
                         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
                         m.map = tex;
                         m.needsUpdate = true;
