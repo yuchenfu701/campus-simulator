@@ -1221,24 +1221,14 @@
             c.width = c.height = 256;
             const ctx = c.getContext('2d');
             const cx = 128, cy = 128;
-            const corona = ctx.createRadialGradient(cx, cy, 10, cx, cy, 126);
-            corona.addColorStop(0.00, 'rgba(255,255,245,1.00)');
-            corona.addColorStop(0.13, 'rgba(255,232,116,0.96)');
-            corona.addColorStop(0.28, 'rgba(255,160,44,0.56)');
-            corona.addColorStop(0.56, 'rgba(255,112,26,0.18)');
-            corona.addColorStop(1.00, 'rgba(255,112,26,0.00)');
-            ctx.fillStyle = corona;
-            ctx.fillRect(0, 0, 256, 256);
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.strokeStyle = 'rgba(255,222,120,0.34)';
-            ctx.lineWidth = 5;
-            for (let i = 0; i < 16; i++) {
-                const a = i / 16 * Math.PI * 2;
-                ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(a) * 34, cy + Math.sin(a) * 34);
-                ctx.lineTo(cx + Math.cos(a) * (84 + (i % 2) * 18), cy + Math.sin(a) * (84 + (i % 2) * 18));
-                ctx.stroke();
-            }
+            const corona = ctx.createRadialGradient(cx, cy, 0, cx, cy, 126);
+            corona.addColorStop(0, 'rgba(255,253,240,1)');
+            corona.addColorStop(0.16, 'rgba(255,253,240,1)');
+            corona.addColorStop(0.19, 'rgba(255,247,224,.65)');
+            corona.addColorStop(0.28, 'rgba(255,240,210,.14)');
+            corona.addColorStop(0.55, 'rgba(255,235,200,.025)');
+            corona.addColorStop(1, 'rgba(255,235,200,0)');
+            ctx.fillStyle=corona; ctx.fillRect(0,0,256,256);
             const tex = new THREE.CanvasTexture(c);
             tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
             if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
@@ -4167,14 +4157,6 @@
                 }
             }
             function addUrinalRow(x0,x1,z,yB){
-                const w = (x1 - x0 - 0.45) / 2;
-                if (w > 0.5) {
-                    // urinals.glb 原始包围盒约 2.0×1.57×0.38m，作为“一组小便池”使用。
-                    // 旧版只按高度等比放大，容易显得又高又窄；这里按真实墙挂高度和行宽分别钳制。
-                    urinals.push({x:x0+w/2, y:yB, z:z+0.18, ry:0, tw:w, th:1.36, td:0.72});
-                    urinals.push({x:x1-w/2, y:yB, z:z+0.18, ry:0, tw:w, th:1.36, td:0.72});
-                    return;
-                }
                 const ceramic=new THREE.MeshStandardMaterial({color:0xf4f6f5,roughness:0.34,metalness:0.0});
                 const insetMat=new THREE.MeshStandardMaterial({color:0xe4ecec,roughness:0.46,metalness:0.0});
                 const metal=new THREE.MeshStandardMaterial({color:0x9aa3a8,roughness:0.22,metalness:0.68});
@@ -4311,7 +4293,7 @@
             mergeToiletStaticMeshes();
             if (parts.length) { const pg = new THREE.BoxGeometry(DCUB, 1.9, 0.06); const im = new THREE.InstancedMesh(pg, partMat, parts.length); im._noMerge = true; im.castShadow = im.receiveShadow = true; const d = new THREE.Object3D(); parts.forEach(function (p, i) { d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.ry||0, 0); d.scale.set((p.len||DCUB)/DCUB, 1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.instanceMatrix.needsUpdate = true; scene.add(im); }
             if (loader) {
-                _loadFixture(loader, '../assets/models/urinals.glb', urinals, _TOILET_YAW.urinal, null, addUrinalRowFallback);
+                // Individual ceramic fixtures are generated above; avoid the distorted scan and its wooden backdrop.
                 // squat_toilet.glb 原始高度约1.9m，直接压成蹲坑会变成白色薄块；先使用稳定程序化蹲坑。
                 addSquatFixtures(squat);
                 _loadFixture(loader, '../assets/models/sink_row.glb', sink, _TOILET_YAW.sink);
@@ -6159,31 +6141,16 @@
                     transparent: true,
                     opacity: 0.98,
                     fog: false,
-                    depthTest: false,
+                    depthTest: true,
                     depthWrite: false,
+                    toneMapped: false,
                     blending: THREE.AdditiveBlending
                 })
             );
-            sunCoreMesh.scale.set(32, 32, 1);
+            sunCoreMesh.scale.set(1, 1, 1);
             sunCoreMesh.renderOrder = 6;
             sunCoreMesh._noMerge = true; // 不透明球体会被 mergeStaticMeshes 烘焙进缓存，下次加载再建新太阳 → 天上两颗黄球
             _sunVisual.add(sunCoreMesh);
-            _sunVisual.userData.coronaRings = [];
-            // ── 日冕光晕（叠加混合球壳，无 GPU 后处理）──
-            [[22, 0xffdd66, 0.28], [36, 0xffaa33, 0.13], [62, 0xff8822, 0.055]].forEach(([r, col, op]) => {
-                const cr = new THREE.Mesh(
-                    new THREE.SphereGeometry(r, 12, 8),
-                    new THREE.MeshBasicMaterial({
-                        color: col, transparent: true, opacity: op, fog: false,
-                        depthTest: false, depthWrite: false,
-                        blending: THREE.AdditiveBlending, side: THREE.FrontSide
-                    })
-                );
-                cr.renderOrder = 4;
-                cr._noMerge = true;
-                _sunVisual.add(cr);
-                _sunVisual.userData.coronaRings.push(cr);
-            });
             _sunVisual.visible = true;
             scene.add(_sunVisual);
 
@@ -7522,7 +7489,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v132'; // v132：无缝草地与分档太阳阴影
+        const MAP_VER = 'campus_v133'; // v133：走廊地砖比例与独立洁具
 
         function _dbOpen(cb) {
             try {
@@ -7917,6 +7884,12 @@
             floorMat._cacheTexKey='floor'; floorMat._cacheTexRX=2; floorMat._cacheTexRY=2;
             // 走廊地板：中灰哑光砖
             const cflT=T.corrFloor.clone(); cflT.wrapS=cflT.wrapT=THREE.RepeatWrapping; cflT.repeat.set(2,2);
+            function corridorFloorGeometry(w,h,d) {
+                const geo=new THREE.BoxGeometry(w,h,d), uv=geo.attributes.uv;
+                // Texture contains four tiles, repeated twice: eight 0.6m tiles per original UV unit.
+                for(let k=8;k<16;k++) uv.setXY(k,uv.getX(k)*w/4.8,uv.getY(k)*d/4.8);
+                return geo;
+            }
             const corrFloorMat = new THREE.MeshLambertMaterial({ color: 0x928a82, map: cflT }); // 走廊地略再深
             corrFloorMat._cacheTexKey='corrFloor'; corrFloorMat._cacheTexRX=2; corrFloorMat._cacheTexRY=2;
             const ceilMat   = new THREE.MeshLambertMaterial({ color: 0xd8d2c8 }); // 屋顶女儿墙等：灰米色
@@ -8196,7 +8169,7 @@
                 {
                     const corrW = slabW, corrD = BZ2-CORR_Z;
                     const corrSlab = new THREE.Mesh(
-                        new THREE.BoxGeometry(corrW, 0.014, corrD), corrFloorMat);
+                        corridorFloorGeometry(corrW, 0.014, corrD), corrFloorMat);
                     corrSlab.position.set(slabCX, slabY+ST/2+0.008, CORR_Z+corrD/2);
                     corrSlab.receiveShadow = true;
                     scene.add(corrSlab); walls.push(corrSlab);
@@ -8290,7 +8263,7 @@
 
             // 1F 走廊地面（与楼上同材质纹理，避免整块高亮纯色）
             if (!window._skipVisualMesh) {
-                const g0 = new THREE.BoxGeometry(slabW, 0.018, BZ2 - CORR_Z);
+                const g0 = corridorFloorGeometry(slabW, 0.018, BZ2 - CORR_Z);
                 const m0 = new THREE.Mesh(g0, corrFloorMat);
                 m0.position.set(slabCX, 0.009, CORR_Z + (BZ2 - CORR_Z) / 2);
                 m0.receiveShadow = true;
@@ -12077,7 +12050,8 @@
             _lastRenderedFrameTime = time;
 
             // 计算时间增量（以秒为单位）
-            const deltaTime = Math.min((time - lastTime) / 1000, 0.1); // 限制最大帧时间，防止大延迟
+            const elapsedTime = Math.max(0, (time - lastTime) / 1000);
+            const deltaTime = Math.min(elapsedTime, 0.1); // 限制最大帧时间，防止大延迟
             lastTime = time;
             _gameIdleT += deltaTime;
             _visualFrame++;
@@ -12086,8 +12060,8 @@
             updateFPS(time);
 
             if (!_freezeLaunchTime) {
-                gameTime = (gameTime + deltaTime / gameDayDurationSec) % 1;
-                totalSimulatedDays += deltaTime / gameDayDurationSec;
+                gameTime = (gameTime + elapsedTime / gameDayDurationSec) % 1;
+                totalSimulatedDays += elapsedTime / gameDayDurationSec;
             }
             _environmentAccum += deltaTime;
             if (_environmentAccum >= 0.10) {
@@ -13169,7 +13143,7 @@
                 _sunVisual.visible = sunH > -0.12;
                 if (camera) {
                     const d = _sunVisual.position.distanceTo(camera.position);
-                    const sc = THREE.MathUtils.clamp(d * 0.0112, 0.95, 2.45);
+                    const sc = d * 0.05; // compact disk with continuous halo, constant apparent size
                     _sunVisual.scale.setScalar(sc);
                 }
             }
@@ -13186,14 +13160,6 @@
             cold.lerp(warm, Math.min(1, wb * 0.82));
             _sunLight.color.copy(cold);
             _sunLight.intensity = dayFactor * 1.02 + 0.12;
-            // 日冕光晕强度：低日位（黄昏/黎明）最亮，正午略弱
-            if (_sunVisual && _sunVisual.userData.coronaRings && _sunVisual.userData.coronaRings.length) {
-                const horizonGlow = Math.max(0, 1 - Math.abs(sunH - 0.18) / 0.45); // 接近地平线时强
-                const baseOps = [0.28, 0.13, 0.055];
-                _sunVisual.userData.coronaRings.forEach((cr, i) => {
-                    if (cr.material) cr.material.opacity = baseOps[i] * (0.6 + horizonGlow * 0.6) * dayFactor;
-                });
-            }
             const indoorBoost = _isPlayerIndoors() ? 1 : 0;
             if (_hemiLight) {
                 _hemiLight.intensity = 0.06 + 0.24 * dayFactor + indoorBoost * (0.08 + (1 - dayFactor) * 0.08);
@@ -13265,7 +13231,8 @@
             }
         }
         function updateTimeHUD() {
-            const timeStr = gameTimeToClock(gameTime).text;
+            const seconds = Math.floor((((gameTime % 1) + 1) % 1) * 86400) % 60;
+            const timeStr = gameTimeToClock(gameTime).text + ':' + String(seconds).padStart(2, '0');
             const wtZh = { clear: '晴天', rain: '雨天', snow: '雪天', fog: '雾天' };
             const timeEl = document.getElementById('game-time-display');
             if (timeEl) timeEl.textContent = timeStr + '（' + (wtZh[weatherType] || weatherType) + '）';
