@@ -2115,19 +2115,21 @@
                     if (!dynamicLightsOn) light.intensity = 0;
                 });
             });
-            if (tier !== 'high') {
-                renderer.shadowMap.enabled = false;
-                if (_sunLight) _sunLight.castShadow = false;
-                if (window._petalInst) window._petalInst.visible = tier === 'medium';
-                if (window._birdInst) window._birdInst.visible = false;
-            } else {
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.needsUpdate = true;
-                if (_sunLight) {
-                    _sunLight.castShadow = true;
-                    if (_sunLight.shadow) _sunLight.shadow.mapSize.set(tier === 'high' ? 1024 : 512, tier === 'high' ? 1024 : 512);
+            // Medium retains local sunlight shadows; only software/low tier disables them.
+            const shadowsOn = tier !== 'low';
+            renderer.shadowMap.enabled = shadowsOn;
+            if (_sunLight) {
+                _sunLight.castShadow = shadowsOn;
+                const size = tier === 'high' ? 2048 : 1024;
+                if (_sunLight.shadow.mapSize.x !== size) {
+                    if (_sunLight.shadow.map) _sunLight.shadow.map.dispose();
+                    _sunLight.shadow.map = null;
+                    _sunLight.shadow.mapSize.set(size, size);
                 }
             }
+            renderer.shadowMap.needsUpdate = true;
+            if (window._petalInst) window._petalInst.visible = tier !== 'low';
+            if (window._birdInst) window._birdInst.visible = tier === 'high';
             if (_ppComposer && _ppComposer.setSize) _ppComposer.setSize(window.innerWidth, window.innerHeight);
             _gfxLastTierChange = performance.now();
             if (reason) console.log('⚙️ 画质档:', tier, 'DPR:', renderer.getPixelRatio().toFixed(2), '|', reason);
@@ -2155,22 +2157,7 @@
             } catch (e) { tier = isMobileUA ? 'medium' : 'high'; }
             window._gfxTier = tier;
             if (sunDirLight) _sunLight = sunDirLight;
-            if (tier === 'high') {
-                // 高档也遵守像素预算，避免高 DPI 屏幕把整张画面超采样到数倍面积。
-                renderer.setPixelRatio(_tierPixelRatioCap('high'));
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.needsUpdate = true;
-                if (sunDirLight && sunDirLight.shadow) {
-                    sunDirLight.castShadow = true;
-                    sunDirLight.shadow.mapSize.width  = 1024;
-                    sunDirLight.shadow.mapSize.height = 1024;
-                }
-            } else {
-                // 中低配：保持本档清晰度，只关闭实时阴影这种高耗特效。
-                renderer.setPixelRatio(_tierPixelRatioCap(tier));
-                renderer.shadowMap.enabled = false;
-                if (sunDirLight) { sunDirLight.castShadow = false; }
-            }
+            _applyGfxTier(tier);
             _gfxStartupGraceUntil = performance.now() + 7000;
             _gfxLastTierChange = performance.now();
             console.log('画质档:', tier, '| DPR:', renderer.getPixelRatio().toFixed(2), '| GPU:', window._gpuRendererName || 'unknown', '| 独显:', window._gpuIsDiscrete, '| 移动端:', isMobileUA);
@@ -2479,7 +2466,7 @@
             // 草地：Phong + 草地Canvas纹理（buildDetailTextures会懒加载）
             const _gT = buildDetailTextures();
             const _grassTex = _gT.grassField ? _gT.grassField.clone() : null;
-            if (_grassTex) { _grassTex.repeat.set(140, 140); _grassTex.wrapS = _grassTex.wrapT = THREE.RepeatWrapping; }
+            if (_grassTex) { _grassTex.repeat.set(700 / 3, 700 / 3); _grassTex.wrapS = _grassTex.wrapT = THREE.RepeatWrapping; }
             const groundMaterial = new THREE.MeshPhongMaterial({
                 color: 0x6a9e58, shininess: 2,
                 specular: new THREE.Color(0.01, 0.02, 0.01),
@@ -7091,32 +7078,24 @@
               t.wrapS=t.wrapT=THREE.RepeatWrapping;
               T.treeBark=t; }
 
-            // ── 10. 草地纹理（大地面 / 操场内场）──
-            { const cv=document.createElement('canvas'); cv.width=256; cv.height=256;
-              const c=cv.getContext('2d');
-              // 多层绿色底色
-              const g=c.createLinearGradient(0,0,256,256);
-              g.addColorStop(0,'#5d9848'); g.addColorStop(0.5,'#4e8a3a'); g.addColorStop(1,'#3e7830');
-              c.fillStyle=g; c.fillRect(0,0,256,256);
-              // 草丛色块（低频大变化）
-              for(let i=0;i<80;i++){
-                const gx=Math.random()*256, gy=Math.random()*256;
-                const gr=c.createRadialGradient(gx,gy,0,gx,gy,12+Math.random()*20);
-                const v=(Math.random()>0.5)?8:-8;
-                gr.addColorStop(0,`rgba(${20+v},${v>0?140:100},${10},0.18)`);
-                gr.addColorStop(1,'rgba(0,0,0,0)');
-                c.fillStyle=gr; c.fillRect(gx-25,gy-25,50,50);
+            // Seamless turf: periodic low-amplitude variation plus fine grass fibres.
+            // No diagonal gradient, so adjacent tiles share the same edge colours.
+            { const cv=document.createElement('canvas'); cv.width=cv.height=512;
+              const c=cv.getContext('2d'), img=c.createImageData(512,512);
+              let seed=4187;
+              for(let y=0;y<512;y++) for(let x=0;x<512;x++) {
+                seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+                const wave=2*Math.sin(x*Math.PI*2/512)*Math.cos(y*Math.PI*4/512);
+                const grain=((seed>>>16)/65535-.5)*14;
+                const i=(y*512+x)*4;
+                img.data[i]=74+wave+grain;
+                img.data[i+1]=94+wave+grain;
+                img.data[i+2]=48+wave+grain*.7;
+                img.data[i+3]=255;
               }
-              // 草叶纹（高频短笔画）
-              for(let i=0;i<2200;i++){
-                const x=Math.random()*256, y=Math.random()*256;
-                const h=2+Math.random()*7;
-                const gv=110+Math.floor(Math.random()*55);
-                c.strokeStyle=`rgba(${30+Math.floor(Math.random()*25)},${gv},${10+Math.floor(Math.random()*15)},0.35)`;
-                c.lineWidth=0.5+Math.random()*0.8;
-                c.beginPath(); c.moveTo(x,y); c.lineTo(x+(Math.random()*3-1.5),y-h); c.stroke();
-              }
-              const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; T.grassField=t; }
+              c.putImageData(img,0,0);
+              const t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding;
+              t.wrapS=t.wrapT=THREE.RepeatWrapping; T.grassField=t; }
 
             // ── 11. 预制混凝土面板外墙（中国校园典型外立面）──
             { const cv=document.createElement('canvas'); cv.width=512; cv.height=512;
@@ -7543,7 +7522,7 @@
         // ═══════════════════════════════════════════════════════════════════
         // ■ 地图缓存系统（IndexedDB）+ 几何体合并（核心性能优化）
         // ═══════════════════════════════════════════════════════════════════
-        const MAP_VER = 'campus_v131'; // v131：重建校门、围墙和地面材质缓存
+        const MAP_VER = 'campus_v132'; // v132：无缝草地与分档太阳阴影
 
         function _dbOpen(cb) {
             try {
@@ -7633,7 +7612,7 @@
                     const merged = (BGU.mergeGeometries || BGU.mergeBufferGeometries)(geos, false);
                     if (!merged) return;
                     const m = new THREE.Mesh(merged, mat);
-                    m.castShadow = window._gfxTier === 'high'; m.receiveShadow = true;
+                    m.castShadow = true; m.receiveShadow = true;
                     m._isMergedStatic = true;
                     m.matrixAutoUpdate = false; m.updateMatrix();
                     scene.add(m);
@@ -7841,16 +7820,22 @@
                         const params = obj.geometry.parameters || {};
                         const width = params.width || 256;
                         const depth = params.height || width;
-                        tex.repeat.set(Math.max(1, width / 5), Math.max(1, depth / 5));
+                        tex.repeat.set(Math.max(1, width / 3), Math.max(1, depth / 3));
                         tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
                         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
                         m.map = tex;
+                        m.color.setHex(0xffffff);
+                        m.normalMap = null;
+                        m.roughness = 1;
                         m.needsUpdate = true;
                     } else if (isConcrete && T.outdoorPlaza) {
                         const tex = T.outdoorPlaza.clone();
                         tex.repeat.set(8, 8);
                         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
                         m.map = tex;
+                        m.color.setHex(0xffffff);
+                        m.normalMap = null;
+                        m.roughness = 1;
                         m.needsUpdate = true;
                     }
                 });
@@ -7876,7 +7861,7 @@
                 }
                 const mat = new THREE.MeshLambertMaterial({ color: d.color, map });
                 const mesh = new THREE.Mesh(geo, mat);
-                mesh.castShadow = window._gfxTier === 'high'; mesh.receiveShadow = true;
+                mesh.castShadow = true; mesh.receiveShadow = true;
                 mesh._isMergedStatic = true;
                 mesh.matrixAutoUpdate = false; mesh.updateMatrix();
                 scene.add(mesh);
@@ -13211,11 +13196,11 @@
             }
             const indoorBoost = _isPlayerIndoors() ? 1 : 0;
             if (_hemiLight) {
-                _hemiLight.intensity = 0.06 + 0.34 * dayFactor + indoorBoost * (0.08 + (1 - dayFactor) * 0.08);
+                _hemiLight.intensity = 0.06 + 0.24 * dayFactor + indoorBoost * (0.08 + (1 - dayFactor) * 0.08);
                 _hemiLight.color.setHex(0x9eb8e0);
                 _hemiLight.groundColor.setHex(indoorBoost ? 0x8b8070 : (dayFactor > 0.08 ? 0xb8a080 : 0x1a2838));
             }
-            if (_ambientLight) _ambientLight.intensity = 0.028 + 0.095 * dayFactor + indoorBoost * (0.045 + (1 - dayFactor) * 0.055);
+            if (_ambientLight) _ambientLight.intensity = 0.028 + 0.045 * dayFactor + indoorBoost * (0.045 + (1 - dayFactor) * 0.055);
             if (_fillLight) _fillLight.intensity = 0.03 + (1 - dayFactor) * 0.055 + indoorBoost * (0.035 + (1 - dayFactor) * 0.035);
             const sunDiskUp = _sunVisual && _sunVisual.visible;
             const hour=(((gameTime%1)+1)%1)*24;
